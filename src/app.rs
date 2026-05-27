@@ -1,5 +1,7 @@
 use std::sync::Arc;
+use std::time::Duration;
 
+use endpoint_libs::libs::signal::wait_for_signals;
 use endpoint_libs::libs::toolbox::ArcToolbox;
 use endpoint_libs::libs::toolbox::Toolbox;
 use endpoint_libs::libs::ws::WebsocketServer;
@@ -7,6 +9,7 @@ use eyre::Result;
 use honey_id_types::HoneyIdClient;
 use honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage;
 use tokio::sync::RwLock;
+use tracing::warn;
 
 use crate::config::Config;
 use crate::db::tables::Tables;
@@ -35,7 +38,7 @@ pub struct App {
 impl App {
     pub async fn init(config: Config) -> Result<Self> {
         #[cfg(feature = "s3-sync")]
-        let db = Arc::new(Tables::new_with_s3(config.database.clone(), &config.s3).await?);
+        let db = Arc::new(Tables::new(config.database.clone(), &config.s3).await?);
 
         #[cfg(not(feature = "s3-sync"))]
         let db = Arc::new(Tables::new(config.database.clone()).await?);

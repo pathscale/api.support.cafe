@@ -4057,6 +4057,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "psc-nanoid",
+ "reqwest 0.12.28",
  "rkyv 0.8.16",
  "secrecy",
  "serde",

@@ -4,11 +4,12 @@ use clap::Parser;
 use config::{Config as CfgBuilder, Environment, File};
 use eyre::Result;
 
+use super::doppler_source::DopplerSource;
 use super::Config;
 
 #[derive(Parser)]
 struct CliArgs {
-    #[arg(short, long, env = "TG_SUPPORT_CONFIG")]
+    #[arg(short, long, env = "CAFE_CONFIG")]
     config: Option<PathBuf>,
 }
 
@@ -20,8 +21,13 @@ pub fn load() -> Result<Config> {
     if let Some(path) = &cli.config {
         builder = builder.add_source(File::from(path.clone()));
     }
+
+    if let Some(doppler) = DopplerSource::try_new()? {
+        builder = builder.add_source(doppler);
+    }
+
     builder = builder.add_source(
-        Environment::with_prefix("TG_SUPPORT")
+        Environment::with_prefix("CAFE")
             .separator("__")
             .prefix_separator("__")
             .try_parsing(true),
