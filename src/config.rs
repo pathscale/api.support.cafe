@@ -1,5 +1,5 @@
-mod loader;
 mod doppler_source;
+mod loader;
 
 use std::path::PathBuf;
 
@@ -19,7 +19,7 @@ pub struct Config {
     pub service: ServiceConfig,
     pub honey_id: HoneyIdConfig,
     #[cfg(feature = "s3-sync")]
-pub s3: S3Config,
+    pub s3: S3Config,
     #[cfg(feature = "acme")]
     pub acme: AcmeConfig,
 }
@@ -109,7 +109,7 @@ impl S3Config {
 #[derive(Clone, Debug, SmartDefault, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct AcmeConfig {
-    #[default("certs@support.cafe".to_string())]
+    #[default("certs@pathscale.com".to_string())]
     pub email: String,
     #[default("api.support.cafe".to_string())]
     pub domains: String,
