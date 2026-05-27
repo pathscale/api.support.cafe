@@ -4,8 +4,8 @@ use endpoint_libs::libs::toolbox::ArcToolbox;
 use endpoint_libs::libs::toolbox::Toolbox;
 use endpoint_libs::libs::ws::WebsocketServer;
 use eyre::Result;
-use honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage;
 use honey_id_types::HoneyIdClient;
+use honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage;
 use tokio::sync::RwLock;
 
 use crate::config::Config;
@@ -34,6 +34,10 @@ pub struct App {
 
 impl App {
     pub async fn init(config: Config) -> Result<Self> {
+        #[cfg(feature = "s3-sync")]
+        let db = Arc::new(Tables::new_with_s3(config.database.clone(), &config.s3).await?);
+
+        #[cfg(not(feature = "s3-sync"))]
         let db = Arc::new(Tables::new(config.database.clone()).await?);
         let toolbox = Toolbox::new();
         let bot_router = Arc::new(BotRouter::new(
@@ -44,7 +48,7 @@ impl App {
 
         let event_stream = bot_router.take_event_stream().await?;
         let event_router = Arc::new(SubscriptionRouter::new(
-            113,  // SubscribeEvents method code
+            113, // SubscribeEvents method code
             event_stream,
             toolbox.clone(),
         ));
@@ -79,13 +83,29 @@ impl App {
     }
 
     pub async fn run(self) -> Result<()> {
+        use tokio::signal::unix::{SignalKind, signal};
+
         let mut server = WebsocketServer::new(self.ctx.config.server.clone().into());
 
         self.register_handlers(&mut server);
 
-        server.listen().await?;
+        let mut sigterm = signal(SignalKind::terminate())?;
+        let mut sigint = signal(SignalKind::interrupt())?;
 
-        self.ctx.db.wait_for_ops().await;
+        tokio::select! {
+            _ = server.listen() => {},
+            _ = wait_for_signals(&mut sigterm, &mut sigint) => {}
+        };
+
+        // no matter if it was server issue or thread return signal, go with graceful termination procedure
+        tokio::select! {
+            _ = self.ctx.db.wait_for_ops() =>{
+                warn!("Gracefully terminated all threads");
+            },
+            _ = tokio::time::sleep(Duration::from_secs(15)) => {
+                std::process::exit(20);
+            }
+        };
 
         Ok(())
     }

@@ -17,6 +17,8 @@ pub struct Config {
     pub database: DatabaseConfig,
     pub service: ServiceConfig,
     pub honey_id: HoneyIdConfig,
+    #[cfg(feature = "s3-sync")]
+    pub s3: S3Config,
 }
 
 #[derive(Clone, Debug, SmartDefault, Deserialize)]
@@ -74,4 +76,27 @@ pub struct DatabaseConfig {
 pub struct ServiceConfig {
     #[default("default-platform-key".to_string())]
     pub platform_api_key: String,
+}
+
+#[cfg(feature = "s3-sync")]
+#[derive(Clone, Debug, SmartDefault, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct S3Config {
+    #[default("tg-support-db".to_string())]
+    pub bucket_name: String,
+    #[default("https://t3.storage.dev".to_string())]
+    pub endpoint: String,
+    pub access_key: Option<String>,
+    pub secret_key: Option<String>,
+    #[default("db".to_string())]
+    pub prefix: String,
+    #[default = 300]
+    pub sync_frequency_secs: u64,
+}
+
+#[cfg(feature = "s3-sync")]
+impl S3Config {
+    pub fn is_configured(&self) -> bool {
+        self.access_key.is_some() && self.secret_key.is_some()
+    }
 }

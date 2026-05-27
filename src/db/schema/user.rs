@@ -3,9 +3,11 @@ use honey_id_types::handlers::convenience_utils::user_management::{
     CreateUserInfo, DeleteUserInfo, UserStorage,
 };
 use honey_id_types::id_entities::UserPublicId;
-use uuid::Uuid;
 use worktable::prelude::*;
 use worktable::worktable;
+
+#[cfg(feature = "s3-sync")]
+use worktable::s3_sync_persistence;
 
 use crate::codegen::model::UserRole;
 use crate::db::util::PackedUserPubId;
@@ -31,6 +33,9 @@ worktable!(
         }
     }
 );
+
+#[cfg(feature = "s3-sync")]
+s3_sync_persistence!(UserWorkTable);
 
 impl UserRow {
     pub fn pub_id(&self) -> UserPublicId {
