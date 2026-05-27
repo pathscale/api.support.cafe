@@ -19,7 +19,9 @@ pub struct Config {
     pub service: ServiceConfig,
     pub honey_id: HoneyIdConfig,
     #[cfg(feature = "s3-sync")]
-    pub s3: S3Config,
+pub s3: S3Config,
+    #[cfg(feature = "acme")]
+    pub acme: AcmeConfig,
 }
 
 #[derive(Clone, Debug, SmartDefault, Deserialize)]
@@ -97,6 +99,60 @@ pub struct S3Config {
 
 #[cfg(feature = "s3-sync")]
 impl S3Config {
+    pub fn is_configured(&self) -> bool {
+        self.access_key.is_some() && self.secret_key.is_some()
+    }
+}
+
+/// ACME certificate provisioning configuration.
+#[cfg(feature = "acme")]
+#[derive(Clone, Debug, SmartDefault, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct AcmeConfig {
+    #[default("certs@support.cafe".to_string())]
+    pub email: String,
+    #[default("api.support.cafe".to_string())]
+    pub domains: String,
+    #[default(true)]
+    pub production: bool,
+    pub bunny_api_key: Option<String>,
+    #[cfg(feature = "cert-s3-sync")]
+    pub cert_s3: CertS3Config,
+}
+
+#[cfg(feature = "acme")]
+impl AcmeConfig {
+    pub fn is_enabled(&self) -> bool {
+        self.bunny_api_key.is_some()
+    }
+
+    pub fn domains_vec(&self) -> Vec<String> {
+        self.domains
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    }
+}
+
+/// S3 cert sync configuration for ACME.
+#[cfg(feature = "cert-s3-sync")]
+#[derive(Clone, Debug, SmartDefault, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct CertS3Config {
+    #[default("tg-support-db".to_string())]
+    pub bucket_name: String,
+    #[default("https://t3.storage.dev".to_string())]
+    pub endpoint: String,
+    pub access_key: Option<String>,
+    pub secret_key: Option<String>,
+    #[default("certs".to_string())]
+    pub prefix: String,
+    pub region: Option<String>,
+}
+
+#[cfg(feature = "cert-s3-sync")]
+impl CertS3Config {
     pub fn is_configured(&self) -> bool {
         self.access_key.is_some() && self.secret_key.is_some()
     }
