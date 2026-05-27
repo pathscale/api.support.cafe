@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci
+  cancel-in-progress: true
+
+jobs:
+  check-paths:
+    runs-on: ubicloud-standard-2
+    permissions:
+      contents: read
+    outputs:
+      deploy-needed: ${{ steps.check.outputs.deploy-needed }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Check which paths changed
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "deploy-needed=true" >> $GITHUB_OUTPUT
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD)
+            if echo "$CHANGED" | grep -qE '^(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|src/|fly\.dev\.toml|fly\.prod\.toml|Dockerfile\.ci|\.github/workflows/ci\.yml|\.github/workflows/prod\.yml)'; then
+              echo "deploy-needed=true" >> $GITHUB_OUTPUT
+            else
+              echo "deploy-needed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  fly-deploy:
+    needs: check-paths
+    if: |
+      !cancelled() &&
+      needs.check-paths.outputs.deploy-needed == 'true'
+    runs-on: ubicloud-standard-4
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version and image
+        run: |
+          VERSION=$(git rev-parse --short HEAD)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "FLY_REGISTRY=registry.fly.io" >> $GITHUB_ENV
+          echo "FLY_APP=support-cafe-master-fly" >> $GITHUB_ENV
+
+      - name: Cache apt
+        uses: ubicloud/cache@v4
+        with:
+          path: |
+            /var/cache/apt/archives/
+          key: apt-${{ runner.os }}
+          restore-keys: apt-
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y musl-dev musl-tools
+
+      - name: Fix apt cache permissions
+        run: sudo chmod -R 644 /var/cache/apt/archives/* && sudo chown -R $USER /var/cache/apt/archives
+
+      - name: Setup Rust toolchain
+        run: |
+          rustup default stable
+          rustup target add x86_64-unknown-linux-musl
+
+      - name: Cache cargo registry
+        uses: ubicloud/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/cache
+            ~/.cargo/registry/index
+            ~/.cargo/git
+          key: cargo-registry-1-${{ runner.os }}
+          restore-keys: cargo-registry-1-
+
+      - name: Setup cargo sweep
+        run: command -v cargo-sweep >/dev/null 2>&1 || cargo install cargo-sweep
+
+      - name: Cache target dependencies
+        uses: ubicloud/cache@v4
+        with:
+          path: |
+            /home/runner/target/release/deps
+            /home/runner/target/release/.fingerprint
+            /home/runner/target/release/build
+            /home/runner/target/x86_64-unknown-linux-musl/release/deps
+            /home/runner/target/x86_64-unknown-linux-musl/release/.fingerprint
+            /home/runner/target/x86_64-unknown-linux-musl/release/build
+          key: nf-target-muls-deps2-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/rust-toolchain.toml') }}
+          restore-keys: |
+            nf-target-muls-deps2-${{ runner.os }}
+
+      - name: Build musl amd64 binary
+        env:
+          CARGO_TARGET_DIR: /home/runner/target
+          CARGO_INCREMENTAL: "1"
+          WS_SERVER_NAME: SupportCafeServer/${{ github.run_number }}-${{ env.VERSION }}
+        run: |
+          cargo sweep --stamp
+          cargo build --release --locked --target x86_64-unknown-linux-musl --features s3-sync,acme,cert-s3-sync
+          cargo sweep --file
+
+      - name: Copy binary into build context
+        run: cp /home/runner/target/x86_64-unknown-linux-musl/release/support_cafe ./support_cafe
+
+      - name: Build image with Buildah
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: ${{ env.FLY_REGISTRY }}/${{ env.FLY_APP }}
+          tags: ${{ env.VERSION }} latest
+          base-image: scratch
+          content: ./support_cafe
+          entrypoint: /support_cafe
+
+      - name: Login to Fly registry
+        run: buildah login -u x -p "${{ secrets.FLY_TOKEN }}" ${{ env.FLY_REGISTRY }}
+
+      - name: Push image to Fly registry
+        run: |
+          buildah push --compression-format gzip --remove-signatures ${{ env.FLY_REGISTRY }}/${{ env.FLY_APP }}:${{ env.VERSION }}
+
+      - name: Setup flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@v1
+
+      - name: Deploy to Fly
+        run: flyctl deploy --config fly.dev.toml --detach --ha=false --image ${{ env.FLY_REGISTRY }}/${{ env.FLY_APP }}:${{ env.VERSION }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_TOKEN }}
