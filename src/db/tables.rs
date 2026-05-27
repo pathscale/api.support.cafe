@@ -9,12 +9,14 @@ use crate::db::schema::app_config::AppConfigWorkTable;
 use crate::db::schema::chat_session::ChatSessionWorkTable;
 use crate::db::schema::support_message::SupportMessageWorkTable;
 use crate::db::schema::support_user::SupportUserWorkTable;
+use crate::db::schema::user::UserWorkTable;
 
 use crate::db::schema::{
     app_config::AppConfigPersistenceEngine,
     chat_session::ChatSessionPersistenceEngine,
     support_message::SupportMessagePersistenceEngine,
     support_user::SupportUserPersistenceEngine,
+    user::UserPersistenceEngine,
 };
 
 #[derive(Debug)]
@@ -23,6 +25,7 @@ pub struct Tables {
     pub support_user_table: Arc<SupportUserWorkTable>,
     pub chat_session_table: Arc<ChatSessionWorkTable>,
     pub support_message_table: Arc<SupportMessageWorkTable>,
+    pub user_table: Arc<UserWorkTable>,
 }
 
 impl Tables {
@@ -45,12 +48,14 @@ impl Tables {
         let support_user_table = disk_load!(SupportUserPersistenceEngine, SupportUserWorkTable);
         let chat_session_table = disk_load!(ChatSessionPersistenceEngine, ChatSessionWorkTable);
         let support_message_table = disk_load!(SupportMessagePersistenceEngine, SupportMessageWorkTable);
+        let user_table = disk_load!(UserPersistenceEngine, UserWorkTable);
 
         Ok(Self {
             app_config_table,
             support_user_table,
             chat_session_table,
             support_message_table,
+            user_table,
         })
     }
 
@@ -59,5 +64,6 @@ impl Tables {
         self.support_user_table.wait_for_ops().await;
         self.chat_session_table.wait_for_ops().await;
         self.support_message_table.wait_for_ops().await;
+        self.user_table.wait_for_ops().await;
     }
 }

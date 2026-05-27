@@ -4,12 +4,14 @@ use endpoint_libs::libs::toolbox::ArcToolbox;
 use endpoint_libs::libs::toolbox::Toolbox;
 use endpoint_libs::libs::ws::WebsocketServer;
 use eyre::Result;
+use honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage;
+use honey_id_types::HoneyIdClient;
 use tokio::sync::RwLock;
 
 use crate::config::Config;
 use crate::db::tables::Tables;
 use crate::handlers;
-use crate::handlers::auth::register_auth_handlers;
+use crate::handlers::auth_api::register_auth_api_handlers;
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
 use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::bot_router::{BotRouter, ChatMessageEvent, SessionKey};
@@ -22,6 +24,8 @@ pub struct AppCtx {
     pub event_router: Arc<SubscriptionRouter<SessionKey, ChatMessageEvent>>,
     pub toolbox: ArcToolbox,
     pub log_level: Arc<RwLock<tracing::Level>>,
+    pub honey_id_client: Arc<HoneyIdClient>,
+    pub token_storage: Arc<TokenWorkTableStorage>,
 }
 
 pub struct App {
@@ -45,6 +49,9 @@ impl App {
             toolbox.clone(),
         ));
 
+        let honey_id_client = Arc::new(HoneyIdClient::new(config.honey_id.clone()));
+        let token_storage = Arc::new(TokenWorkTableStorage::default());
+
         let ctx = Arc::new(AppCtx {
             config: Arc::new(config),
             db,
@@ -53,13 +60,20 @@ impl App {
             event_router,
             toolbox,
             log_level: Arc::new(RwLock::new(tracing::Level::INFO)),
+            honey_id_client,
+            token_storage,
         });
 
         Ok(Self { ctx })
     }
 
     fn register_handlers(&self, server: &mut WebsocketServer) {
-        register_auth_handlers(server, &self.ctx);
+        register_auth_api_handlers(
+            server,
+            self.ctx.db.clone(),
+            self.ctx.token_storage.clone(),
+            self.ctx.honey_id_client.clone(),
+        );
         handlers::platform::register_handlers(server, &self.ctx);
         handlers::app::register_handlers(server, &self.ctx);
     }

@@ -21,12 +21,19 @@ struct ChatSession{ sessionId: Nanoid<16, Base62Alphabet>, appPublicId: Nanoid<1
 enum LogLevel { Trace, Debug, Info, Warn, Error }
 
 
-enum UserRole { Public, User, App }
+enum UserRole { Public, Admin, App, User, HoneyAuth }
 
 ```
 ---
 
         
+
+## authApi Server
+ID: 0
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|1|Init|`accessToken: String`|`userId: Nanoid<16, Base62Alphabet>`, `role: UserRole`, `version: String`||true|
 
 ## appConnect Server
 ID: 1

@@ -37,7 +37,7 @@ impl SubAuthController for MethodAppConnect {
 
             registry.register(conn_id, app_public_id).await;
 
-            conn.set_roles(Arc::new(vec![UserRole::User as u32]));
+            conn.set_roles(Arc::new(vec![UserRole::App as u32]));
 
             Ok(serde_json::to_value(AppConnectResponse {
                 app_public_id: app_public_id_nanoid,

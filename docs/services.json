@@ -42,20 +42,74 @@
             "value": 0
           },
           {
-            "description": "App user authenticated via app_public_id + user_public_id",
-            "name": "User",
+            "description": "Platform admin",
+            "name": "Admin",
             "value": 1
           },
           {
-            "description": "App backend authenticated",
+            "description": "App frontend connection",
             "name": "App",
             "value": 2
+          },
+          {
+            "description": "User authenticated via honey.id token",
+            "name": "User",
+            "value": 3
+          },
+          {
+            "description": "honey.id callback endpoints",
+            "name": "HoneyAuth",
+            "value": 6
           }
         ]
       }
     }
   ],
   "services": [
+    {
+      "endpoints": [
+        {
+          "code": 1,
+          "description": "",
+          "json_schema": null,
+          "name": "Init",
+          "parameters": [
+            {
+              "name": "accessToken",
+              "ty": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "userId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "role",
+              "ty": {
+                "EnumRef": {
+                  "name": "UserRole"
+                }
+              }
+            },
+            {
+              "name": "version",
+              "ty": "String"
+            }
+          ],
+          "roles": [
+            "UserRole::User"
+          ],
+          "stream_response": null
+        }
+      ],
+      "id": 0,
+      "name": "authApi"
+    },
     {
       "endpoints": [
         {
@@ -129,7 +183,7 @@
             }
           ],
           "roles": [
-            "UserRole::User"
+            "UserRole::App"
           ],
           "stream_response": null
         },
@@ -159,7 +213,7 @@
             }
           ],
           "roles": [
-            "UserRole::User"
+            "UserRole::App"
           ],
           "stream_response": null
         },
@@ -189,7 +243,7 @@
             }
           ],
           "roles": [
-            "UserRole::User"
+            "UserRole::App"
           ],
           "stream_response": null
         },
@@ -225,7 +279,7 @@
             }
           ],
           "roles": [
-            "UserRole::User"
+            "UserRole::App"
           ],
           "stream_response": {
             "StructTable": {
@@ -250,7 +304,7 @@
           ],
           "returns": [],
           "roles": [
-            "UserRole::User"
+            "UserRole::App"
           ],
           "stream_response": null
         },
@@ -271,7 +325,7 @@
             }
           ],
           "roles": [
-            "UserRole::User"
+            "UserRole::App"
           ],
           "stream_response": null
         }
