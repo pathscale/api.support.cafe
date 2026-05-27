@@ -4358,6 +4358,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
+name = "support_cafe"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cert-provider",
+ "chrono",
+ "clap",
+ "config",
+ "crossfire",
+ "derive_more 2.1.1",
+ "endpoint-libs",
+ "eyre",
+ "futures",
+ "honey_id-types",
+ "num-derive",
+ "num-traits",
+ "psc-nanoid",
+ "reqwest 0.12.28",
+ "rkyv 0.8.16",
+ "rustls",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "smart-default",
+ "strum",
+ "strum_macros",
+ "tgbot",
+ "tokio",
+ "tracing",
+ "url",
+ "uuid",
+ "worktable",
+]
+
+[[package]]
 name = "symlink"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4468,41 +4503,6 @@ dependencies = [
  "dirs-next",
  "rustversion",
  "winapi",
-]
-
-[[package]]
-name = "tg_support"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "cert-provider",
- "chrono",
- "clap",
- "config",
- "crossfire",
- "derive_more 2.1.1",
- "endpoint-libs",
- "eyre",
- "futures",
- "honey_id-types",
- "num-derive",
- "num-traits",
- "psc-nanoid",
- "reqwest 0.12.28",
- "rkyv 0.8.16",
- "rustls",
- "secrecy",
- "serde",
- "serde_json",
- "smart-default",
- "strum",
- "strum_macros",
- "tgbot",
- "tokio",
- "tracing",
- "url",
- "uuid",
- "worktable",
 ]
 
 [[package]]

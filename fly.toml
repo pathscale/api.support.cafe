@@ -1,0 +1,42 @@
+# fly.toml app configuration file generated for support-cafe-master-fly on 2026-05-27T20:52:01+03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'support-cafe-master-fly'
+primary_region = 'sin'
+kill_signal = 'SIGTERM'
+kill_timeout = '30s'
+
+[build]
+
+[deploy]
+  strategy = 'rolling'
+  max_unavailable = 1.0
+
+[env]
+  PORT = '8080'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 443
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 443
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 2
+  memory_mb = 512
