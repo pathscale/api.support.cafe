@@ -1,6 +1,9 @@
 use worktable::prelude::*;
 use worktable::worktable;
 
+#[cfg(feature = "s3-sync")]
+use worktable::s3_sync_persistence;
+
 use crate::id_types::PackedNanoId;
 
 worktable!(
@@ -21,3 +24,6 @@ worktable!(
         session_id_idx: session_id,
     }
 );
+
+#[cfg(feature = "s3-sync")]
+s3_sync_persistence!(SupportMessageWorkTable);
