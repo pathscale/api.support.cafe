@@ -66,10 +66,14 @@ pub enum LogLevel {
 pub enum UserRole {
     /// Unauthenticated
     Public = 0,
-    /// App user authenticated via app_public_id + user_public_id
-    User = 1,
-    /// App backend authenticated
+    /// Platform admin
+    Admin = 1,
+    /// App frontend connection
     App = 2,
+    /// User authenticated via honey.id token
+    User = 3,
+    /// honey.id callback endpoints
+    HoneyAuth = 6,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -120,6 +124,8 @@ pub struct ChatSession {
 )]
 pub enum EnumEndpoint {
     ///
+    Init = 1,
+    ///
     AppConnect = 100,
     ///
     CreateSession = 110,
@@ -138,6 +144,7 @@ pub enum EnumEndpoint {
 impl EnumEndpoint {
     pub fn schema(&self) -> endpoint_libs::model::EndpointSchema {
         let schema = match self {
+            Self::Init => InitRequest::SCHEMA,
             Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateSession => CreateSessionRequest::SCHEMA,
             Self::SendMessage => SendMessageRequest::SCHEMA,
@@ -212,6 +219,18 @@ pub struct CreateSessionResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct InitRequest {
+    pub access_token: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InitResponse {
+    pub user_id: Nanoid<16, Base62Alphabet>,
+    pub role: UserRole,
+    pub version: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ListMessagesRequest {
     pub session_id: Nanoid<16, Base62Alphabet>,
 }
@@ -250,6 +269,53 @@ pub struct SubscribeEventsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct SubscribeEventsResponse {
     pub data: Vec<ChatMessage>,
+}
+
+impl WsRequest for InitRequest {
+    type Response = InitResponse;
+    const METHOD_ID: u32 = 1;
+    const ROLES: &[u32] = &[3];
+    const SCHEMA: &'static str = r#"{
+  "name": "Init",
+  "code": 1,
+  "parameters": [
+    {
+      "name": "access_token",
+      "ty": "String"
+    }
+  ],
+  "returns": [
+    {
+      "name": "user_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "role",
+      "ty": {
+        "EnumRef": {
+          "name": "UserRole"
+        }
+      }
+    },
+    {
+      "name": "version",
+      "ty": "String"
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::User"
+  ]
+}"#;
+}
+impl WsResponse for InitResponse {
+    type Request = InitRequest;
 }
 
 impl WsRequest for AppConnectRequest {
@@ -308,7 +374,7 @@ impl WsResponse for AppConnectResponse {
 impl WsRequest for CreateSessionRequest {
     type Response = CreateSessionResponse;
     const METHOD_ID: u32 = 110;
-    const ROLES: &[u32] = &[1];
+    const ROLES: &[u32] = &[2];
     const SCHEMA: &'static str = r#"{
   "name": "CreateSession",
   "code": 110,
@@ -331,7 +397,7 @@ impl WsRequest for CreateSessionRequest {
   "description": "",
   "json_schema": null,
   "roles": [
-    "UserRole::User"
+    "UserRole::App"
   ]
 }"#;
 }
@@ -342,7 +408,7 @@ impl WsResponse for CreateSessionResponse {
 impl WsRequest for SendMessageRequest {
     type Response = SendMessageResponse;
     const METHOD_ID: u32 = 111;
-    const ROLES: &[u32] = &[1];
+    const ROLES: &[u32] = &[2];
     const SCHEMA: &'static str = r#"{
   "name": "SendMessage",
   "code": 111,
@@ -370,7 +436,7 @@ impl WsRequest for SendMessageRequest {
   "description": "",
   "json_schema": null,
   "roles": [
-    "UserRole::User"
+    "UserRole::App"
   ]
 }"#;
 }
@@ -381,7 +447,7 @@ impl WsResponse for SendMessageResponse {
 impl WsRequest for ListMessagesRequest {
     type Response = ListMessagesResponse;
     const METHOD_ID: u32 = 112;
-    const ROLES: &[u32] = &[1];
+    const ROLES: &[u32] = &[2];
     const SCHEMA: &'static str = r#"{
   "name": "ListMessages",
   "code": 112,
@@ -409,7 +475,7 @@ impl WsRequest for ListMessagesRequest {
   "description": "",
   "json_schema": null,
   "roles": [
-    "UserRole::User"
+    "UserRole::App"
   ]
 }"#;
 }
@@ -420,7 +486,7 @@ impl WsResponse for ListMessagesResponse {
 impl WsRequest for SubscribeEventsRequest {
     type Response = SubscribeEventsResponse;
     const METHOD_ID: u32 = 113;
-    const ROLES: &[u32] = &[1];
+    const ROLES: &[u32] = &[2];
     const SCHEMA: &'static str = r#"{
   "name": "SubscribeEvents",
   "code": 113,
@@ -458,7 +524,7 @@ impl WsRequest for SubscribeEventsRequest {
   "description": "",
   "json_schema": null,
   "roles": [
-    "UserRole::User"
+    "UserRole::App"
   ]
 }"#;
 }
@@ -469,7 +535,7 @@ impl WsResponse for SubscribeEventsResponse {
 impl WsRequest for CloseSessionRequest {
     type Response = CloseSessionResponse;
     const METHOD_ID: u32 = 114;
-    const ROLES: &[u32] = &[1];
+    const ROLES: &[u32] = &[2];
     const SCHEMA: &'static str = r#"{
   "name": "CloseSession",
   "code": 114,
@@ -488,7 +554,7 @@ impl WsRequest for CloseSessionRequest {
   "description": "",
   "json_schema": null,
   "roles": [
-    "UserRole::User"
+    "UserRole::App"
   ]
 }"#;
 }
@@ -499,7 +565,7 @@ impl WsResponse for CloseSessionResponse {
 impl WsRequest for ListSessionsRequest {
     type Response = ListSessionsResponse;
     const METHOD_ID: u32 = 115;
-    const ROLES: &[u32] = &[1];
+    const ROLES: &[u32] = &[2];
     const SCHEMA: &'static str = r#"{
   "name": "ListSessions",
   "code": 115,
@@ -518,7 +584,7 @@ impl WsRequest for ListSessionsRequest {
   "description": "",
   "json_schema": null,
   "roles": [
-    "UserRole::User"
+    "UserRole::App"
   ]
 }"#;
 }

@@ -17,7 +17,7 @@ Config(
                         Field(name: "session_id", ty: NanoId(len: 16)),
                         Field(name: "created_at", ty: TimeStampMs),
                     ],
-                    roles: ["UserRole::User"],
+                    roles: ["UserRole::App"],
                 ),
             ),
             EndpointSchemaElement(
@@ -32,7 +32,7 @@ Config(
                     returns: [
                         Field(name: "sent_at", ty: TimeStampMs),
                     ],
-                    roles: ["UserRole::User"],
+                    roles: ["UserRole::App"],
                 ),
             ),
             EndpointSchemaElement(
@@ -49,7 +49,7 @@ Config(
                             ty: StructTable(struct_ref: "ChatMessage"),
                         ),
                     ],
-                    roles: ["UserRole::User"],
+                    roles: ["UserRole::App"],
                 ),
             ),
             EndpointSchemaElement(
@@ -68,7 +68,7 @@ Config(
                         ),
                     ],
                     stream_response: Some(StructTable(struct_ref: "ChatMessage")),
-                    roles: ["UserRole::User"],
+                    roles: ["UserRole::App"],
                 ),
             ),
             EndpointSchemaElement(
@@ -80,7 +80,7 @@ Config(
                         Field(name: "session_id", ty: NanoId(len: 16)),
                     ],
                     returns: [],
-                    roles: ["UserRole::User"],
+                    roles: ["UserRole::App"],
                 ),
             ),
             EndpointSchemaElement(
@@ -95,7 +95,7 @@ Config(
                             ty: StructTable(struct_ref: "ChatSession"),
                         ),
                     ],
-                    roles: ["UserRole::User"],
+                    roles: ["UserRole::App"],
                 ),
             ),
         ],

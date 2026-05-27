@@ -3,6 +3,7 @@ mod loader;
 use std::path::PathBuf;
 
 use endpoint_libs::libs::ws::WsServerConfig;
+use honey_id_types::HoneyIdConfig;
 use serde::Deserialize;
 use smart_default::SmartDefault;
 
@@ -15,6 +16,7 @@ pub struct Config {
     pub server: ServerConfig,
     pub database: DatabaseConfig,
     pub service: ServiceConfig,
+    pub honey_id: HoneyIdConfig,
 }
 
 #[derive(Clone, Debug, SmartDefault, Deserialize)]

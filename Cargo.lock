@@ -1663,6 +1663,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "honey_id-types"
+version = "1.11.2"
+dependencies = [
+ "async-trait",
+ "derive_more 2.1.1",
+ "endpoint-libs",
+ "eyre",
+ "futures",
+ "num-derive",
+ "num-traits",
+ "psc-nanoid",
+ "rkyv 0.8.16",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "smart-default",
+ "smart-serde-default",
+ "strum",
+ "strum_macros",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "url",
+ "uuid",
+ "worktable",
+]
+
+[[package]]
 name = "http"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3444,6 +3472,7 @@ version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
 dependencies = [
+ "serde",
  "zeroize",
 ]
 
@@ -3718,6 +3747,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "smart-serde-default"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce503b819c7518c64f2b4b056a17fb6f26592bbf93a68f3158536fb20f90b21b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "socket2"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3892,6 +3932,7 @@ dependencies = [
  "endpoint-libs",
  "eyre",
  "futures",
+ "honey_id-types",
  "num-derive",
  "num-traits",
  "psc-nanoid",
@@ -4437,6 +4478,7 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
+ "serde_derive",
 ]
 
 [[package]]

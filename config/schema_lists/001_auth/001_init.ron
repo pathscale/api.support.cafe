@@ -1,0 +1,28 @@
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+
+Config(
+    definition: EndpointSchemaList(
+        service_name: "authApi",
+        service_id: 0,
+        config: (snake_case_fields: true),
+        endpoints: [
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "Init",
+                    code: 1,
+                    parameters: [
+                        Field(name: "access_token", ty: String),
+                    ],
+                    returns: [
+                        Field(name: "user_id", ty: NanoId(len: 16)),
+                        Field(name: "role", ty: EnumRef(name: "UserRole")),
+                        Field(name: "version", ty: String),
+                    ],
+                    roles: ["UserRole::User"],
+                ),
+            ),
+        ],
+    ),
+)
