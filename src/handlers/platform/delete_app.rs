@@ -23,9 +23,8 @@ impl RequestHandler for MethodDeleteApp {
         _ctx: RequestContext,
         req: Self::Request,
     ) -> Response<Self::Request> {
-        let packed_pub_id: PackedNanoId = PackedNanoId::pack(&req.app_public_id)
-            .map_err(|e| eyre::eyre!("Pack error: {e}"))?;
-        let app_public_id: AppPublicId = packed_pub_id.into();
+        let app_public_id: AppPublicId = req.app_public_id.into();
+        let packed_pub_id: PackedNanoId = app_public_id.pack()?;
         self.bot_router.unregister_bot(app_public_id).await;
         self.app_config_table
             .delete_by_public_id(packed_pub_id)

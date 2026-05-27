@@ -31,9 +31,8 @@ impl RequestHandler for MethodCreateApp {
 
         let nanoid: Nanoid<16, Base62Alphabet> = req.app_public_id.to_string().parse()
             .map_err(|e| eyre::eyre!("Invalid app_public_id: {e}"))?;
-        let packed_pub_id: PackedNanoId = PackedNanoId::pack(&nanoid)
-            .map_err(|e| eyre::eyre!("Failed to pack public ID: {e}"))?;
-        let app_public_id: AppPublicId = packed_pub_id.into();
+        let app_public_id: AppPublicId = nanoid.into();
+        let packed_pub_id: PackedNanoId = app_public_id.pack()?;
 
         let row = AppConfigRow {
             id: self.app_config_table.get_next_pk().into(),

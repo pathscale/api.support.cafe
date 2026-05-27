@@ -7,7 +7,7 @@ use worktable::prelude::SelectQueryExecutor;
 
 use crate::codegen::model::{ListSupportUsersRequest, ListSupportUsersResponse, SupportUser};
 use crate::db::schema::support_user::SupportUserWorkTable;
-use crate::id_types::PackedNanoId;
+use crate::id_types::{AppPublicId, PackedNanoId};
 
 pub struct MethodListSupportUsers {
     pub support_user_table: Arc<SupportUserWorkTable>,
@@ -22,8 +22,8 @@ impl RequestHandler for MethodListSupportUsers {
         _ctx: RequestContext,
         req: Self::Request,
     ) -> Response<Self::Request> {
-        let packed_pub_id: PackedNanoId = PackedNanoId::pack(&req.app_public_id)
-            .map_err(|e| eyre::eyre!("Pack error: {e}"))?;
+        let app_public_id: AppPublicId = req.app_public_id.into();
+        let packed_pub_id: PackedNanoId = app_public_id.pack()?;
         let rows = self.support_user_table.select_by_app_public_id(packed_pub_id).execute()?;
         let data: Vec<SupportUser> = rows.into_iter().map(|r| SupportUser {
             id: r.id,

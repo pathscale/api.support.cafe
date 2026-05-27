@@ -29,7 +29,7 @@ impl RequestHandler for MethodListSessions {
             .await
             .ok_or_else(|| eyre::eyre!("Connection not authenticated as app"))?;
 
-        let app_public_id_packed: PackedNanoId = app_public_id.into();
+        let app_public_id_packed: PackedNanoId = app_public_id.pack()?;
 
         let rows = self.chat_session_table.select_all().execute()?;
         let data: Vec<ChatSession> = rows

@@ -6,6 +6,7 @@ use crate::id_types::AppPublicId;
 
 pub type ConnectionId = u32;
 
+// TODO: remove when elibs will be capable to have xustome context.
 pub struct AppConnectionRegistry {
     connections: RwLock<HashMap<ConnectionId, AppPublicId>>,
 }
