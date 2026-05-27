@@ -1,0 +1,103 @@
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+
+Config(
+    definition: EndpointSchemaList(
+        service_name: "appAdminApi",
+        service_id: 3,
+        config: (snake_case_fields: true),
+        endpoints: [
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "CreateApp",
+                    code: 30000,
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "tg_bot_token", ty: String),
+                        Field(name: "app_name", ty: Optional(String)),
+                    ],
+                    returns: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "api_key", ty: String),
+                        Field(name: "created_at", ty: TimeStampMs),
+                    ],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "EditApp",
+                    code: 30001,
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "tg_bot_token", ty: Optional(String)),
+                        Field(name: "app_name", ty: Optional(String)),
+                        Field(name: "active", ty: Optional(Boolean)),
+                    ],
+                    returns: [],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "ListApps",
+                    code: 30002,
+                    parameters: [],
+                    returns: [
+                        Field(
+                            name: "data",
+                            ty: StructTable(struct_ref: "AppConfig"),
+                        ),
+                    ],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "AddSupportUser",
+                    code: 30003,
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "tg_handle", ty: String),
+                    ],
+                    returns: [],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "ListSupportUsers",
+                    code: 30004,
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                    ],
+                    returns: [
+                        Field(
+                            name: "data",
+                            ty: StructTable(struct_ref: "SupportUser"),
+                        ),
+                    ],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "RemoveSupportUser",
+                    code: 30005,
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "tg_handle", ty: String),
+                    ],
+                    returns: [],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin"],
+                ),
+            ),
+        ],
+    ),
+)

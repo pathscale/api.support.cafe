@@ -57,6 +57,11 @@
             "value": 3
           },
           {
+            "description": "App admin authenticated via honey.id Init",
+            "name": "AppAdmin",
+            "value": 4
+          },
+          {
             "description": "honey.id callback endpoints",
             "name": "HoneyAuth",
             "value": 6
@@ -69,7 +74,7 @@
     {
       "endpoints": [
         {
-          "code": 1,
+          "code": 10000,
           "description": "",
           "json_schema": null,
           "name": "Init",
@@ -107,13 +112,13 @@
           "stream_response": null
         }
       ],
-      "id": 0,
+      "id": 1,
       "name": "authApi"
     },
     {
       "endpoints": [
         {
-          "code": 100,
+          "code": 20000,
           "description": "",
           "json_schema": null,
           "name": "AppConnect",
@@ -157,13 +162,13 @@
           "stream_response": null
         }
       ],
-      "id": 1,
+      "id": 2,
       "name": "appConnect"
     },
     {
       "endpoints": [
         {
-          "code": 110,
+          "code": 20001,
           "description": "",
           "json_schema": null,
           "name": "CreateSession",
@@ -188,7 +193,7 @@
           "stream_response": null
         },
         {
-          "code": 111,
+          "code": 20002,
           "description": "",
           "json_schema": null,
           "name": "SendMessage",
@@ -218,7 +223,7 @@
           "stream_response": null
         },
         {
-          "code": 112,
+          "code": 20003,
           "description": "",
           "json_schema": null,
           "name": "ListMessages",
@@ -248,7 +253,7 @@
           "stream_response": null
         },
         {
-          "code": 113,
+          "code": 20004,
           "description": "",
           "json_schema": null,
           "name": "SubscribeEvents",
@@ -288,7 +293,7 @@
           }
         },
         {
-          "code": 114,
+          "code": 20005,
           "description": "",
           "json_schema": null,
           "name": "CloseSession",
@@ -309,7 +314,7 @@
           "stream_response": null
         },
         {
-          "code": 115,
+          "code": 20006,
           "description": "",
           "json_schema": null,
           "name": "ListSessions",
@@ -332,6 +337,254 @@
       ],
       "id": 2,
       "name": "appApi"
+    },
+    {
+      "endpoints": [
+        {
+          "code": 30000,
+          "description": "",
+          "json_schema": null,
+          "name": "CreateApp",
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "tgBotToken",
+              "ty": "String"
+            },
+            {
+              "name": "appName",
+              "ty": {
+                "Optional": "String"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "apiKey",
+              "ty": "String"
+            },
+            {
+              "name": "createdAt",
+              "ty": "TimeStampMs"
+            }
+          ],
+          "roles": [
+            "UserRole::Admin",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 30001,
+          "description": "",
+          "json_schema": null,
+          "name": "EditApp",
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "tgBotToken",
+              "ty": {
+                "Optional": "String"
+              }
+            },
+            {
+              "name": "appName",
+              "ty": {
+                "Optional": "String"
+              }
+            },
+            {
+              "name": "active",
+              "ty": {
+                "Optional": "Boolean"
+              }
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::Admin",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 30002,
+          "description": "",
+          "json_schema": null,
+          "name": "ListApps",
+          "parameters": [],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "AppConfig"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::Admin",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 30003,
+          "description": "",
+          "json_schema": null,
+          "name": "AddSupportUser",
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "tgHandle",
+              "ty": "String"
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::Admin",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 30004,
+          "description": "",
+          "json_schema": null,
+          "name": "ListSupportUsers",
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "SupportUser"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::Admin",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 30005,
+          "description": "",
+          "json_schema": null,
+          "name": "RemoveSupportUser",
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "tgHandle",
+              "ty": "String"
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::Admin",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        }
+      ],
+      "id": 3,
+      "name": "appAdminApi"
+    },
+    {
+      "endpoints": [
+        {
+          "code": 40000,
+          "description": "",
+          "json_schema": null,
+          "name": "DeleteApp",
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::Admin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 40001,
+          "description": "",
+          "json_schema": null,
+          "name": "SetLogLevel",
+          "parameters": [
+            {
+              "name": "level",
+              "ty": {
+                "EnumRef": {
+                  "name": "LogLevel"
+                }
+              }
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::Admin"
+          ],
+          "stream_response": null
+        }
+      ],
+      "id": 4,
+      "name": "adminApi"
     }
   ],
   "structs": [
@@ -430,6 +683,39 @@
           }
         ],
         "name": "ChatSession"
+      }
+    },
+    {
+      "Struct": {
+        "fields": [
+          {
+            "name": "id",
+            "ty": "Int64"
+          },
+          {
+            "name": "appPublicId",
+            "ty": {
+              "NanoId": {
+                "len": 16
+              }
+            }
+          },
+          {
+            "name": "tgHandle",
+            "ty": "String"
+          },
+          {
+            "name": "chatId",
+            "ty": {
+              "Optional": "Int64"
+            }
+          },
+          {
+            "name": "isActive",
+            "ty": "Boolean"
+          }
+        ],
+        "name": "SupportUser"
       }
     }
   ]

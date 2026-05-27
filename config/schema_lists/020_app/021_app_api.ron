@@ -11,7 +11,7 @@ Config(
                 frontend_facing: true,
                 schema: (
                     name: "CreateSession",
-                    code: 110,
+                    code: 20001,
                     parameters: [],
                     returns: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
@@ -24,7 +24,7 @@ Config(
                 frontend_facing: true,
                 schema: (
                     name: "SendMessage",
-                    code: 111,
+                    code: 20002,
                     parameters: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
                         Field(name: "content", ty: String),
@@ -39,7 +39,7 @@ Config(
                 frontend_facing: true,
                 schema: (
                     name: "ListMessages",
-                    code: 112,
+                    code: 20003,
                     parameters: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
                     ],
@@ -56,7 +56,7 @@ Config(
                 frontend_facing: true,
                 schema: (
                     name: "SubscribeEvents",
-                    code: 113,
+                    code: 20004,
                     parameters: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
                         Field(name: "unsub", ty: Optional(Boolean)),
@@ -75,7 +75,7 @@ Config(
                 frontend_facing: true,
                 schema: (
                     name: "CloseSession",
-                    code: 114,
+                    code: 20005,
                     parameters: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
                     ],
@@ -87,7 +87,7 @@ Config(
                 frontend_facing: true,
                 schema: (
                     name: "ListSessions",
-                    code: 115,
+                    code: 20006,
                     parameters: [],
                     returns: [
                         Field(

@@ -81,7 +81,8 @@ impl App {
             self.ctx.token_storage.clone(),
             self.ctx.honey_id_client.clone(),
         );
-        handlers::platform::register_handlers(server, &self.ctx);
+        handlers::admin::register_handlers(server, &self.ctx);
+        handlers::app_admin::register_handlers(server, &self.ctx);
         handlers::app::register_handlers(server, &self.ctx);
     }
 

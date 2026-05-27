@@ -40,6 +40,18 @@ Config(
                     ],
                 ),
             ),
+            StructElement(
+                inner: Struct(
+                    name: "SupportUser",
+                    fields: [
+                        Field(name: "id", ty: Int64),
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "tg_handle", ty: String),
+                        Field(name: "chat_id", ty: Optional(Int64)),
+                        Field(name: "is_active", ty: Boolean),
+                    ],
+                ),
+            ),
         ],
     ),
 )

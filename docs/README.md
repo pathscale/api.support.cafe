@@ -12,6 +12,9 @@ struct ChatMessage{ incoming: bool, sentAt: i64, content: String }
 
 struct ChatSession{ sessionId: Nanoid<16, Base62Alphabet>, appPublicId: Nanoid<16, Base62Alphabet>, userPubId: Nanoid<16, Base62Alphabet>, createdAt: i64, closedAt: Option<i64> }
 
+
+struct SupportUser{ id: i64, appPublicId: Nanoid<16, Base62Alphabet>, tgHandle: String, chatId: Option<i64>, isActive: bool }
+
 ```
 ---
 
@@ -21,7 +24,7 @@ struct ChatSession{ sessionId: Nanoid<16, Base62Alphabet>, appPublicId: Nanoid<1
 enum LogLevel { Trace, Debug, Info, Warn, Error }
 
 
-enum UserRole { Public, Admin, App, User, HoneyAuth }
+enum UserRole { Public, Admin, App, User, AppAdmin, HoneyAuth }
 
 ```
 ---
@@ -29,27 +32,47 @@ enum UserRole { Public, Admin, App, User, HoneyAuth }
         
 
 ## authApi Server
-ID: 0
-### Endpoints
-|Code|Name|Parameters|Response|Description|FE Facing|
-|-----------|-----------|----------|--------|-----------|-----------|
-|1|Init|`accessToken: String`|`userId: Nanoid<16, Base62Alphabet>`, `role: UserRole`, `version: String`||true|
-
-## appConnect Server
 ID: 1
 ### Endpoints
 |Code|Name|Parameters|Response|Description|FE Facing|
 |-----------|-----------|----------|--------|-----------|-----------|
-|100|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
+|10000|Init|`accessToken: String`|`userId: Nanoid<16, Base62Alphabet>`, `role: UserRole`, `version: String`||true|
+
+## appConnect Server
+ID: 2
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
 
 ## appApi Server
 ID: 2
 ### Endpoints
 |Code|Name|Parameters|Response|Description|FE Facing|
 |-----------|-----------|----------|--------|-----------|-----------|
-|110|CreateSession||`sessionId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`||true|
-|111|SendMessage|`sessionId: Nanoid<16, Base62Alphabet>`, `content: String`|`sentAt: i64`||true|
-|112|ListMessages|`sessionId: Nanoid<16, Base62Alphabet>`|`data: Vec<ChatMessage>`||true|
-|113|SubscribeEvents|`sessionId: Nanoid<16, Base62Alphabet>`, `unsub: Option<bool>`|`data: Vec<ChatMessage>`||true|
-|114|CloseSession|`sessionId: Nanoid<16, Base62Alphabet>`|||true|
-|115|ListSessions||`data: Vec<ChatSession>`||true|
+|20001|CreateSession||`sessionId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`||true|
+|20002|SendMessage|`sessionId: Nanoid<16, Base62Alphabet>`, `content: String`|`sentAt: i64`||true|
+|20003|ListMessages|`sessionId: Nanoid<16, Base62Alphabet>`|`data: Vec<ChatMessage>`||true|
+|20004|SubscribeEvents|`sessionId: Nanoid<16, Base62Alphabet>`, `unsub: Option<bool>`|`data: Vec<ChatMessage>`||true|
+|20005|CloseSession|`sessionId: Nanoid<16, Base62Alphabet>`|||true|
+|20006|ListSessions||`data: Vec<ChatSession>`||true|
+
+## appAdminApi Server
+ID: 3
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|30000|CreateApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgBotToken: String`, `appName: Option<String>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `apiKey: String`, `createdAt: i64`||true|
+|30001|EditApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgBotToken: Option<String>`, `appName: Option<String>`, `active: Option<bool>`|||true|
+|30002|ListApps||`data: Vec<AppConfig>`||true|
+|30003|AddSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgHandle: String`|||true|
+|30004|ListSupportUsers|`appPublicId: Nanoid<16, Base62Alphabet>`|`data: Vec<SupportUser>`||true|
+|30005|RemoveSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgHandle: String`|||true|
+
+## adminApi Server
+ID: 4
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|40000|DeleteApp|`appPublicId: Nanoid<16, Base62Alphabet>`|||true|
+|40001|SetLogLevel|`level: LogLevel`|||true|

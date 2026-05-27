@@ -30,6 +30,11 @@ Config(
                             description: "User authenticated via honey.id token",
                         ),
                         EnumVariant(
+                            name: "AppAdmin",
+                            value: 4,
+                            description: "App admin authenticated via honey.id Init",
+                        ),
+                        EnumVariant(
                             name: "HoneyAuth",
                             value: 6,
                             description: "honey.id callback endpoints",

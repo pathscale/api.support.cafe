@@ -26,7 +26,7 @@ impl RequestHandler for MethodListSupportUsers {
         let packed_pub_id: PackedNanoId = app_public_id.pack()?;
         let rows = self.support_user_table.select_by_app_public_id(packed_pub_id).execute()?;
         let data: Vec<SupportUser> = rows.into_iter().map(|r| SupportUser {
-            id: r.id,
+            id: r.id as i64,
             app_public_id: r.app_public_id.unpack().expect("valid packed nanoid"),
             tg_handle: r.tg_handle,
             chat_id: r.chat_id,
