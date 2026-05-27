@@ -7,7 +7,7 @@ use worktable::prelude::SelectQueryExecutor;
 
 use crate::codegen::model::{ChatMessage, ListMessagesRequest, ListMessagesResponse};
 use crate::db::schema::support_message::SupportMessageWorkTable;
-use crate::id_types::PackedNanoId;
+use crate::id_types::{PackedNanoId, SessionId};
 
 pub struct MethodListMessages {
     pub support_message_table: Arc<SupportMessageWorkTable>,
@@ -22,8 +22,8 @@ impl RequestHandler for MethodListMessages {
         _ctx: RequestContext,
         req: Self::Request,
     ) -> Response<Self::Request> {
-        let packed_session_id: PackedNanoId = PackedNanoId::pack(&req.session_id)
-            .map_err(|e| eyre::eyre!("Failed to pack session_id: {e}"))?;
+        let session_id: SessionId = req.session_id.into();
+        let packed_session_id: PackedNanoId = session_id.pack()?;
         let all_msgs = self.support_message_table.select_all().execute()?;
         let data: Vec<ChatMessage> = all_msgs
             .into_iter()

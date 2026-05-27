@@ -40,10 +40,8 @@ fn serialize_session_id<S>(id: &SessionId, serializer: S) -> Result<S::Ok, S::Er
 where
     S: serde::Serializer,
 {
-    id.0.unpack()
-        .map(|n| n.to_string())
-        .unwrap_or_default()
-        .serialize(serializer)
+    let nanoid: crate::id_types::NanoId = (*id).into();
+    nanoid.to_string().serialize(serializer)
 }
 
 pub struct BotRouter {
@@ -118,7 +116,7 @@ impl BotRouter {
         // Find support users for this app
         let all_users = self.support_user_table.select_all().execute()
             .map_err(|e| eyre::eyre!("DB error: {e}"))?;
-        let app_public_id_packed: PackedNanoId = app_public_id.into();
+        let app_public_id_packed: PackedNanoId = app_public_id.pack()?;
         let supports: Vec<_> = all_users
             .into_iter()
             .filter(|r| r.app_public_id == app_public_id_packed)
@@ -126,10 +124,11 @@ impl BotRouter {
             .collect();
 
         let sent_at = Utc::now().timestamp_millis();
-        let session_id_str = session_id.0.unpack().map(|n| n.to_string()).unwrap_or_default();
+        let nanoid: crate::id_types::NanoId = session_id.into();
+        let session_id_str = nanoid.to_string();
         let msg_prefix = format!("{session_id_str}\nfrom: {sender_name}\n");
 
-        let session_id_packed: PackedNanoId = session_id.into();
+        let session_id_packed: PackedNanoId = session_id.pack()?;
 
         for chat_id in supports {
             self.support_message_table
@@ -244,8 +243,14 @@ impl UpdateHandler for BotUpdateHandler {
                         self.try_send_msg(chat_id, "Session not found".to_string()).await;
                         return;
                     };
-                    let session_id: SessionId = first_msg.session_id.into();
-                    let app_public_id: AppPublicId = first_msg.app_public_id.into();
+                    let Ok(session_id) = SessionId::from_packed(first_msg.session_id) else {
+                        self.try_send_msg(chat_id, "Invalid session ID".to_string()).await;
+                        return;
+                    };
+                    let Ok(app_public_id) = AppPublicId::from_packed(first_msg.app_public_id) else {
+                        self.try_send_msg(chat_id, "Invalid app ID".to_string()).await;
+                        return;
+                    };
 
                     let Some(reply_txt) = message.get_text() else {
                         self.try_send_msg(chat_id, "Error fetching reply text".to_string()).await;
@@ -254,10 +259,20 @@ impl UpdateHandler for BotUpdateHandler {
 
                     let sent_at = Utc::now().timestamp_millis();
 
+                    let Ok(packed_session_id) = session_id.pack() else {
+                        warn!("Failed to pack session_id");
+                        self.try_send_msg(chat_id, "Internal Server Error".to_string()).await;
+                        return;
+                    };
+                    let Ok(packed_app_public_id) = app_public_id.pack() else {
+                        warn!("Failed to pack app_public_id");
+                        self.try_send_msg(chat_id, "Internal Server Error".to_string()).await;
+                        return;
+                    };
                     if let Err(e) = self.support_message_table.insert(SupportMessageRow {
                         id: self.support_message_table.get_next_pk().into(),
-                        session_id: session_id.into(),
-                        app_public_id: app_public_id.into(),
+                        session_id: packed_session_id,
+                        app_public_id: packed_app_public_id,
                         incoming: true,
                         sent_by: "Support".to_string(),
                         sent_at,

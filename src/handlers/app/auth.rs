@@ -8,7 +8,7 @@ use futures::future::LocalBoxFuture;
 use serde_json::Value;
 
 use crate::codegen::model::{AppConnectRequest, AppConnectResponse, UserRole};
-use crate::id_types::{AppPublicId, PackedNanoId};
+use crate::id_types::AppPublicId;
 use crate::service::app_connection_registry::AppConnectionRegistry;
 
 pub struct MethodAppConnect {
@@ -31,9 +31,7 @@ impl SubAuthController for MethodAppConnect {
                 .map_err(|e| eyre::eyre!("Invalid request: {e}"))?;
 
             let app_public_id_nanoid = req.app_public_id;
-            let app_public_id: AppPublicId = PackedNanoId::pack(&app_public_id_nanoid)
-                .map_err(|e| eyre::eyre!("Failed to pack app_public_id: {e}"))?
-                .into();
+            let app_public_id: AppPublicId = app_public_id_nanoid.into();
 
             registry.register(conn_id, app_public_id).await;
 

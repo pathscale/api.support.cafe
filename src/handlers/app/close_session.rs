@@ -8,7 +8,7 @@ use worktable::select::SelectQueryExecutor;
 
 use crate::codegen::model::{CloseSessionRequest, CloseSessionResponse};
 use crate::db::schema::chat_session::{ChatSessionWorkTable, ClosedAtByIdQuery};
-use crate::id_types::PackedNanoId;
+use crate::id_types::{PackedNanoId, SessionId};
 
 pub struct MethodCloseSession {
     pub chat_session_table: Arc<ChatSessionWorkTable>,
@@ -23,8 +23,8 @@ impl RequestHandler for MethodCloseSession {
         _ctx: RequestContext,
         req: Self::Request,
     ) -> Response<Self::Request> {
-        let packed_session_id: PackedNanoId = PackedNanoId::pack(&req.session_id)
-            .map_err(|e| eyre::eyre!("Failed to pack session_id: {e}"))?;
+        let session_id: SessionId = req.session_id.into();
+        let packed_session_id: PackedNanoId = session_id.pack()?;
         let all_sessions = self.chat_session_table.select_all().execute()?;
         let session = all_sessions
             .iter()

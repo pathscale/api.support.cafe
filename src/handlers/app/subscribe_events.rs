@@ -5,7 +5,7 @@ use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
 use crate::codegen::model::{SubscribeEventsRequest, SubscribeEventsResponse};
-use crate::id_types::{SessionId, PackedNanoId};
+use crate::id_types::SessionId;
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
 use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::bot_router::{ChatMessageEvent, SessionKey};
@@ -29,9 +29,7 @@ impl RequestHandler for MethodSubscribeEvents {
             .await
             .ok_or_else(|| eyre::eyre!("Connection not authenticated as app"))?;
 
-        let session_id: SessionId = PackedNanoId::pack(&req.session_id)
-            .map_err(|e| eyre::eyre!("Failed to pack session_id: {e}"))?
-            .into();
+        let session_id: SessionId = req.session_id.into();
         let key: SessionKey = (app_public_id, session_id);
 
         if req.unsub.unwrap_or(false) {

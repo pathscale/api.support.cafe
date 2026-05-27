@@ -6,7 +6,7 @@ use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
 use crate::codegen::model::{AddSupportUserRequest, AddSupportUserResponse};
 use crate::db::schema::support_user::{SupportUserRow, SupportUserWorkTable};
-use crate::id_types::PackedNanoId;
+use crate::id_types::{AppPublicId, PackedNanoId};
 
 pub struct MethodAddSupportUser {
     pub support_user_table: Arc<SupportUserWorkTable>,
@@ -21,8 +21,8 @@ impl RequestHandler for MethodAddSupportUser {
         _ctx: RequestContext,
         req: Self::Request,
     ) -> Response<Self::Request> {
-        let packed_pub_id: PackedNanoId = PackedNanoId::pack(&req.app_public_id)
-            .map_err(|e| eyre::eyre!("Pack error: {e}"))?;
+        let app_public_id: AppPublicId = req.app_public_id.into();
+        let packed_pub_id: PackedNanoId = app_public_id.pack()?;
         let row = SupportUserRow {
             id: self.support_user_table.get_next_pk().into(),
             app_public_id: packed_pub_id,
