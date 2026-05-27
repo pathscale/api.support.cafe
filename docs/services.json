@@ -1,0 +1,382 @@
+{
+  "enums": [
+    {
+      "Enum": {
+        "name": "LogLevel",
+        "variants": [
+          {
+            "description": "Trace-level logging",
+            "name": "Trace",
+            "value": 0
+          },
+          {
+            "description": "Debug-level logging",
+            "name": "Debug",
+            "value": 1
+          },
+          {
+            "description": "Info-level logging",
+            "name": "Info",
+            "value": 2
+          },
+          {
+            "description": "Warn-level logging",
+            "name": "Warn",
+            "value": 3
+          },
+          {
+            "description": "Error-level logging",
+            "name": "Error",
+            "value": 4
+          }
+        ]
+      }
+    },
+    {
+      "Enum": {
+        "name": "UserRole",
+        "variants": [
+          {
+            "description": "Unauthenticated",
+            "name": "Public",
+            "value": 0
+          },
+          {
+            "description": "App user authenticated via app_public_id + user_public_id",
+            "name": "User",
+            "value": 1
+          },
+          {
+            "description": "App backend authenticated",
+            "name": "App",
+            "value": 2
+          }
+        ]
+      }
+    }
+  ],
+  "services": [
+    {
+      "endpoints": [
+        {
+          "code": 100,
+          "description": "",
+          "json_schema": null,
+          "name": "AppConnect",
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "userPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "appName",
+              "ty": {
+                "Optional": "String"
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::Public"
+          ],
+          "stream_response": null
+        }
+      ],
+      "id": 1,
+      "name": "appConnect"
+    },
+    {
+      "endpoints": [
+        {
+          "code": 110,
+          "description": "",
+          "json_schema": null,
+          "name": "CreateSession",
+          "parameters": [],
+          "returns": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "createdAt",
+              "ty": "TimeStampMs"
+            }
+          ],
+          "roles": [
+            "UserRole::User"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 111,
+          "description": "",
+          "json_schema": null,
+          "name": "SendMessage",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "content",
+              "ty": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "sentAt",
+              "ty": "TimeStampMs"
+            }
+          ],
+          "roles": [
+            "UserRole::User"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 112,
+          "description": "",
+          "json_schema": null,
+          "name": "ListMessages",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "ChatMessage"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::User"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 113,
+          "description": "",
+          "json_schema": null,
+          "name": "SubscribeEvents",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "unsub",
+              "ty": {
+                "Optional": "Boolean"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "ChatMessage"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::User"
+          ],
+          "stream_response": {
+            "StructTable": {
+              "struct_ref": "ChatMessage"
+            }
+          }
+        },
+        {
+          "code": 114,
+          "description": "",
+          "json_schema": null,
+          "name": "CloseSession",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::User"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 115,
+          "description": "",
+          "json_schema": null,
+          "name": "ListSessions",
+          "parameters": [],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "ChatSession"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::User"
+          ],
+          "stream_response": null
+        }
+      ],
+      "id": 2,
+      "name": "appApi"
+    }
+  ],
+  "structs": [
+    {
+      "Struct": {
+        "fields": [
+          {
+            "name": "appPublicId",
+            "ty": {
+              "NanoId": {
+                "len": 16
+              }
+            }
+          },
+          {
+            "name": "tgBotToken",
+            "ty": "String"
+          },
+          {
+            "name": "apiKey",
+            "ty": "String"
+          },
+          {
+            "name": "appName",
+            "ty": {
+              "Optional": "String"
+            }
+          },
+          {
+            "name": "active",
+            "ty": "Boolean"
+          },
+          {
+            "name": "createdAt",
+            "ty": "TimeStampMs"
+          }
+        ],
+        "name": "AppConfig"
+      }
+    },
+    {
+      "Struct": {
+        "fields": [
+          {
+            "name": "incoming",
+            "ty": "Boolean"
+          },
+          {
+            "name": "sentAt",
+            "ty": "TimeStampMs"
+          },
+          {
+            "name": "content",
+            "ty": "String"
+          }
+        ],
+        "name": "ChatMessage"
+      }
+    },
+    {
+      "Struct": {
+        "fields": [
+          {
+            "name": "sessionId",
+            "ty": {
+              "NanoId": {
+                "len": 16
+              }
+            }
+          },
+          {
+            "name": "appPublicId",
+            "ty": {
+              "NanoId": {
+                "len": 16
+              }
+            }
+          },
+          {
+            "name": "userPubId",
+            "ty": {
+              "NanoId": {
+                "len": 16
+              }
+            }
+          },
+          {
+            "name": "createdAt",
+            "ty": "TimeStampMs"
+          },
+          {
+            "name": "closedAt",
+            "ty": {
+              "Optional": "TimeStampMs"
+            }
+          }
+        ],
+        "name": "ChatSession"
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+
+Config(
+    definition: EndpointSchemaList(
+        service_name: "appConnect",
+        service_id: 1,
+        config: (snake_case_fields: true),
+        endpoints: [
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "AppConnect",
+                    code: 100,
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "user_public_id", ty: NanoId(len: 16)),
+                    ],
+                    returns: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "app_name", ty: Optional(String)),
+                    ],
+                    roles: ["UserRole::Public"],
+                ),
+            ),
+        ],
+    ),
+)

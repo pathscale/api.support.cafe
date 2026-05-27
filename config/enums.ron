@@ -1,0 +1,64 @@
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+
+Config(
+    definition: EnumList(
+        config: (worktable_support: true),
+        enum_elements: [
+            EnumElement(
+                inner: Enum(
+                    name: "UserRole",
+                    variants: [
+                        EnumVariant(
+                            name: "Public",
+                            value: 0,
+                            description: "Unauthenticated",
+                        ),
+                        EnumVariant(
+                            name: "User",
+                            value: 1,
+                            description: "App user authenticated via app_public_id + user_public_id",
+                        ),
+                        EnumVariant(
+                            name: "App",
+                            value: 2,
+                            description: "App backend authenticated",
+                        ),
+                    ],
+                ),
+            ),
+            EnumElement(
+                inner: Enum(
+                    name: "LogLevel",
+                    variants: [
+                        EnumVariant(
+                            name: "Trace",
+                            value: 0,
+                            description: "Trace-level logging",
+                        ),
+                        EnumVariant(
+                            name: "Debug",
+                            value: 1,
+                            description: "Debug-level logging",
+                        ),
+                        EnumVariant(
+                            name: "Info",
+                            value: 2,
+                            description: "Info-level logging",
+                        ),
+                        EnumVariant(
+                            name: "Warn",
+                            value: 3,
+                            description: "Warn-level logging",
+                        ),
+                        EnumVariant(
+                            name: "Error",
+                            value: 4,
+                            description: "Error-level logging",
+                        ),
+                    ],
+                ),
+            ),
+        ],
+    ),
+)
