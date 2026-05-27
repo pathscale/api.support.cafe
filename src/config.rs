@@ -1,4 +1,5 @@
 mod loader;
+mod doppler_source;
 
 use std::path::PathBuf;
 

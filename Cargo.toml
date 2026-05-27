@@ -12,6 +12,7 @@ crossfire = { version = "3.1.10", features = ["tokio"] }
 derive_more = { version = "2.1", features = ["full"] }
 endpoint-libs = { version = "1.7.28", features = ["ws", "ws-http1"] }
 eyre = "0.6"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 futures = "0.3"
 num-derive = "0.4"
 num-traits = "0.2"
