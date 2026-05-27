@@ -1,0 +1,36 @@
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+
+Config(
+    definition: EndpointSchemaList(
+        service_name: "adminApi",
+        service_id: 4,
+        config: (snake_case_fields: true),
+        endpoints: [
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "DeleteApp",
+                    code: 40000,
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                    ],
+                    returns: [],
+                    roles: ["UserRole::Admin"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "SetLogLevel",
+                    code: 40001,
+                    parameters: [
+                        Field(name: "level", ty: EnumRef(name: "LogLevel")),
+                    ],
+                    returns: [],
+                    roles: ["UserRole::Admin"],
+                ),
+            ),
+        ],
+    ),
+)
