@@ -28,7 +28,7 @@ jobs:
             echo "deploy-needed=true" >> $GITHUB_OUTPUT
           else
             CHANGED=$(git diff --name-only HEAD~1 HEAD)
-            if echo "$CHANGED" | grep -qE '^(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|src/|fly\.dev\.toml|fly\.prod\.toml|Dockerfile\.ci|\.github/workflows/ci\.yml|\.github/workflows/prod\.yml)'; then
+            if echo "$CHANGED" | grep -qE '^(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|src/|fly.toml|Dockerfile\.ci|\.github/workflows/ci\.yml|\.github/workflows/prod\.yml)'; then
               echo "deploy-needed=true" >> $GITHUB_OUTPUT
             else
               echo "deploy-needed=false" >> $GITHUB_OUTPUT
