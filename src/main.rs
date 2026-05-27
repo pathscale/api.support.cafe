@@ -1,5 +1,16 @@
+use app::App;
 use eyre::Result;
-use tg_support::{App, config};
+
+mod app;
+pub mod codegen;
+pub mod config;
+pub mod db;
+pub mod handlers;
+pub mod id_types;
+pub mod service;
+
+#[cfg(feature = "acme")]
+pub mod acme;
 
 fn main() -> Result<()> {
     #[cfg(feature = "acme")]
@@ -7,7 +18,7 @@ fn main() -> Result<()> {
         .install_default()
         .map_err(|_| eyre::eyre!("Failed to install rustls crypto provider"))?;
 
-    let config = config::load()?;
+    let mut config = config::load()?;
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(config.runtime.threads)
@@ -15,13 +26,10 @@ fn main() -> Result<()> {
         .build()?;
 
     rt.block_on(async {
-        #[allow(unused_mut)]
-        let mut config = std::sync::Arc::new(config);
-
         #[cfg(feature = "acme")]
-        let _acme_guard = tg_support::acme::init_acme(&mut config).await?;
+        let _acme_guard = acme::init_acme(&mut config).await?;
 
-        let app = App::init((*config).clone()).await?;
+        let app = App::init(config).await?;
         app.run().await
     })
 }

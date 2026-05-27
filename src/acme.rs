@@ -16,7 +16,7 @@ use crate::config::AcmeConfig;
 use crate::config::Config;
 
 #[cfg(feature = "acme")]
-pub async fn init_acme(config: &mut Arc<Config>) -> Result<Option<BackgroundGuard>> {
+pub async fn init_acme(config: &mut Config) -> Result<Option<BackgroundGuard>> {
     let acme = &config.acme;
     if !acme.is_enabled() {
         info!("ACME cert provisioning not configured — using external cert files");
@@ -68,9 +68,8 @@ pub async fn init_acme(config: &mut Arc<Config>) -> Result<Option<BackgroundGuar
         .await
         .map_err(|e| eyre!("ACME cert provisioning failed: {e}"))?;
 
-    let config_mut = Arc::make_mut(config);
-    config_mut.server.cert = Some(cert_dir.join("fullchain.pem"));
-    config_mut.server.key = Some(cert_dir.join("privkey.pem"));
+    config.server.cert = Some(cert_dir.join("fullchain.pem"));
+    config.server.key = Some(cert_dir.join("privkey.pem"));
 
     info!(?cert_dir, "ACME certificate ready");
     Ok(Some(guard))
