@@ -30,7 +30,7 @@ tracing = "0.1"
 url = "2.5.7"
 uuid = { version = "1.18", features = ["v4", "serde"] }
 worktable = { version = "0.9.0-beta0.2.2" }
-honey_id-types = { path = "../honey_id-types" }
+honey_id-types = "1.9.3"
 rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std"] }
 cert-provider = { git = "https://github.com/dVeon-loch/cert-provider.git", rev = "eb2387f28daf09539504c5b65766e656b7ec2c93", features = ["dns01"], optional = true }
 
