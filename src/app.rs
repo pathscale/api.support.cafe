@@ -8,9 +8,11 @@ use endpoint_libs::libs::ws::WebsocketServer;
 use eyre::Result;
 use honey_id_types::HoneyIdClient;
 use honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage;
+use honey_id_types::id_entities::UserPublicId;
 use tokio::sync::RwLock;
-use tracing::warn;
+use tracing::{info, warn};
 
+use crate::codegen::model::UserRole;
 use crate::config::Config;
 use crate::db::tables::Tables;
 use crate::handlers;
@@ -87,6 +89,8 @@ impl App {
     }
 
     pub async fn run(self) -> Result<()> {
+        self.bootstrap_admin().await?;
+
         use tokio::signal::unix::{SignalKind, signal};
 
         let mut server = WebsocketServer::new(self.ctx.config.server.clone().into());
@@ -112,5 +116,35 @@ impl App {
         };
 
         Ok(())
+    }
+
+    async fn bootstrap_admin(&self) -> Result<()> {
+        if let Some(admin_id) = &self.ctx.config.honey_id.admin_pub_id {
+            bootstrap_admin_user(&self.ctx.db, *admin_id).await?;
+        }
+        Ok(())
+    }
+}
+
+async fn bootstrap_admin_user(
+    tables: &Tables,
+    admin_pub_id: psc_nanoid::Nanoid<16, psc_nanoid::alphabet::Base62Alphabet>,
+) -> Result<()> {
+    let user_pub_id: UserPublicId = admin_pub_id.into();
+    info!(%user_pub_id, "Admin pub ID configured, attempting to assign Admin role");
+
+    let packed_id = user_pub_id
+        .pack()
+        .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))?;
+
+    if let Some(mut user) = tables.user_table.select_by_pub_id(packed_id) {
+        user.role = UserRole::Admin;
+        tables.user_table.update(user).await?;
+        info!("Assigned Admin role for user {user_pub_id}");
+        Ok(())
+    } else {
+        eyre::bail!(
+            "Configured admin user does not exist in database. Sign up first, then restart the server"
+        )
     }
 }
