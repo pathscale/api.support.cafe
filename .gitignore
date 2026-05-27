@@ -1,0 +1,25 @@
+/target
+/generated
+/logs
+/test_logs
+/data
+/benchmark_logs
+docs/dev-docs
+
+.env
+.DS_Store
+.aider*
+.idea
+
+# We will not be tracking any AI tool related metadata
+/.claude
+/.gemini
+/.qwen
+/.opencode
+/.serena
+/.kiro
+/.zed
+CLAUDE.md
+AGENTS.md
+
+.vscode/settings.json

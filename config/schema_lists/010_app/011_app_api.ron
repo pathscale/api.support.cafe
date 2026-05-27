@@ -1,0 +1,103 @@
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+
+Config(
+    definition: EndpointSchemaList(
+        service_name: "appApi",
+        service_id: 2,
+        config: (snake_case_fields: true),
+        endpoints: [
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "CreateSession",
+                    code: 110,
+                    parameters: [],
+                    returns: [
+                        Field(name: "session_id", ty: NanoId(len: 16)),
+                        Field(name: "created_at", ty: TimeStampMs),
+                    ],
+                    roles: ["UserRole::User"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "SendMessage",
+                    code: 111,
+                    parameters: [
+                        Field(name: "session_id", ty: NanoId(len: 16)),
+                        Field(name: "content", ty: String),
+                    ],
+                    returns: [
+                        Field(name: "sent_at", ty: TimeStampMs),
+                    ],
+                    roles: ["UserRole::User"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "ListMessages",
+                    code: 112,
+                    parameters: [
+                        Field(name: "session_id", ty: NanoId(len: 16)),
+                    ],
+                    returns: [
+                        Field(
+                            name: "data",
+                            ty: StructTable(struct_ref: "ChatMessage"),
+                        ),
+                    ],
+                    roles: ["UserRole::User"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "SubscribeEvents",
+                    code: 113,
+                    parameters: [
+                        Field(name: "session_id", ty: NanoId(len: 16)),
+                        Field(name: "unsub", ty: Optional(Boolean)),
+                    ],
+                    returns: [
+                        Field(
+                            name: "data",
+                            ty: StructTable(struct_ref: "ChatMessage"),
+                        ),
+                    ],
+                    stream_response: Some(StructTable(struct_ref: "ChatMessage")),
+                    roles: ["UserRole::User"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "CloseSession",
+                    code: 114,
+                    parameters: [
+                        Field(name: "session_id", ty: NanoId(len: 16)),
+                    ],
+                    returns: [],
+                    roles: ["UserRole::User"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "ListSessions",
+                    code: 115,
+                    parameters: [],
+                    returns: [
+                        Field(
+                            name: "data",
+                            ty: StructTable(struct_ref: "ChatSession"),
+                        ),
+                    ],
+                    roles: ["UserRole::User"],
+                ),
+            ),
+        ],
+    ),
+)

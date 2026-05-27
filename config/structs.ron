@@ -1,0 +1,45 @@
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+
+Config(
+    definition: StructList(
+        config: (snake_case_fields: true, worktable_support: true),
+        struct_elements: [
+            StructElement(
+                inner: Struct(
+                    name: "AppConfig",
+                    fields: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "tg_bot_token", ty: String),
+                        Field(name: "api_key", ty: String),
+                        Field(name: "app_name", ty: Optional(String)),
+                        Field(name: "active", ty: Boolean),
+                        Field(name: "created_at", ty: TimeStampMs),
+                    ],
+                ),
+            ),
+            StructElement(
+                inner: Struct(
+                    name: "ChatSession",
+                    fields: [
+                        Field(name: "session_id", ty: NanoId(len: 16)),
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "user_pub_id", ty: NanoId(len: 16)),
+                        Field(name: "created_at", ty: TimeStampMs),
+                        Field(name: "closed_at", ty: Optional(TimeStampMs)),
+                    ],
+                ),
+            ),
+            StructElement(
+                inner: Struct(
+                    name: "ChatMessage",
+                    fields: [
+                        Field(name: "incoming", ty: Boolean),
+                        Field(name: "sent_at", ty: TimeStampMs),
+                        Field(name: "content", ty: String),
+                    ],
+                ),
+            ),
+        ],
+    ),
+)
