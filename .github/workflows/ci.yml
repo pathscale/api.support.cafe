@@ -125,7 +125,7 @@ jobs:
           entrypoint: /support_cafe
 
       - name: Login to Fly registry
-        run: buildah login -u x -p "${{ secrets.FLY_TOKEN }}" ${{ env.FLY_REGISTRY }}
+        run: buildah login -u x -p "${{ secrets.FLY_API_TOKEN }}" ${{ env.FLY_REGISTRY }}
 
       - name: Push image to Fly registry
         run: |
@@ -137,4 +137,4 @@ jobs:
       - name: Deploy to Fly
         run: flyctl deploy --config fly.dev.toml --detach --ha=false --image ${{ env.FLY_REGISTRY }}/${{ env.FLY_APP }}:${{ env.VERSION }}
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
