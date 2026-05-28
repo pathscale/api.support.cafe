@@ -11,7 +11,6 @@ Config(
                     fields: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "tg_bot_token", ty: String),
-                        Field(name: "api_key", ty: String),
                         Field(name: "app_name", ty: Optional(String)),
                         Field(name: "active", ty: Boolean),
                         Field(name: "created_at", ty: TimeStampMs),

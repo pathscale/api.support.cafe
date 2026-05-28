@@ -83,7 +83,6 @@ pub enum UserRole {
 pub struct AppConfig {
     pub app_public_id: Nanoid<16, Base62Alphabet>,
     pub tg_bot_token: String,
-    pub api_key: String,
     #[serde(default)]
     pub app_name: Option<String>,
     pub active: bool,
@@ -174,13 +173,13 @@ impl EnumEndpoint {
     pub fn schema(&self) -> endpoint_libs::model::EndpointSchema {
         let schema = match self {
             Self::Init => InitRequest::SCHEMA,
-            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateSession => CreateSessionRequest::SCHEMA,
             Self::SendMessage => SendMessageRequest::SCHEMA,
             Self::ListMessages => ListMessagesRequest::SCHEMA,
             Self::SubscribeEvents => SubscribeEventsRequest::SCHEMA,
             Self::CloseSession => CloseSessionRequest::SCHEMA,
             Self::ListSessions => ListSessionsRequest::SCHEMA,
+            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateApp => CreateAppRequest::SCHEMA,
             Self::EditApp => EditAppRequest::SCHEMA,
             Self::ListApps => ListAppsRequest::SCHEMA,
@@ -265,7 +264,6 @@ pub struct CreateAppRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CreateAppResponse {
     pub app_public_id: Nanoid<16, Base62Alphabet>,
-    pub api_key: String,
     pub created_at: i64,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -433,59 +431,6 @@ impl WsRequest for InitRequest {
 }
 impl WsResponse for InitResponse {
     type Request = InitRequest;
-}
-
-impl WsRequest for AppConnectRequest {
-    type Response = AppConnectResponse;
-    const METHOD_ID: u32 = 20000;
-    const ROLES: &[u32] = &[0];
-    const SCHEMA: &'static str = r#"{
-  "name": "AppConnect",
-  "code": 20000,
-  "parameters": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "user_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    }
-  ],
-  "returns": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "app_name",
-      "ty": {
-        "Optional": "String"
-      }
-    }
-  ],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::Public"
-  ]
-}"#;
-}
-impl WsResponse for AppConnectResponse {
-    type Request = AppConnectRequest;
 }
 
 impl WsRequest for CreateSessionRequest {
@@ -709,6 +654,59 @@ impl WsResponse for ListSessionsResponse {
     type Request = ListSessionsRequest;
 }
 
+impl WsRequest for AppConnectRequest {
+    type Response = AppConnectResponse;
+    const METHOD_ID: u32 = 20000;
+    const ROLES: &[u32] = &[0];
+    const SCHEMA: &'static str = r#"{
+  "name": "AppConnect",
+  "code": 20000,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "user_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "app_name",
+      "ty": {
+        "Optional": "String"
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Public"
+  ]
+}"#;
+}
+impl WsResponse for AppConnectResponse {
+    type Request = AppConnectRequest;
+}
+
 impl WsRequest for CreateAppRequest {
     type Response = CreateAppResponse;
     const METHOD_ID: u32 = 30000;
@@ -736,10 +734,6 @@ impl WsRequest for CreateAppRequest {
           "len": 16
         }
       }
-    },
-    {
-      "name": "api_key",
-      "ty": "String"
     },
     {
       "name": "created_at",

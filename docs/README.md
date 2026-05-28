@@ -4,7 +4,7 @@
 ## Structs/Datamodels
 
 ```rust
-struct AppConfig{ appPublicId: Nanoid<16, Base62Alphabet>, tgBotToken: String, apiKey: String, appName: Option<String>, active: bool, createdAt: i64 }
+struct AppConfig{ appPublicId: Nanoid<16, Base62Alphabet>, tgBotToken: String, appName: Option<String>, active: bool, createdAt: i64 }
 
 
 struct ChatMessage{ incoming: bool, sentAt: i64, content: String }
@@ -38,13 +38,6 @@ ID: 1
 |-----------|-----------|----------|--------|-----------|-----------|
 |10000|Init|`accessToken: String`|`userId: Nanoid<16, Base62Alphabet>`, `role: UserRole`, `version: String`||true|
 
-## appConnect Server
-ID: 2
-### Endpoints
-|Code|Name|Parameters|Response|Description|FE Facing|
-|-----------|-----------|----------|--------|-----------|-----------|
-|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
-
 ## appApi Server
 ID: 2
 ### Endpoints
@@ -57,12 +50,19 @@ ID: 2
 |20005|CloseSession|`sessionId: Nanoid<16, Base62Alphabet>`|||true|
 |20006|ListSessions||`data: Vec<ChatSession>`||true|
 
+## appConnect Server
+ID: 2
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
+
 ## appAdminApi Server
 ID: 3
 ### Endpoints
 |Code|Name|Parameters|Response|Description|FE Facing|
 |-----------|-----------|----------|--------|-----------|-----------|
-|30000|CreateApp|`tgBotToken: String`, `appName: Option<String>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `apiKey: String`, `createdAt: i64`||true|
+|30000|CreateApp|`tgBotToken: String`, `appName: Option<String>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`||true|
 |30001|EditApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgBotToken: Option<String>`, `appName: Option<String>`, `active: Option<bool>`|||true|
 |30002|ListApps||`data: Vec<AppConfig>`||true|
 |30003|AddSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgHandle: String`|||true|

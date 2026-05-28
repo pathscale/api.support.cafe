@@ -14,14 +14,12 @@ worktable!(
         id: u64 primary_key autoincrement,
         public_id: PackedNanoId,
         tg_bot_token: String,
-        api_key: String,
         app_name: String optional,
         active: bool,
         created_at: i64,
     },
     indexes: {
         public_id_idx: public_id unique,
-        api_key_idx: api_key unique,
     },
     queries: {
         update: {

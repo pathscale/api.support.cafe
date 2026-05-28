@@ -15,11 +15,11 @@ pub mod service;
 pub mod acme;
 
 fn main() -> Result<()> {
-    #[cfg(feature = "acme")]
     rustls::crypto::ring::default_provider()
         .install_default()
         .map_err(|_| eyre::eyre!("Failed to install rustls crypto provider"))?;
 
+    #[allow(unused_mut)]
     let mut config = config::load()?;
 
     let rt = tokio::runtime::Builder::new_multi_thread()

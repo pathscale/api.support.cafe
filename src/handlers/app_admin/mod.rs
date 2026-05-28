@@ -17,15 +17,15 @@ use crate::handlers::app_admin::remove_support_user::MethodRemoveSupportUser;
 
 pub fn register_handlers(server: &mut WebsocketServer, ctx: &AppCtx) {
     server.add_handler(MethodCreateApp {
-        app_config_table: ctx.db.app_config_table.clone(),
+        app_service: ctx.app_service.clone(),
         bot_router: ctx.bot_router.clone(),
     });
     server.add_handler(MethodEditApp {
-        app_config_table: ctx.db.app_config_table.clone(),
+        app_service: ctx.app_service.clone(),
         bot_router: ctx.bot_router.clone(),
     });
     server.add_handler(MethodListApps {
-        app_config_table: ctx.db.app_config_table.clone(),
+        app_service: ctx.app_service.clone(),
     });
     server.add_handler(MethodAddSupportUser {
         support_user_table: ctx.db.support_user_table.clone(),

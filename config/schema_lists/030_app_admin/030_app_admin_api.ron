@@ -18,7 +18,6 @@ Config(
                     ],
                     returns: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
-                        Field(name: "api_key", ty: String),
                         Field(name: "created_at", ty: TimeStampMs),
                     ],
                     roles: ["UserRole::Admin", "UserRole::AppAdmin"],
