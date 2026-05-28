@@ -20,7 +20,7 @@ fn main() -> Result<()> {
         .install_default()
         .map_err(|_| eyre::eyre!("Failed to install rustls crypto provider"))?;
 
-    let config = config::load()?;
+    let mut config = config::load()?;
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(config.runtime.threads)
@@ -40,7 +40,8 @@ fn main() -> Result<()> {
 
         let _log_guards = log_setup.log_guards;
         let _otel_guards = log_setup.otel_guards;
-        let log_service = std::sync::Arc::new(LogService::new(log_setup.reload_handle, config.log.level));
+        let log_service =
+            std::sync::Arc::new(LogService::new(log_setup.reload_handle, config.log.level));
 
         #[cfg(feature = "acme")]
         let _acme_guard = acme::init_acme(&mut config).await?;
