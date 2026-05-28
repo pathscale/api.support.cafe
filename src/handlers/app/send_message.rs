@@ -7,10 +7,10 @@ use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 use crate::codegen::model::{SendMessageRequest, SendMessageResponse};
 use crate::id_types::SessionId;
 use crate::service::app_connection_registry::AppConnectionRegistry;
-use crate::service::bot_router::BotRouter;
+use crate::service::bot::BotService;
 
 pub struct MethodSendMessage {
-    pub bot_router: Arc<BotRouter>,
+    pub bot_service: Arc<BotService>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
 }
 
@@ -30,7 +30,7 @@ impl RequestHandler for MethodSendMessage {
 
         let session_id: SessionId = req.session_id.into();
 
-        let sent_at = self.bot_router
+        let sent_at = self.bot_service
             .send_message(
                 app_public_id,
                 session_id,

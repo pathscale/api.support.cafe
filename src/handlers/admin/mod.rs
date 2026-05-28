@@ -10,7 +10,7 @@ use crate::handlers::admin::set_log_level::MethodSetLogLevel;
 pub fn register_handlers(server: &mut WebsocketServer, ctx: &AppCtx) {
     server.add_handler(MethodDeleteApp {
         app_config_table: ctx.db.app_config_table.clone(),
-        bot_router: ctx.bot_router.clone(),
+        bot_service: ctx.bot_service.clone(),
     });
     server.add_handler(MethodSetLogLevel {
         log_service: ctx.log_service.clone(),

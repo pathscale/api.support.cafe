@@ -7,12 +7,12 @@ use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 use crate::codegen::model::{EditAppRequest, EditAppResponse};
 use crate::id_types::AppPublicId;
 use crate::service::app::{AppService, AppUpdate};
-use crate::service::bot_router::BotRouter;
+use crate::service::bot::BotService;
 
 #[derive(Clone)]
 pub struct MethodEditApp {
     pub app_service: Arc<AppService>,
-    pub bot_router: Arc<BotRouter>,
+    pub bot_service: Arc<BotService>,
 }
 
 #[async_trait(?Send)]
@@ -37,8 +37,19 @@ impl RequestHandler for MethodEditApp {
         self.app_service.edit_app(app_public_id, update).await?;
 
         if let Some(token) = &req.tg_bot_token {
-            self.bot_router.unregister_bot(app_public_id).await;
-            self.bot_router.register_bot(app_public_id, token.clone()).await?;
+            self.bot_service.unregister_bot(app_public_id).await;
+            self.bot_service.register_bot(app_public_id, token.clone()).await?;
+        }
+
+        if let Some(active) = req.active {
+            if active {
+                let app = self.app_service.get_app(app_public_id)?;
+                if let Some(app) = app {
+                    self.bot_service.register_bot(app_public_id, app.tg_bot_token).await?;
+                }
+            } else {
+                self.bot_service.unregister_bot(app_public_id).await;
+            }
         }
 
         tracing::debug!(

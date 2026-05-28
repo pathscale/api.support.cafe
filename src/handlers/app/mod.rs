@@ -22,7 +22,7 @@ pub fn register_handlers(server: &mut WebsocketServer, ctx: &AppCtx) {
         app_connection_registry: ctx.app_connection_registry.clone(),
     });
     server.add_handler(MethodSendMessage {
-        bot_router: ctx.bot_router.clone(),
+        bot_service: ctx.bot_service.clone(),
         app_connection_registry: ctx.app_connection_registry.clone(),
     });
     server.add_handler(MethodListMessages {
