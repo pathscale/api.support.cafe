@@ -257,7 +257,6 @@ pub struct CloseSessionResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateAppRequest {
-    pub app_public_id: Nanoid<16, Base62Alphabet>,
     pub tg_bot_token: String,
     #[serde(default)]
     pub app_name: Option<String>,
@@ -392,7 +391,7 @@ pub struct SubscribeEventsResponse {
 impl WsRequest for InitRequest {
     type Response = InitResponse;
     const METHOD_ID: u32 = 10000;
-    const ROLES: &[u32] = &[3];
+    const ROLES: &[u32] = &[0];
     const SCHEMA: &'static str = r#"{
   "name": "Init",
   "code": 10000,
@@ -428,7 +427,7 @@ impl WsRequest for InitRequest {
   "description": "",
   "json_schema": null,
   "roles": [
-    "UserRole::User"
+    "UserRole::Public"
   ]
 }"#;
 }
@@ -718,14 +717,6 @@ impl WsRequest for CreateAppRequest {
   "name": "CreateApp",
   "code": 30000,
   "parameters": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
     {
       "name": "tg_bot_token",
       "ty": "String"

@@ -13,7 +13,6 @@ Config(
                     name: "CreateApp",
                     code: 30000,
                     parameters: [
-                        Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "tg_bot_token", ty: String),
                         Field(name: "app_name", ty: Optional(String)),
                     ],

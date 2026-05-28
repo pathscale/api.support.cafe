@@ -107,7 +107,7 @@
             }
           ],
           "roles": [
-            "UserRole::User"
+            "UserRole::Public"
           ],
           "stream_response": null
         }
@@ -346,14 +346,6 @@
           "json_schema": null,
           "name": "CreateApp",
           "parameters": [
-            {
-              "name": "appPublicId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            },
             {
               "name": "tgBotToken",
               "ty": "String"

@@ -62,7 +62,7 @@ ID: 3
 ### Endpoints
 |Code|Name|Parameters|Response|Description|FE Facing|
 |-----------|-----------|----------|--------|-----------|-----------|
-|30000|CreateApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgBotToken: String`, `appName: Option<String>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `apiKey: String`, `createdAt: i64`||true|
+|30000|CreateApp|`tgBotToken: String`, `appName: Option<String>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `apiKey: String`, `createdAt: i64`||true|
 |30001|EditApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgBotToken: Option<String>`, `appName: Option<String>`, `active: Option<bool>`|||true|
 |30002|ListApps||`data: Vec<AppConfig>`||true|
 |30003|AddSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgHandle: String`|||true|
