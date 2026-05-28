@@ -1,8 +1,10 @@
 mod doppler_source;
 mod loader;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
+use endpoint_libs::libs::log::{LogLevel, OtelConfig};
 use endpoint_libs::libs::ws::WsServerConfig;
 use honey_id_types::HoneyIdConfig;
 use serde::Deserialize;
@@ -15,6 +17,7 @@ pub use loader::load;
 pub struct Config {
     pub runtime: RuntimeConfig,
     pub server: ServerConfig,
+    pub log: LogConfig,
     pub database: DatabaseConfig,
     pub service: ServiceConfig,
     pub honey_id: HoneyIdConfig,
@@ -63,6 +66,75 @@ impl From<ServerConfig> for WsServerConfig {
             priv_key: c.key.or(c.priv_key),
             insecure: c.insecure,
             ..Default::default()
+        }
+    }
+}
+
+/// Logging configuration.
+#[derive(Clone, Debug, SmartDefault, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct LogConfig {
+    /// Minimum log level.
+    #[default(LogLevel::Info)]
+    pub level: LogLevel,
+    /// Directory for writing log files.
+    #[default(PathBuf::from("/var/log/support_cafe"))]
+    pub folder: PathBuf,
+    /// OpenTelemetry exporter settings.
+    pub otel: OtelLogConfig,
+}
+
+/// OpenTelemetry logging exporter configuration.
+#[derive(Clone, Debug, SmartDefault, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct OtelLogConfig {
+    /// Enable OTel log exporting.
+    #[default = false]
+    pub enabled: bool,
+    /// OTel collector endpoint URL.
+    #[default("https://in-otel.hyperdx.io/v1/logs".to_string())]
+    pub endpoint: String,
+    /// Authorization header value for OTel requests.
+    pub authorization: Option<String>,
+    /// Organization identifier for OTel.
+    pub organization: Option<String>,
+    /// Stream name for log routing.
+    #[default("support_cafe_backend".to_string())]
+    pub stream_name: String,
+    /// Service name attached to OTel resource attributes.
+    #[default("support-cafe-backend".to_string())]
+    pub service_name: String,
+}
+
+impl OtelLogConfig {
+    pub fn into_otel_config(self) -> OtelConfig {
+        if !self.enabled {
+            tracing::debug!(target: "otel::config", "OTel logging disabled");
+            return OtelConfig::default();
+        }
+
+        let mut headers = HashMap::new();
+        if let Some(auth) = self.authorization {
+            headers.insert("authorization".to_string(), auth);
+        }
+        if let Some(org) = self.organization {
+            headers.insert("organization".to_string(), org);
+        }
+        headers.insert("stream-name".to_string(), self.stream_name);
+
+        let header_keys: Vec<_> = headers.keys().collect();
+        tracing::debug!(
+            target: "otel::config",
+            endpoint = self.endpoint,
+            header_keys = ?header_keys,
+            "OTel logging config loaded"
+        );
+
+        OtelConfig {
+            enabled: true,
+            service_name: Some(self.service_name),
+            endpoint: Some(self.endpoint),
+            headers,
         }
     }
 }

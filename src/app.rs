@@ -9,7 +9,7 @@ use eyre::Result;
 use honey_id_types::HoneyIdClient;
 use honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage;
 use honey_id_types::id_entities::UserPublicId;
-use tokio::sync::RwLock;
+use crate::service::log::LogService;
 use tracing::{info, warn};
 
 use crate::codegen::model::UserRole;
@@ -28,7 +28,7 @@ pub struct AppCtx {
     pub app_connection_registry: Arc<AppConnectionRegistry>,
     pub event_router: Arc<SubscriptionRouter<SessionKey, ChatMessageEvent>>,
     pub toolbox: ArcToolbox,
-    pub log_level: Arc<RwLock<tracing::Level>>,
+    pub log_service: Arc<LogService>,
     pub honey_id_client: Arc<HoneyIdClient>,
     pub token_storage: Arc<TokenWorkTableStorage>,
 }
@@ -38,7 +38,7 @@ pub struct App {
 }
 
 impl App {
-    pub async fn init(config: Config) -> Result<Self> {
+    pub async fn init(config: Config, log_service: Arc<LogService>) -> Result<Self> {
         #[cfg(feature = "s3-sync")]
         let db = Arc::new(Tables::new(config.database.clone(), &config.s3).await?);
 
@@ -68,7 +68,7 @@ impl App {
             app_connection_registry,
             event_router,
             toolbox,
-            log_level: Arc::new(RwLock::new(tracing::Level::INFO)),
+            log_service,
             honey_id_client,
             token_storage,
         });
