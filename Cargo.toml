@@ -12,7 +12,8 @@ crossfire = { version = "3.1.10", features = ["tokio"] }
 derive_more = { version = "2.1", features = ["full"] }
 endpoint-libs = { version = "1.7.28", features = ["ws", "ws-http1"] }
 eyre = "0.6"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots", "json"] }
+rustls = { version = "0.23.39", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 futures = "0.3"
 num-derive = "0.4"
 num-traits = "0.2"
@@ -32,7 +33,6 @@ url = "2.5.7"
 uuid = { version = "1.18", features = ["v4", "serde"] }
 worktable = { version = "0.9.0-beta0.2.2" }
 honey_id-types = "1.9.3"
-rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std"] }
 cert-provider = { git = "https://github.com/dVeon-loch/cert-provider.git", rev = "eb2387f28daf09539504c5b65766e656b7ec2c93", features = ["dns01"], optional = true }
 
 [features]

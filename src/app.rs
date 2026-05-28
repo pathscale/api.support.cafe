@@ -19,6 +19,7 @@ use crate::handlers;
 use crate::handlers::auth_api::register_auth_api_handlers;
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
 use crate::service::app_connection_registry::AppConnectionRegistry;
+use crate::service::app::AppService;
 use crate::service::bot_router::{BotRouter, ChatMessageEvent, SessionKey};
 
 pub struct AppCtx {
@@ -26,6 +27,7 @@ pub struct AppCtx {
     pub db: Arc<Tables>,
     pub bot_router: Arc<BotRouter>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
+    pub app_service: Arc<AppService>,
     pub event_router: Arc<SubscriptionRouter<SessionKey, ChatMessageEvent>>,
     pub toolbox: ArcToolbox,
     pub log_service: Arc<LogService>,
@@ -50,6 +52,7 @@ impl App {
             db.support_message_table.clone(),
         ));
         let app_connection_registry = Arc::new(AppConnectionRegistry::new());
+        let app_service = Arc::new(AppService::new(db.app_config_table.clone()));
 
         let event_stream = bot_router.take_event_stream().await?;
         let event_router = Arc::new(SubscriptionRouter::new(
@@ -66,6 +69,7 @@ impl App {
             db,
             bot_router,
             app_connection_registry,
+            app_service,
             event_router,
             toolbox,
             log_service,
