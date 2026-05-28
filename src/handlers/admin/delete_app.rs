@@ -7,11 +7,11 @@ use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 use crate::codegen::model::{DeleteAppRequest, DeleteAppResponse};
 use crate::db::schema::app_config::AppConfigWorkTable;
 use crate::id_types::{AppPublicId, PackedNanoId};
-use crate::service::bot_router::BotRouter;
+use crate::service::bot::BotService;
 
 pub struct MethodDeleteApp {
     pub app_config_table: Arc<AppConfigWorkTable>,
-    pub bot_router: Arc<BotRouter>,
+    pub bot_service: Arc<BotService>,
 }
 
 #[async_trait(?Send)]
@@ -25,7 +25,7 @@ impl RequestHandler for MethodDeleteApp {
     ) -> Response<Self::Request> {
         let app_public_id: AppPublicId = req.app_public_id.into();
         let packed_pub_id: PackedNanoId = app_public_id.pack()?;
-        self.bot_router.unregister_bot(app_public_id).await;
+        self.bot_service.unregister_bot(app_public_id).await;
         self.app_config_table
             .delete_by_public_id(packed_pub_id)
             .await

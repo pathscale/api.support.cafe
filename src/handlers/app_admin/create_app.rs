@@ -6,12 +6,12 @@ use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
 use crate::codegen::model::{CreateAppRequest, CreateAppResponse};
 use crate::service::app::AppService;
-use crate::service::bot_router::BotRouter;
+use crate::service::bot::BotService;
 
 #[derive(Clone)]
 pub struct MethodCreateApp {
     pub app_service: Arc<AppService>,
-    pub bot_router: Arc<BotRouter>,
+    pub bot_service: Arc<BotService>,
 }
 
 #[async_trait(?Send)]
@@ -28,7 +28,7 @@ impl RequestHandler for MethodCreateApp {
             .app_service
             .create_app(req.tg_bot_token.clone(), req.app_name.clone())?;
 
-        self.bot_router
+        self.bot_service
             .register_bot(result.app_public_id, req.tg_bot_token)
             .await?;
 

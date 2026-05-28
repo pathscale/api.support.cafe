@@ -20,12 +20,12 @@ use crate::handlers::auth_api::register_auth_api_handlers;
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
 use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::app::AppService;
-use crate::service::bot_router::{BotRouter, ChatMessageEvent, SessionKey};
+use crate::service::bot::{BotService, ChatMessageEvent, SessionKey};
 
 pub struct AppCtx {
     pub config: Arc<Config>,
     pub db: Arc<Tables>,
-    pub bot_router: Arc<BotRouter>,
+    pub bot_service: Arc<BotService>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
     pub app_service: Arc<AppService>,
     pub event_router: Arc<SubscriptionRouter<SessionKey, ChatMessageEvent>>,
@@ -47,14 +47,15 @@ impl App {
         #[cfg(not(feature = "s3-sync"))]
         let db = Arc::new(Tables::new(config.database.clone()).await?);
         let toolbox = Toolbox::new();
-        let bot_router = Arc::new(BotRouter::new(
-            db.support_user_table.clone(),
-            db.support_message_table.clone(),
-        ));
         let app_connection_registry = Arc::new(AppConnectionRegistry::new());
         let app_service = Arc::new(AppService::new(db.app_config_table.clone()));
+        let bot_service = Arc::new(BotService::new(
+            db.support_user_table.clone(),
+            db.support_message_table.clone(),
+            app_service.clone(),
+        ));
 
-        let event_stream = bot_router.take_event_stream().await?;
+        let event_stream = bot_service.take_event_stream().await?;
         let event_router = Arc::new(SubscriptionRouter::new(
             113, // SubscribeEvents method code
             event_stream,
@@ -67,7 +68,7 @@ impl App {
         let ctx = Arc::new(AppCtx {
             config: Arc::new(config),
             db,
-            bot_router,
+            bot_service,
             app_connection_registry,
             app_service,
             event_router,
@@ -94,6 +95,7 @@ impl App {
 
     pub async fn run(self) -> Result<()> {
         self.bootstrap_admin().await?;
+        self.ctx.bot_service.bootstrap_bots().await?;
 
         use tokio::signal::unix::{SignalKind, signal};
 
@@ -110,6 +112,7 @@ impl App {
         };
 
         // no matter if it was server issue or thread return signal, go with graceful termination procedure
+        self.ctx.bot_service.shutdown().await;
         tokio::select! {
             _ = self.ctx.db.wait_for_ops() =>{
                 warn!("Gracefully terminated all threads");

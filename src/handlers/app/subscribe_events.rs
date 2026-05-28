@@ -8,7 +8,7 @@ use crate::codegen::model::{SubscribeEventsRequest, SubscribeEventsResponse};
 use crate::id_types::SessionId;
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
 use crate::service::app_connection_registry::AppConnectionRegistry;
-use crate::service::bot_router::{ChatMessageEvent, SessionKey};
+use crate::service::bot::{ChatMessageEvent, SessionKey};
 
 pub struct MethodSubscribeEvents {
     pub event_router: Arc<SubscriptionRouter<SessionKey, ChatMessageEvent>>,

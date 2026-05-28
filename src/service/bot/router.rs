@@ -26,6 +26,14 @@ pub type SupportEventRx = AsyncRx<One<RoutingMessage<SessionKey, ChatMessageEven
 pub type SupportEventStream = AsyncStream<One<RoutingMessage<SessionKey, ChatMessageEvent>>>;
 pub type SupportEventProducer = Arc<Mutex<SupportEventTx>>;
 
+#[derive(Clone, Debug, Serialize)]
+pub enum BotStatus {
+    Running,
+    Stopped,
+    Restarting { next_attempt_ms: u64 },
+    Error(String),
+}
+
 #[derive(Clone, Serialize)]
 pub struct ChatMessageEvent {
     #[serde(serialize_with = "serialize_session_id")]
@@ -81,6 +89,7 @@ impl BotRouter {
         let client_arc = Arc::new(client);
         let handler = BotUpdateHandler {
             client: client_arc.clone(),
+            app_public_id,
             support_user_table: self.support_user_table.clone(),
             support_message_table: self.support_message_table.clone(),
             event_tx: self.event_tx.clone(),
@@ -89,7 +98,9 @@ impl BotRouter {
         let mut bots = self.bots.write().await;
         if bots.contains_key(&app_public_id) {
             warn!(?app_public_id, "bot already registered, replacing");
-            bots.remove(&app_public_id);
+            if let Some(mut instance) = bots.remove(&app_public_id) {
+                instance.stop().await;
+            }
         }
 
         let instance = BotInstance::new(client_arc, handler);
@@ -170,28 +181,63 @@ impl BotRouter {
             .ok_or_else(|| eyre::eyre!("bot not found for app"))?;
         Ok(instance.client.clone())
     }
+
+    pub async fn get_status(&self, app_public_id: AppPublicId) -> Option<BotStatus> {
+        let bots = self.bots.read().await;
+        let instance = bots.get(&app_public_id)?;
+        Some(instance.status.read().await.clone())
+    }
+
+    pub async fn get_all_statuses(&self) -> HashMap<AppPublicId, BotStatus> {
+        let bots = self.bots.read().await;
+        let mut statuses = HashMap::new();
+        for (id, instance) in bots.iter() {
+            statuses.insert(*id, instance.status.read().await.clone());
+        }
+        statuses
+    }
+
+    pub async fn shutdown(&self) {
+        let mut bots = self.bots.write().await;
+        for (_, instance) in bots.iter_mut() {
+            instance.stop().await;
+        }
+        bots.clear();
+        info!("All bots stopped");
+    }
 }
 
 struct BotInstance {
     client: Arc<Client>,
     handle: Option<tokio::task::JoinHandle<()>>,
+    status: Arc<RwLock<BotStatus>>,
 }
 
 impl BotInstance {
     fn new(client: Arc<Client>, handler: BotUpdateHandler) -> Self {
-        let client_for_poll = Arc::unwrap_or_clone(client.clone());
+        let status = Arc::new(RwLock::new(BotStatus::Running));
+        let status_clone = status.clone();
+        let app_id_clone = handler.app_public_id.clone();
+        let client_for_poll = client.clone();
+
         let handle = tokio::spawn(async move {
-            LongPoll::new(client_for_poll, handler).run().await;
+            let client_inner = Arc::unwrap_or_clone(client_for_poll);
+            LongPoll::new(client_inner, handler.clone()).run().await;
+            info!(?app_id_clone, "Bot stopped");
+            *status_clone.write().await = BotStatus::Stopped;
         });
+
         Self {
             client,
             handle: Some(handle),
+            status,
         }
     }
 
     async fn stop(&mut self) {
         if let Some(handle) = self.handle.take() {
             handle.abort();
+            *self.status.write().await = BotStatus::Stopped;
         }
     }
 }
@@ -199,6 +245,7 @@ impl BotInstance {
 #[derive(Clone)]
 struct BotUpdateHandler {
     client: Arc<Client>,
+    app_public_id: AppPublicId,
     support_user_table: Arc<SupportUserWorkTable>,
     support_message_table: Arc<SupportMessageWorkTable>,
     event_tx: SupportEventProducer,
