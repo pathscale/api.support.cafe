@@ -4510,9 +4510,9 @@ dependencies = [
 
 [[package]]
 name = "tgbot"
-version = "0.42.0"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bca7831e7e6d1103c9578da2f10f9aa8ec56f63ca83ee643d1dd9151728c6587"
+checksum = "c98ae5d7c1e54dc7b897bd307082d2f444d26a327ac7462e5219490f145dc19f"
 dependencies = [
  "async-stream",
  "bytes",
@@ -4522,12 +4522,14 @@ dependencies = [
  "mime",
  "mime_guess",
  "reqwest 0.13.3",
+ "rustls",
  "serde",
  "serde_json",
  "serde_with",
  "shellwords",
  "tokio",
  "tokio-util",
+ "webpki-roots 1.0.7",
 ]
 
 [[package]]

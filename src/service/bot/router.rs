@@ -344,7 +344,7 @@ impl UpdateHandler for BotUpdateHandler {
                     self.try_send_msg(chat_id, "Session ID not found in reply".to_string()).await;
                 }
             }
-        } else if let Ok(cmd) = Command::try_from(message.clone()) && cmd.get_name() == "/start" {
+        } else if let Ok(cmd) = Command::try_from((*message).clone()) && cmd.get_name() == "/start" {
             let Some(user_handle) = message.chat.get_username() else {
                 self.try_send_msg(chat_id, "Couldn't fetch user handle".to_string()).await;
                 return;
