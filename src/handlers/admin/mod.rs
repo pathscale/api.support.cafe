@@ -13,6 +13,6 @@ pub fn register_handlers(server: &mut WebsocketServer, ctx: &AppCtx) {
         bot_router: ctx.bot_router.clone(),
     });
     server.add_handler(MethodSetLogLevel {
-        log_level: ctx.log_level.clone(),
+        log_service: ctx.log_service.clone(),
     });
 }

@@ -4376,6 +4376,7 @@ dependencies = [
  "honey_id-types",
  "num-derive",
  "num-traits",
+ "parking_lot",
  "psc-nanoid",
  "reqwest 0.12.28",
  "rkyv 0.8.16",

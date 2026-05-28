@@ -3,12 +3,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
-use tokio::sync::RwLock;
 
-use crate::codegen::model::{SetLogLevelRequest, SetLogLevelResponse, LogLevel};
+use crate::codegen::model::{SetLogLevelRequest, SetLogLevelResponse};
+use crate::service::log::LogService;
 
 pub struct MethodSetLogLevel {
-    pub log_level: Arc<RwLock<tracing::Level>>,
+    pub log_service: Arc<LogService>,
 }
 
 #[async_trait(?Send)]
@@ -20,14 +20,7 @@ impl RequestHandler for MethodSetLogLevel {
         _ctx: RequestContext,
         req: Self::Request,
     ) -> Response<Self::Request> {
-        let level = match req.level {
-            LogLevel::Trace => tracing::Level::TRACE,
-            LogLevel::Debug => tracing::Level::DEBUG,
-            LogLevel::Info => tracing::Level::INFO,
-            LogLevel::Warn => tracing::Level::WARN,
-            LogLevel::Error => tracing::Level::ERROR,
-        };
-        *self.log_level.write().await = level;
+        self.log_service.set_level(req.level)?;
         Ok(SetLogLevelResponse {})
     }
 }

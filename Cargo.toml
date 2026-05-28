@@ -16,6 +16,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 futures = "0.3"
 num-derive = "0.4"
 num-traits = "0.2"
+parking_lot = "0.12"
 psc-nanoid = { version = "3.1.0", features = ["serde", "packed", "rkyv"] }
 rkyv = "0.8.12"
 secrecy = "0.10.3"
