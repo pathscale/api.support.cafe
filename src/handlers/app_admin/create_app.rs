@@ -29,9 +29,8 @@ impl RequestHandler for MethodCreateApp {
         let api_key = uuid::Uuid::new_v4().to_string();
         let created_at = Utc::now().timestamp_millis();
 
-        let nanoid: Nanoid<16, Base62Alphabet> = req.app_public_id.to_string().parse()
-            .map_err(|e| eyre::eyre!("Invalid app_public_id: {e}"))?;
-        let app_public_id: AppPublicId = nanoid.into();
+        let app_public_id_nanoid = Nanoid::<16, Base62Alphabet>::new();
+        let app_public_id: AppPublicId = app_public_id_nanoid.into();
         let packed_pub_id: PackedNanoId = app_public_id.pack()?;
 
         let row = AppConfigRow {
@@ -48,7 +47,7 @@ impl RequestHandler for MethodCreateApp {
         self.bot_router.register_bot(app_public_id, req.tg_bot_token).await?;
 
         Ok(CreateAppResponse {
-            app_public_id: req.app_public_id,
+            app_public_id: app_public_id_nanoid,
             api_key,
             created_at,
         })
