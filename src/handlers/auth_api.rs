@@ -9,6 +9,8 @@ use honey_id_types::HoneyIdClient;
 
 use crate::codegen::model::{EnumEndpoint, InitRequest, InitResponse};
 use crate::db::tables::Tables;
+use crate::handlers::app::auth::MethodAppConnect;
+use crate::service::app_connection_registry::AppConnectionRegistry;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -43,6 +45,7 @@ pub fn register_auth_api_handlers(
     tables: Arc<Tables>,
     token_storage: Arc<dyn TokenStorage + Sync + Send>,
     honey_id_client: Arc<HoneyIdClient>,
+    app_connection_registry: Arc<AppConnectionRegistry>,
 ) {
     let mut auth_controller = EndpointAuthController::default();
 
@@ -65,6 +68,13 @@ pub fn register_auth_api_handlers(
         MethodApiKeyConnect {
             honey_id_client: honey_id_client.clone(),
             user_storage: tables.user_table.clone(),
+        },
+    );
+
+    auth_controller.add_auth_endpoint(
+        EnumEndpoint::AppConnect.schema(),
+        MethodAppConnect {
+            app_connection_registry,
         },
     );
 
