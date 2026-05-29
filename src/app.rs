@@ -3,8 +3,6 @@ use std::time::Duration;
 
 use crate::service::log::LogService;
 use endpoint_libs::libs::signal::wait_for_signals;
-use endpoint_libs::libs::toolbox::ArcToolbox;
-use endpoint_libs::libs::toolbox::Toolbox;
 use endpoint_libs::libs::ws::WebsocketServer;
 use eyre::Result;
 use honey_id_types::HoneyIdClient;
@@ -17,10 +15,9 @@ use crate::config::Config;
 use crate::db::tables::Tables;
 use crate::handlers;
 use crate::handlers::auth_api::register_auth_api_handlers;
-use crate::handlers::utils::subscription_router::SubscriptionRouter;
 use crate::service::app::AppService;
 use crate::service::app_connection_registry::AppConnectionRegistry;
-use crate::service::bot::{BotService, ChatMessageEvent, SessionKey};
+use crate::service::bot::BotService;
 use crate::service::session::SessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
@@ -32,8 +29,6 @@ pub struct AppCtx {
     pub user_connection_registry: Arc<UserConnectionRegistry>,
     pub session_service: Arc<SessionService>,
     pub app_service: Arc<AppService>,
-    pub event_router: Arc<SubscriptionRouter<SessionKey, ChatMessageEvent>>,
-    pub toolbox: ArcToolbox,
     pub log_service: Arc<LogService>,
     pub honey_id_client: Arc<HoneyIdClient>,
     pub token_storage: Arc<TokenWorkTableStorage>,
@@ -50,7 +45,6 @@ impl App {
 
         #[cfg(not(feature = "s3-sync"))]
         let db = Arc::new(Tables::new(config.database.clone()).await?);
-        let toolbox = Toolbox::new();
         let app_connection_registry = Arc::new(AppConnectionRegistry::new());
         let user_connection_registry = Arc::new(UserConnectionRegistry::new());
         let app_service = Arc::new(AppService::new(db.app_config_table.clone()));
@@ -65,9 +59,6 @@ impl App {
             bot_service.clone(),
         ));
 
-        let event_stream = bot_service.take_event_stream().await?;
-        let event_router = Arc::new(SubscriptionRouter::new(1, event_stream, toolbox.clone()));
-
         let honey_id_client = Arc::new(HoneyIdClient::new(config.honey_id.clone()));
         let token_storage = Arc::new(TokenWorkTableStorage::default());
 
@@ -79,8 +70,6 @@ impl App {
             user_connection_registry,
             session_service,
             app_service,
-            event_router,
-            toolbox,
             log_service,
             honey_id_client,
             token_storage,
@@ -89,7 +78,7 @@ impl App {
         Ok(Self { ctx })
     }
 
-    fn register_handlers(&self, server: &mut WebsocketServer) {
+    async fn register_handlers(&self, server: &mut WebsocketServer) {
         register_auth_api_handlers(
             server,
             self.ctx.db.clone(),
@@ -100,7 +89,7 @@ impl App {
         );
         handlers::admin::register_handlers(server, &self.ctx);
         handlers::app_admin::register_handlers(server, &self.ctx);
-        handlers::app::register_handlers(server, &self.ctx);
+        handlers::app::register_handlers(server, &self.ctx).await;
     }
 
     pub async fn run(self) -> Result<()> {
@@ -110,8 +99,7 @@ impl App {
         use tokio::signal::unix::{SignalKind, signal};
 
         let mut server = WebsocketServer::new(self.ctx.config.server.clone().into());
-
-        self.register_handlers(&mut server);
+        self.register_handlers(&mut server).await;
 
         let mut sigterm = signal(SignalKind::terminate())?;
         let mut sigint = signal(SignalKind::interrupt())?;
