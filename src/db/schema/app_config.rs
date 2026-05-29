@@ -4,6 +4,7 @@ use worktable::worktable;
 #[cfg(feature = "s3-sync")]
 use worktable::s3_sync_persistence;
 
+use crate::codegen::model::AppInfo;
 use crate::id_types::PackedNanoId;
 
 worktable!(
@@ -38,3 +39,14 @@ worktable!(
 
 #[cfg(feature = "s3-sync")]
 s3_sync_persistence!(AppConfigWorkTable);
+
+impl From<AppConfigRow> for AppInfo {
+    fn from(row: AppConfigRow) -> Self {
+        AppInfo {
+            public_id: row.public_id.unpack().expect("valid packed nanoid"),
+            app_name: row.app_name,
+            active: row.active,
+            created_at: row.created_at,
+        }
+    }
+}

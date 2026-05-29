@@ -91,6 +91,16 @@ pub struct AppConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct AppInfo {
+    pub public_id: Nanoid<16, Base62Alphabet>,
+    #[serde(default)]
+    pub app_name: Option<String>,
+    pub active: bool,
+    pub created_at: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ChatMessage {
     pub incoming: bool,
     pub sent_at: i64,
@@ -117,6 +127,15 @@ pub struct SupportUser {
     #[serde(default)]
     pub chat_id: Option<i64>,
     pub is_active: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct UserInfo {
+    pub id: i64,
+    pub pub_id: Nanoid<16, Base62Alphabet>,
+    pub username: String,
+    pub role: UserRole,
 }
 
 #[derive(
@@ -167,19 +186,25 @@ pub enum EnumEndpoint {
     DeleteApp = 40000,
     ///
     SetLogLevel = 40001,
+    ///
+    GetUsers = 40002,
+    ///
+    SetRole = 40003,
+    ///
+    GetAllApps = 40004,
 }
 
 impl EnumEndpoint {
     pub fn schema(&self) -> endpoint_libs::model::EndpointSchema {
         let schema = match self {
             Self::Init => InitRequest::SCHEMA,
+            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateSession => CreateSessionRequest::SCHEMA,
             Self::SendMessage => SendMessageRequest::SCHEMA,
             Self::ListMessages => ListMessagesRequest::SCHEMA,
             Self::SubscribeEvents => SubscribeEventsRequest::SCHEMA,
             Self::CloseSession => CloseSessionRequest::SCHEMA,
             Self::ListSessions => ListSessionsRequest::SCHEMA,
-            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateApp => CreateAppRequest::SCHEMA,
             Self::EditApp => EditAppRequest::SCHEMA,
             Self::ListApps => ListAppsRequest::SCHEMA,
@@ -188,6 +213,9 @@ impl EnumEndpoint {
             Self::RemoveSupportUser => RemoveSupportUserRequest::SCHEMA,
             Self::DeleteApp => DeleteAppRequest::SCHEMA,
             Self::SetLogLevel => SetLogLevelRequest::SCHEMA,
+            Self::GetUsers => GetUsersRequest::SCHEMA,
+            Self::SetRole => SetRoleRequest::SCHEMA,
+            Self::GetAllApps => GetAllAppsRequest::SCHEMA,
         };
         serde_json::from_str(schema).unwrap()
     }
@@ -299,6 +327,22 @@ pub struct EditAppRequest {
 pub struct EditAppResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct GetAllAppsRequest {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAllAppsResponse {
+    pub data: Vec<AppInfo>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GetUsersRequest {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GetUsersResponse {
+    pub data: Vec<UserInfo>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct InitRequest {
     pub access_token: String,
 }
@@ -375,6 +419,15 @@ pub struct SetLogLevelRequest {
 pub struct SetLogLevelResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct SetRoleRequest {
+    pub user_pub_id: Nanoid<16, Base62Alphabet>,
+    pub role: UserRole,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SetRoleResponse {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SubscribeEventsRequest {
     pub session_id: Nanoid<16, Base62Alphabet>,
     #[serde(default)]
@@ -431,6 +484,59 @@ impl WsRequest for InitRequest {
 }
 impl WsResponse for InitResponse {
     type Request = InitRequest;
+}
+
+impl WsRequest for AppConnectRequest {
+    type Response = AppConnectResponse;
+    const METHOD_ID: u32 = 20000;
+    const ROLES: &[u32] = &[0];
+    const SCHEMA: &'static str = r#"{
+  "name": "AppConnect",
+  "code": 20000,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "user_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "app_name",
+      "ty": {
+        "Optional": "String"
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Public"
+  ]
+}"#;
+}
+impl WsResponse for AppConnectResponse {
+    type Request = AppConnectRequest;
 }
 
 impl WsRequest for CreateSessionRequest {
@@ -652,59 +758,6 @@ impl WsRequest for ListSessionsRequest {
 }
 impl WsResponse for ListSessionsResponse {
     type Request = ListSessionsRequest;
-}
-
-impl WsRequest for AppConnectRequest {
-    type Response = AppConnectResponse;
-    const METHOD_ID: u32 = 20000;
-    const ROLES: &[u32] = &[0];
-    const SCHEMA: &'static str = r#"{
-  "name": "AppConnect",
-  "code": 20000,
-  "parameters": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "user_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    }
-  ],
-  "returns": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "app_name",
-      "ty": {
-        "Optional": "String"
-      }
-    }
-  ],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::Public"
-  ]
-}"#;
-}
-impl WsResponse for AppConnectResponse {
-    type Request = AppConnectRequest;
 }
 
 impl WsRequest for CreateAppRequest {
@@ -1001,4 +1054,102 @@ impl WsRequest for SetLogLevelRequest {
 }
 impl WsResponse for SetLogLevelResponse {
     type Request = SetLogLevelRequest;
+}
+
+impl WsRequest for GetUsersRequest {
+    type Response = GetUsersResponse;
+    const METHOD_ID: u32 = 40002;
+    const ROLES: &[u32] = &[1];
+    const SCHEMA: &'static str = r#"{
+  "name": "GetUsers",
+  "code": 40002,
+  "parameters": [],
+  "returns": [
+    {
+      "name": "data",
+      "ty": {
+        "StructTable": {
+          "struct_ref": "UserInfo"
+        }
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Admin"
+  ]
+}"#;
+}
+impl WsResponse for GetUsersResponse {
+    type Request = GetUsersRequest;
+}
+
+impl WsRequest for SetRoleRequest {
+    type Response = SetRoleResponse;
+    const METHOD_ID: u32 = 40003;
+    const ROLES: &[u32] = &[1];
+    const SCHEMA: &'static str = r#"{
+  "name": "SetRole",
+  "code": 40003,
+  "parameters": [
+    {
+      "name": "user_pub_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "role",
+      "ty": {
+        "EnumRef": {
+          "name": "UserRole"
+        }
+      }
+    }
+  ],
+  "returns": [],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Admin"
+  ]
+}"#;
+}
+impl WsResponse for SetRoleResponse {
+    type Request = SetRoleRequest;
+}
+
+impl WsRequest for GetAllAppsRequest {
+    type Response = GetAllAppsResponse;
+    const METHOD_ID: u32 = 40004;
+    const ROLES: &[u32] = &[1];
+    const SCHEMA: &'static str = r#"{
+  "name": "GetAllApps",
+  "code": 40004,
+  "parameters": [],
+  "returns": [
+    {
+      "name": "data",
+      "ty": {
+        "StructTable": {
+          "struct_ref": "AppInfo"
+        }
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Admin"
+  ]
+}"#;
+}
+impl WsResponse for GetAllAppsResponse {
+    type Request = GetAllAppsRequest;
 }

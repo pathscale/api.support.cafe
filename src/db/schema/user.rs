@@ -9,7 +9,7 @@ use worktable::worktable;
 #[cfg(feature = "s3-sync")]
 use worktable::s3_sync_persistence;
 
-use crate::codegen::model::UserRole;
+use crate::codegen::model::{UserInfo, UserRole};
 use crate::db::util::PackedUserPubId;
 
 worktable!(
@@ -27,6 +27,7 @@ worktable!(
     queries: {
         update: {
             RoleById(role) by id,
+            RoleByPubId(role) by pub_id,
         },
         delete: {
             ByPubId() by pub_id,
@@ -40,6 +41,17 @@ s3_sync_persistence!(UserWorkTable);
 impl UserRow {
     pub fn pub_id(&self) -> UserPublicId {
         UserPublicId::unpack(self.pub_id).expect("Invalid packed nanoid in database")
+    }
+}
+
+impl From<UserRow> for UserInfo {
+    fn from(row: UserRow) -> Self {
+        UserInfo {
+            id: row.id as i64,
+            pub_id: row.pub_id().into(),
+            username: row.username,
+            role: row.role,
+        }
     }
 }
 
