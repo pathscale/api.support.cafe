@@ -51,6 +51,28 @@ Config(
                     ],
                 ),
             ),
+            StructElement(
+                inner: Struct(
+                    name: "UserInfo",
+                    fields: [
+                        Field(name: "id", ty: Int64),
+                        Field(name: "pub_id", ty: NanoId(len: 16)),
+                        Field(name: "username", ty: String),
+                        Field(name: "role", ty: EnumRef(name: "UserRole")),
+                    ],
+                ),
+            ),
+            StructElement(
+                inner: Struct(
+                    name: "AppInfo",
+                    fields: [
+                        Field(name: "public_id", ty: NanoId(len: 16)),
+                        Field(name: "app_name", ty: Optional(String)),
+                        Field(name: "active", ty: Boolean),
+                        Field(name: "created_at", ty: TimeStampMs),
+                    ],
+                ),
+            ),
         ],
     ),
 )

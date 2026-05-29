@@ -7,6 +7,9 @@
 struct AppConfig{ appPublicId: Nanoid<16, Base62Alphabet>, tgBotToken: String, appName: Option<String>, active: bool, createdAt: i64 }
 
 
+struct AppInfo{ publicId: Nanoid<16, Base62Alphabet>, appName: Option<String>, active: bool, createdAt: i64 }
+
+
 struct ChatMessage{ incoming: bool, sentAt: i64, content: String }
 
 
@@ -14,6 +17,9 @@ struct ChatSession{ sessionId: Nanoid<16, Base62Alphabet>, appPublicId: Nanoid<1
 
 
 struct SupportUser{ id: i64, appPublicId: Nanoid<16, Base62Alphabet>, tgHandle: String, chatId: Option<i64>, isActive: bool }
+
+
+struct UserInfo{ id: i64, pubId: Nanoid<16, Base62Alphabet>, username: String, role: UserRole }
 
 ```
 ---
@@ -38,6 +44,13 @@ ID: 1
 |-----------|-----------|----------|--------|-----------|-----------|
 |10000|Init|`accessToken: String`|`userId: Nanoid<16, Base62Alphabet>`, `role: UserRole`, `version: String`||true|
 
+## appConnect Server
+ID: 2
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
+
 ## appApi Server
 ID: 2
 ### Endpoints
@@ -49,13 +62,6 @@ ID: 2
 |20004|SubscribeEvents|`sessionId: Nanoid<16, Base62Alphabet>`, `unsub: Option<bool>`|`data: Vec<ChatMessage>`||true|
 |20005|CloseSession|`sessionId: Nanoid<16, Base62Alphabet>`|||true|
 |20006|ListSessions||`data: Vec<ChatSession>`||true|
-
-## appConnect Server
-ID: 2
-### Endpoints
-|Code|Name|Parameters|Response|Description|FE Facing|
-|-----------|-----------|----------|--------|-----------|-----------|
-|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
 
 ## appAdminApi Server
 ID: 3
@@ -76,3 +82,6 @@ ID: 4
 |-----------|-----------|----------|--------|-----------|-----------|
 |40000|DeleteApp|`appPublicId: Nanoid<16, Base62Alphabet>`|||true|
 |40001|SetLogLevel|`level: LogLevel`|||true|
+|40002|GetUsers||`data: Vec<UserInfo>`||true|
+|40003|SetRole|`userPubId: Nanoid<16, Base62Alphabet>`, `role: UserRole`|||true|
+|40004|GetAllApps||`data: Vec<AppInfo>`||true|
