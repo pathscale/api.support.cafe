@@ -59,6 +59,7 @@ pub fn register_auth_api_handlers(
         EnumEndpoint::AppConnect.schema(),
         MethodAppConnect {
             app_connection_registry,
+            user_connection_registry,
         },
     );
 

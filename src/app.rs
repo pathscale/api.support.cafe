@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::service::log::LogService;
 use endpoint_libs::libs::signal::wait_for_signals;
 use endpoint_libs::libs::toolbox::ArcToolbox;
 use endpoint_libs::libs::toolbox::Toolbox;
@@ -9,7 +10,6 @@ use eyre::Result;
 use honey_id_types::HoneyIdClient;
 use honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage;
 use honey_id_types::id_entities::UserPublicId;
-use crate::service::log::LogService;
 use tracing::{info, warn};
 
 use crate::codegen::model::UserRole;
@@ -18,8 +18,8 @@ use crate::db::tables::Tables;
 use crate::handlers;
 use crate::handlers::auth_api::register_auth_api_handlers;
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
-use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::app::AppService;
+use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::bot::{BotService, ChatMessageEvent, SessionKey};
 use crate::service::session::SessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
@@ -66,11 +66,7 @@ impl App {
         ));
 
         let event_stream = bot_service.take_event_stream().await?;
-        let event_router = Arc::new(SubscriptionRouter::new(
-            113, // SubscribeEvents method code
-            event_stream,
-            toolbox.clone(),
-        ));
+        let event_router = Arc::new(SubscriptionRouter::new(1, event_stream, toolbox.clone()));
 
         let honey_id_client = Arc::new(HoneyIdClient::new(config.honey_id.clone()));
         let token_storage = Arc::new(TokenWorkTableStorage::default());

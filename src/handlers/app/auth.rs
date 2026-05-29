@@ -10,9 +10,11 @@ use serde_json::Value;
 use crate::codegen::model::{AppConnectRequest, AppConnectResponse, UserRole};
 use crate::id_types::AppPublicId;
 use crate::service::app_connection_registry::AppConnectionRegistry;
+use crate::service::user_connection_registry::UserConnectionRegistry;
 
 pub struct MethodAppConnect {
     pub app_connection_registry: Arc<AppConnectionRegistry>,
+    pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
 #[async_trait(?Send)]
@@ -25,6 +27,7 @@ impl SubAuthController for MethodAppConnect {
         conn: Arc<WsConnection>,
     ) -> LocalBoxFuture<'static, eyre::Result<Value>> {
         let registry = self.app_connection_registry.clone();
+        let user_registry = self.user_connection_registry.clone();
         let conn_id = conn.connection_id;
         async move {
             let req: AppConnectRequest = serde_json::from_value(param)
@@ -32,8 +35,10 @@ impl SubAuthController for MethodAppConnect {
 
             let app_public_id_nanoid = req.app_public_id;
             let app_public_id: AppPublicId = app_public_id_nanoid.into();
+            let user_public_id = req.user_public_id.into();
 
             registry.register(conn_id, app_public_id).await;
+            user_registry.register(conn_id, user_public_id).await;
 
             conn.set_roles(Arc::new(vec![UserRole::App as u32]));
 
