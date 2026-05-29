@@ -33,7 +33,9 @@ Config(
                 inner: Struct(
                     name: "ChatMessage",
                     fields: [
+                        Field(name: "session_id", ty: NanoId(len: 16)),
                         Field(name: "incoming", ty: Boolean),
+                        Field(name: "sent_by", ty: String),
                         Field(name: "sent_at", ty: TimeStampMs),
                         Field(name: "content", ty: String),
                     ],

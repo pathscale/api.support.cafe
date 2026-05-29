@@ -6,6 +6,7 @@ use crossfire::spsc::{One, new};
 use crossfire::stream::AsyncStream;
 use crossfire::{AsyncRx, AsyncTx};
 use eyre::Result;
+use crate::codegen::model::ChatMessage;
 use serde::Serialize;
 use tgbot::api::Client;
 use tgbot::handler::{LongPoll, UpdateHandler};
@@ -21,9 +22,9 @@ use crate::handlers::utils::routing_message::RoutingMessage;
 
 pub type SessionKey = (AppPublicId, SessionId);
 
-pub type SupportEventTx = AsyncTx<One<RoutingMessage<SessionKey, ChatMessageEvent>>>;
-pub type SupportEventRx = AsyncRx<One<RoutingMessage<SessionKey, ChatMessageEvent>>>;
-pub type SupportEventStream = AsyncStream<One<RoutingMessage<SessionKey, ChatMessageEvent>>>;
+pub type SupportEventTx = AsyncTx<One<RoutingMessage<SessionKey, ChatMessage>>>;
+pub type SupportEventRx = AsyncRx<One<RoutingMessage<SessionKey, ChatMessage>>>;
+pub type SupportEventStream = AsyncStream<One<RoutingMessage<SessionKey, ChatMessage>>>;
 pub type SupportEventProducer = Arc<Mutex<SupportEventTx>>;
 
 #[derive(Clone, Debug, Serialize)]
@@ -32,24 +33,6 @@ pub enum BotStatus {
     Stopped,
     Restarting { next_attempt_ms: u64 },
     Error(String),
-}
-
-#[derive(Clone, Serialize)]
-pub struct ChatMessageEvent {
-    #[serde(serialize_with = "serialize_session_id")]
-    pub session_id: SessionId,
-    pub incoming: bool,
-    pub sent_by: String,
-    pub sent_at: i64,
-    pub content: String,
-}
-
-fn serialize_session_id<S>(id: &SessionId, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    let nanoid: crate::id_types::NanoId = (*id).into();
-    nanoid.to_string().serialize(serializer)
 }
 
 pub struct BotRouter {
@@ -65,7 +48,7 @@ impl BotRouter {
         support_user_table: Arc<SupportUserWorkTable>,
         support_message_table: Arc<SupportMessageWorkTable>,
     ) -> Self {
-        let (tx, rx) = new::<One<RoutingMessage<SessionKey, ChatMessageEvent>>, AsyncTx<_>, AsyncRx<_>>();
+        let (tx, rx) = new::<One<RoutingMessage<SessionKey, ChatMessage>>, AsyncTx<_>, AsyncRx<_>>();
         Self {
             bots: RwLock::new(HashMap::new()),
             event_tx: Arc::new(Mutex::new(tx)),
@@ -162,8 +145,9 @@ impl BotRouter {
             }
         }
 
-        let event = ChatMessageEvent {
-            session_id,
+        let session_id_nanoid: crate::id_types::NanoId = session_id.into();
+        let event = ChatMessage {
+            session_id: session_id_nanoid,
             incoming: false,
             sent_by: sender_name,
             sent_at,
@@ -331,8 +315,9 @@ impl UpdateHandler for BotUpdateHandler {
                         return;
                     }
 
-                    let event = ChatMessageEvent {
-                        session_id,
+                    let session_id_nanoid: crate::id_types::NanoId = session_id.into();
+                    let event = ChatMessage {
+                        session_id: session_id_nanoid,
                         incoming: true,
                         sent_by: "Support".to_string(),
                         sent_at,

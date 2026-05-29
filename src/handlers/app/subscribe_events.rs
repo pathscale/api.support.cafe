@@ -4,16 +4,16 @@ use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
-use crate::codegen::model::{SubscribeEventsRequest, SubscribeEventsResponse};
+use crate::codegen::model::{ChatMessage, SubscribeEventsRequest, SubscribeEventsResponse};
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
 use crate::id_types::{AppPublicId, SessionId};
-use crate::service::bot::{ChatMessageEvent, SessionKey};
+use crate::service::bot::SessionKey;
 use crate::service::session::SessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
 #[derive(Clone)]
 pub struct MethodSubscribeEvents {
-    pub event_router: Arc<SubscriptionRouter<SessionKey, ChatMessageEvent>>,
+    pub event_router: Arc<SubscriptionRouter<SessionKey, ChatMessage>>,
     pub session_service: Arc<SessionService>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }

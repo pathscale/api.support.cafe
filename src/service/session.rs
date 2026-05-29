@@ -223,10 +223,15 @@ impl SessionService {
 
         let messages: Vec<ChatMessage> = rows
             .into_iter()
-            .map(|r| ChatMessage {
-                incoming: r.incoming,
-                sent_at: r.sent_at,
-                content: r.content,
+            .map(|r| {
+                let session_id: Nanoid<16, Base62Alphabet> = r.session_id.unpack().expect("valid session_id");
+                ChatMessage {
+                    session_id,
+                    incoming: r.incoming,
+                    sent_by: r.sent_by,
+                    sent_at: r.sent_at,
+                    content: r.content,
+                }
             })
             .collect();
 
