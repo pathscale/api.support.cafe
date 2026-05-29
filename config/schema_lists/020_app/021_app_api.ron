@@ -12,7 +12,9 @@ Config(
                 schema: (
                     name: "CreateSession",
                     code: 20001,
-                    parameters: [],
+                    parameters: [
+                        Field(name: "user_pub_id", ty: NanoId(len: 16)),
+                    ],
                     returns: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
                         Field(name: "created_at", ty: TimeStampMs),
@@ -32,7 +34,7 @@ Config(
                     returns: [
                         Field(name: "sent_at", ty: TimeStampMs),
                     ],
-                    roles: ["UserRole::App"],
+                    roles: ["UserRole::App", "UserRole::User", "UserRole::AppAdmin"],
                 ),
             ),
             EndpointSchemaElement(
@@ -49,7 +51,7 @@ Config(
                             ty: StructTable(struct_ref: "ChatMessage"),
                         ),
                     ],
-                    roles: ["UserRole::App"],
+                    roles: ["UserRole::App", "UserRole::User", "UserRole::AppAdmin"],
                 ),
             ),
             EndpointSchemaElement(
@@ -68,7 +70,7 @@ Config(
                         ),
                     ],
                     stream_response: Some(StructTable(struct_ref: "ChatMessage")),
-                    roles: ["UserRole::App"],
+                    roles: ["UserRole::App", "UserRole::User", "UserRole::AppAdmin"],
                 ),
             ),
             EndpointSchemaElement(
@@ -80,7 +82,7 @@ Config(
                         Field(name: "session_id", ty: NanoId(len: 16)),
                     ],
                     returns: [],
-                    roles: ["UserRole::App"],
+                    roles: ["UserRole::App", "UserRole::User", "UserRole::AppAdmin"],
                 ),
             ),
             EndpointSchemaElement(
@@ -95,7 +97,7 @@ Config(
                             ty: StructTable(struct_ref: "ChatSession"),
                         ),
                     ],
-                    roles: ["UserRole::App"],
+                    roles: ["UserRole::App", "UserRole::User", "UserRole::AppAdmin"],
                 ),
             ),
         ],

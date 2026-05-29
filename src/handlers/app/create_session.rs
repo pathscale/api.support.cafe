@@ -1,18 +1,16 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::Utc;
 use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
-use psc_nanoid::{alphabet::Base62Alphabet, Nanoid};
 
 use crate::codegen::model::{CreateSessionRequest, CreateSessionResponse};
-use crate::db::schema::chat_session::{ChatSessionRow, ChatSessionWorkTable};
-use crate::id_types::{AppPublicId, SessionId, UserPubId};
 use crate::service::app_connection_registry::AppConnectionRegistry;
+use crate::service::session::SessionService;
 
+#[derive(Clone)]
 pub struct MethodCreateSession {
-    pub chat_session_table: Arc<ChatSessionWorkTable>,
+    pub session_service: Arc<SessionService>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
 }
 
@@ -23,34 +21,34 @@ impl RequestHandler for MethodCreateSession {
     async fn handle(
         &self,
         ctx: RequestContext,
-        _req: Self::Request,
+        req: Self::Request,
     ) -> Response<Self::Request> {
-        let app_public_id: AppPublicId = self.app_connection_registry
+        tracing::debug!(
+            connection_id = ctx.connection_id,
+            user_pub_id = %req.user_pub_id,
+            "CreateSession: received request"
+        );
+
+        let app_public_id = self
+            .app_connection_registry
             .get(ctx.connection_id)
             .await
             .ok_or_else(|| eyre::eyre!("Connection not authenticated as app"))?;
 
-        let session_id_nanoid = Nanoid::<16, Base62Alphabet>::new();
-        let session_id: SessionId = session_id_nanoid.into();
+        let result = self.session_service.create_session(
+            req.user_pub_id.into(),
+            app_public_id,
+        )?;
 
-        let user_pub_id_nanoid = Nanoid::<16, Base62Alphabet>::new();
-        let user_pub_id: UserPubId = user_pub_id_nanoid.into();
-
-        let created_at = Utc::now().timestamp_millis();
-
-        let row = ChatSessionRow {
-            id: self.chat_session_table.get_next_pk().into(),
-            session_id: session_id.pack()?,
-            app_public_id: app_public_id.pack()?,
-            user_pub_id: user_pub_id.pack()?,
-            created_at,
-            closed_at: None,
-        };
-        self.chat_session_table.insert(row)?;
+        tracing::debug!(
+            connection_id = ctx.connection_id,
+            session_id = %result.session_id,
+            "CreateSession: session created successfully"
+        );
 
         Ok(CreateSessionResponse {
-            session_id: session_id_nanoid,
-            created_at,
+            session_id: result.session_id.into(),
+            created_at: result.created_at,
         })
     }
 }

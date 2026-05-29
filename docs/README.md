@@ -44,24 +44,24 @@ ID: 1
 |-----------|-----------|----------|--------|-----------|-----------|
 |10000|Init|`accessToken: String`|`userId: Nanoid<16, Base62Alphabet>`, `role: UserRole`, `version: String`||true|
 
+## appApi Server
+ID: 2
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|20001|CreateSession|`userPubId: Nanoid<16, Base62Alphabet>`|`sessionId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`||true|
+|20002|SendMessage|`sessionId: Nanoid<16, Base62Alphabet>`, `content: String`|`sentAt: i64`||true|
+|20003|ListMessages|`sessionId: Nanoid<16, Base62Alphabet>`|`data: Vec<ChatMessage>`||true|
+|20004|SubscribeEvents|`sessionId: Nanoid<16, Base62Alphabet>`, `unsub: Option<bool>`|`data: Vec<ChatMessage>`||true|
+|20005|CloseSession|`sessionId: Nanoid<16, Base62Alphabet>`|||true|
+|20006|ListSessions||`data: Vec<ChatSession>`||true|
+
 ## appConnect Server
 ID: 2
 ### Endpoints
 |Code|Name|Parameters|Response|Description|FE Facing|
 |-----------|-----------|----------|--------|-----------|-----------|
 |20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
-
-## appApi Server
-ID: 2
-### Endpoints
-|Code|Name|Parameters|Response|Description|FE Facing|
-|-----------|-----------|----------|--------|-----------|-----------|
-|20001|CreateSession||`sessionId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`||true|
-|20002|SendMessage|`sessionId: Nanoid<16, Base62Alphabet>`, `content: String`|`sentAt: i64`||true|
-|20003|ListMessages|`sessionId: Nanoid<16, Base62Alphabet>`|`data: Vec<ChatMessage>`||true|
-|20004|SubscribeEvents|`sessionId: Nanoid<16, Base62Alphabet>`, `unsub: Option<bool>`|`data: Vec<ChatMessage>`||true|
-|20005|CloseSession|`sessionId: Nanoid<16, Base62Alphabet>`|||true|
-|20006|ListSessions||`data: Vec<ChatSession>`||true|
 
 ## appAdminApi Server
 ID: 3

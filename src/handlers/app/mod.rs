@@ -18,25 +18,30 @@ use crate::handlers::app::subscribe_events::MethodSubscribeEvents;
 
 pub fn register_handlers(server: &mut WebsocketServer, ctx: &AppCtx) {
     server.add_handler(MethodCreateSession {
-        chat_session_table: ctx.db.chat_session_table.clone(),
+        session_service: ctx.session_service.clone(),
         app_connection_registry: ctx.app_connection_registry.clone(),
     });
     server.add_handler(MethodSendMessage {
-        bot_service: ctx.bot_service.clone(),
-        app_connection_registry: ctx.app_connection_registry.clone(),
+        session_service: ctx.session_service.clone(),
+        user_connection_registry: ctx.user_connection_registry.clone(),
     });
     server.add_handler(MethodListMessages {
-        support_message_table: ctx.db.support_message_table.clone(),
+        session_service: ctx.session_service.clone(),
+        app_connection_registry: ctx.app_connection_registry.clone(),
+        user_connection_registry: ctx.user_connection_registry.clone(),
     });
     server.add_handler(MethodSubscribeEvents {
         event_router: ctx.event_router.clone(),
-        app_connection_registry: ctx.app_connection_registry.clone(),
+        session_service: ctx.session_service.clone(),
+        user_connection_registry: ctx.user_connection_registry.clone(),
     });
     server.add_handler(MethodCloseSession {
-        chat_session_table: ctx.db.chat_session_table.clone(),
+        session_service: ctx.session_service.clone(),
+        user_connection_registry: ctx.user_connection_registry.clone(),
     });
     server.add_handler(MethodListSessions {
-        chat_session_table: ctx.db.chat_session_table.clone(),
+        session_service: ctx.session_service.clone(),
         app_connection_registry: ctx.app_connection_registry.clone(),
+        user_connection_registry: ctx.user_connection_registry.clone(),
     });
 }

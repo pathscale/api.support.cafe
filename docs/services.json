@@ -118,6 +118,198 @@
     {
       "endpoints": [
         {
+          "code": 20001,
+          "description": "",
+          "json_schema": null,
+          "name": "CreateSession",
+          "parameters": [
+            {
+              "name": "userPubId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "createdAt",
+              "ty": "TimeStampMs"
+            }
+          ],
+          "roles": [
+            "UserRole::App"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 20002,
+          "description": "",
+          "json_schema": null,
+          "name": "SendMessage",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "content",
+              "ty": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "sentAt",
+              "ty": "TimeStampMs"
+            }
+          ],
+          "roles": [
+            "UserRole::App",
+            "UserRole::User",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 20003,
+          "description": "",
+          "json_schema": null,
+          "name": "ListMessages",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "ChatMessage"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::App",
+            "UserRole::User",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 20004,
+          "description": "",
+          "json_schema": null,
+          "name": "SubscribeEvents",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "unsub",
+              "ty": {
+                "Optional": "Boolean"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "ChatMessage"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::App",
+            "UserRole::User",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": {
+            "StructTable": {
+              "struct_ref": "ChatMessage"
+            }
+          }
+        },
+        {
+          "code": 20005,
+          "description": "",
+          "json_schema": null,
+          "name": "CloseSession",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::App",
+            "UserRole::User",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 20006,
+          "description": "",
+          "json_schema": null,
+          "name": "ListSessions",
+          "parameters": [],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "ChatSession"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::App",
+            "UserRole::User",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        }
+      ],
+      "id": 2,
+      "name": "appApi"
+    },
+    {
+      "endpoints": [
+        {
           "code": 20000,
           "description": "",
           "json_schema": null,
@@ -164,179 +356,6 @@
       ],
       "id": 2,
       "name": "appConnect"
-    },
-    {
-      "endpoints": [
-        {
-          "code": 20001,
-          "description": "",
-          "json_schema": null,
-          "name": "CreateSession",
-          "parameters": [],
-          "returns": [
-            {
-              "name": "sessionId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            },
-            {
-              "name": "createdAt",
-              "ty": "TimeStampMs"
-            }
-          ],
-          "roles": [
-            "UserRole::App"
-          ],
-          "stream_response": null
-        },
-        {
-          "code": 20002,
-          "description": "",
-          "json_schema": null,
-          "name": "SendMessage",
-          "parameters": [
-            {
-              "name": "sessionId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            },
-            {
-              "name": "content",
-              "ty": "String"
-            }
-          ],
-          "returns": [
-            {
-              "name": "sentAt",
-              "ty": "TimeStampMs"
-            }
-          ],
-          "roles": [
-            "UserRole::App"
-          ],
-          "stream_response": null
-        },
-        {
-          "code": 20003,
-          "description": "",
-          "json_schema": null,
-          "name": "ListMessages",
-          "parameters": [
-            {
-              "name": "sessionId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            }
-          ],
-          "returns": [
-            {
-              "name": "data",
-              "ty": {
-                "StructTable": {
-                  "struct_ref": "ChatMessage"
-                }
-              }
-            }
-          ],
-          "roles": [
-            "UserRole::App"
-          ],
-          "stream_response": null
-        },
-        {
-          "code": 20004,
-          "description": "",
-          "json_schema": null,
-          "name": "SubscribeEvents",
-          "parameters": [
-            {
-              "name": "sessionId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            },
-            {
-              "name": "unsub",
-              "ty": {
-                "Optional": "Boolean"
-              }
-            }
-          ],
-          "returns": [
-            {
-              "name": "data",
-              "ty": {
-                "StructTable": {
-                  "struct_ref": "ChatMessage"
-                }
-              }
-            }
-          ],
-          "roles": [
-            "UserRole::App"
-          ],
-          "stream_response": {
-            "StructTable": {
-              "struct_ref": "ChatMessage"
-            }
-          }
-        },
-        {
-          "code": 20005,
-          "description": "",
-          "json_schema": null,
-          "name": "CloseSession",
-          "parameters": [
-            {
-              "name": "sessionId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            }
-          ],
-          "returns": [],
-          "roles": [
-            "UserRole::App"
-          ],
-          "stream_response": null
-        },
-        {
-          "code": 20006,
-          "description": "",
-          "json_schema": null,
-          "name": "ListSessions",
-          "parameters": [],
-          "returns": [
-            {
-              "name": "data",
-              "ty": {
-                "StructTable": {
-                  "struct_ref": "ChatSession"
-                }
-              }
-            }
-          ],
-          "roles": [
-            "UserRole::App"
-          ],
-          "stream_response": null
-        }
-      ],
-      "id": 2,
-      "name": "appApi"
     },
     {
       "endpoints": [

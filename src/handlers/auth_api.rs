@@ -11,28 +11,9 @@ use crate::codegen::model::{EnumEndpoint, InitRequest, InitResponse};
 use crate::db::tables::Tables;
 use crate::handlers::app::auth::MethodAppConnect;
 use crate::service::app_connection_registry::AppConnectionRegistry;
+use crate::service::user_connection_registry::UserConnectionRegistry;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-async fn init_handler(
-    _req: InitRequest,
-    ctx: AuthorizedConnectContext,
-    tables: Arc<Tables>,
-) -> eyre::Result<InitResponse> {
-    let packed_id = ctx.user_pub_id.pack()?;
-    let user = tables
-        .user_table
-        .select_by_pub_id(packed_id)
-        .ok_or_else(|| eyre::eyre!("User {} not found", ctx.user_pub_id))?;
-
-    ctx.conn.set_user_id(user.id);
-
-    Ok(InitResponse {
-        user_id: user.pub_id().into(),
-        role: user.role,
-        version: APP_VERSION.to_string(),
-    })
-}
 
 impl AuthorizedConnectRequest for InitRequest {
     fn get_access_token(&self) -> &str {
@@ -46,10 +27,12 @@ pub fn register_auth_api_handlers(
     token_storage: Arc<dyn TokenStorage + Sync + Send>,
     honey_id_client: Arc<HoneyIdClient>,
     app_connection_registry: Arc<AppConnectionRegistry>,
+    user_connection_registry: Arc<UserConnectionRegistry>,
 ) {
     let mut auth_controller = EndpointAuthController::default();
 
     let tables_clone = tables.clone();
+    let user_registry_clone = user_connection_registry.clone();
 
     auth_controller.add_auth_endpoint(
         EnumEndpoint::Init.schema(),
@@ -58,7 +41,8 @@ pub fn register_auth_api_handlers(
             tables.user_table.clone(),
             move |req, ctx| {
                 let tables = tables_clone.clone();
-                init_handler(req, ctx, tables)
+                let user_registry = user_registry_clone.clone();
+                init_handler(req, ctx, tables, user_registry)
             },
         ),
     );
@@ -94,4 +78,41 @@ pub fn register_auth_api_handlers(
         token_storage: Arc::new(honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage::default()),
         user_storage: tables.user_table.clone(),
     });
+}
+
+async fn init_handler(
+    _req: InitRequest,
+    ctx: AuthorizedConnectContext,
+    tables: Arc<Tables>,
+    user_registry: Arc<UserConnectionRegistry>,
+) -> eyre::Result<InitResponse> {
+    tracing::debug!(
+        user_pub_id = %ctx.user_pub_id,
+        "Init: received authentication request"
+    );
+
+    let packed_id = ctx.user_pub_id.pack()?;
+    let user = tables
+        .user_table
+        .select_by_pub_id(packed_id)
+        .ok_or_else(|| eyre::eyre!("User {} not found", ctx.user_pub_id))?;
+
+    ctx.conn.set_user_id(user.id);
+
+    // Register user identity in registry for authorization checks
+    let connection_id = ctx.conn.connection_id;
+    user_registry.register(connection_id, ctx.user_pub_id).await;
+
+    tracing::debug!(
+        connection_id = connection_id,
+        user_pub_id = %ctx.user_pub_id,
+        role = ?user.role,
+        "Init: user authenticated and registered"
+    );
+
+    Ok(InitResponse {
+        user_id: user.pub_id().into(),
+        role: user.role,
+        version: APP_VERSION.to_string(),
+    })
 }
