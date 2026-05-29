@@ -36,19 +36,18 @@ impl RequestHandler for MethodListSessions {
             .await
             .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
 
-        // Optional app filter - if connected via app, filter by that app
         let app_filter = self.app_connection_registry.get(ctx.connection_id).await;
 
         let sessions = self.session_service.list_sessions(user_pub_id, app_filter)?;
 
         let data: Vec<ChatSession> = sessions
             .into_iter()
-            .map(|s| ChatSession {
-                session_id: s.session_id.into(),
-                app_public_id: s.app_public_id.into(),
-                user_pub_id: s.user_pub_id.into(),
-                created_at: s.created_at,
-                closed_at: s.closed_at,
+            .map(|r| ChatSession {
+                session_id: r.session_id.unpack().expect("valid nanoid"),
+                app_public_id: r.app_public_id.unpack().expect("valid nanoid"),
+                user_pub_id: r.user_pub_id.unpack().expect("valid nanoid"),
+                created_at: r.created_at,
+                closed_at: r.closed_at,
             })
             .collect();
 

@@ -40,11 +40,11 @@ impl RequestHandler for MethodListMessages {
             .await
             .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
 
-        let _verified = self.session_service.verify_session_access(session_id, user_pub_id)?;
+        let row = self.session_service.verify_session_access(session_id, user_pub_id)?;
 
         // If connected via app, verify session belongs to that app
         if let Some(app_public_id) = self.app_connection_registry.get(ctx.connection_id).await {
-            if !self.session_service.is_for_app(session_id, app_public_id)? {
+            if row.app_public_id != app_public_id.pack()? {
                 eyre::bail!("Session does not belong to this app");
             }
         }
