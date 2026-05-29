@@ -21,12 +21,16 @@ use crate::handlers::utils::subscription_router::SubscriptionRouter;
 use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::app::AppService;
 use crate::service::bot::{BotService, ChatMessageEvent, SessionKey};
+use crate::service::session::SessionService;
+use crate::service::user_connection_registry::UserConnectionRegistry;
 
 pub struct AppCtx {
     pub config: Arc<Config>,
     pub db: Arc<Tables>,
     pub bot_service: Arc<BotService>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
+    pub user_connection_registry: Arc<UserConnectionRegistry>,
+    pub session_service: Arc<SessionService>,
     pub app_service: Arc<AppService>,
     pub event_router: Arc<SubscriptionRouter<SessionKey, ChatMessageEvent>>,
     pub toolbox: ArcToolbox,
@@ -48,11 +52,17 @@ impl App {
         let db = Arc::new(Tables::new(config.database.clone()).await?);
         let toolbox = Toolbox::new();
         let app_connection_registry = Arc::new(AppConnectionRegistry::new());
+        let user_connection_registry = Arc::new(UserConnectionRegistry::new());
         let app_service = Arc::new(AppService::new(db.app_config_table.clone()));
         let bot_service = Arc::new(BotService::new(
             db.support_user_table.clone(),
             db.support_message_table.clone(),
             app_service.clone(),
+        ));
+        let session_service = Arc::new(SessionService::new(
+            db.chat_session_table.clone(),
+            db.support_message_table.clone(),
+            bot_service.clone(),
         ));
 
         let event_stream = bot_service.take_event_stream().await?;
@@ -70,6 +80,8 @@ impl App {
             db,
             bot_service,
             app_connection_registry,
+            user_connection_registry,
+            session_service,
             app_service,
             event_router,
             toolbox,
@@ -88,6 +100,7 @@ impl App {
             self.ctx.token_storage.clone(),
             self.ctx.honey_id_client.clone(),
             self.ctx.app_connection_registry.clone(),
+            self.ctx.user_connection_registry.clone(),
         );
         handlers::admin::register_handlers(server, &self.ctx);
         handlers::app_admin::register_handlers(server, &self.ctx);

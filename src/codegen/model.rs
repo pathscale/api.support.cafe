@@ -198,13 +198,13 @@ impl EnumEndpoint {
     pub fn schema(&self) -> endpoint_libs::model::EndpointSchema {
         let schema = match self {
             Self::Init => InitRequest::SCHEMA,
-            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateSession => CreateSessionRequest::SCHEMA,
             Self::SendMessage => SendMessageRequest::SCHEMA,
             Self::ListMessages => ListMessagesRequest::SCHEMA,
             Self::SubscribeEvents => SubscribeEventsRequest::SCHEMA,
             Self::CloseSession => CloseSessionRequest::SCHEMA,
             Self::ListSessions => ListSessionsRequest::SCHEMA,
+            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateApp => CreateAppRequest::SCHEMA,
             Self::EditApp => EditAppRequest::SCHEMA,
             Self::ListApps => ListAppsRequest::SCHEMA,
@@ -296,7 +296,9 @@ pub struct CreateAppResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateSessionRequest {}
+pub struct CreateSessionRequest {
+    pub user_pub_id: Nanoid<16, Base62Alphabet>,
+}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateSessionResponse {
@@ -486,6 +488,246 @@ impl WsResponse for InitResponse {
     type Request = InitRequest;
 }
 
+impl WsRequest for CreateSessionRequest {
+    type Response = CreateSessionResponse;
+    const METHOD_ID: u32 = 20001;
+    const ROLES: &[u32] = &[2];
+    const SCHEMA: &'static str = r#"{
+  "name": "CreateSession",
+  "code": 20001,
+  "parameters": [
+    {
+      "name": "user_pub_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [
+    {
+      "name": "session_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "created_at",
+      "ty": "TimeStampMs"
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::App"
+  ]
+}"#;
+}
+impl WsResponse for CreateSessionResponse {
+    type Request = CreateSessionRequest;
+}
+
+impl WsRequest for SendMessageRequest {
+    type Response = SendMessageResponse;
+    const METHOD_ID: u32 = 20002;
+    const ROLES: &[u32] = &[2, 3, 4];
+    const SCHEMA: &'static str = r#"{
+  "name": "SendMessage",
+  "code": 20002,
+  "parameters": [
+    {
+      "name": "session_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "content",
+      "ty": "String"
+    }
+  ],
+  "returns": [
+    {
+      "name": "sent_at",
+      "ty": "TimeStampMs"
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::App",
+    "UserRole::User",
+    "UserRole::AppAdmin"
+  ]
+}"#;
+}
+impl WsResponse for SendMessageResponse {
+    type Request = SendMessageRequest;
+}
+
+impl WsRequest for ListMessagesRequest {
+    type Response = ListMessagesResponse;
+    const METHOD_ID: u32 = 20003;
+    const ROLES: &[u32] = &[2, 3, 4];
+    const SCHEMA: &'static str = r#"{
+  "name": "ListMessages",
+  "code": 20003,
+  "parameters": [
+    {
+      "name": "session_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [
+    {
+      "name": "data",
+      "ty": {
+        "StructTable": {
+          "struct_ref": "ChatMessage"
+        }
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::App",
+    "UserRole::User",
+    "UserRole::AppAdmin"
+  ]
+}"#;
+}
+impl WsResponse for ListMessagesResponse {
+    type Request = ListMessagesRequest;
+}
+
+impl WsRequest for SubscribeEventsRequest {
+    type Response = SubscribeEventsResponse;
+    const METHOD_ID: u32 = 20004;
+    const ROLES: &[u32] = &[2, 3, 4];
+    const SCHEMA: &'static str = r#"{
+  "name": "SubscribeEvents",
+  "code": 20004,
+  "parameters": [
+    {
+      "name": "session_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "unsub",
+      "ty": {
+        "Optional": "Boolean"
+      }
+    }
+  ],
+  "returns": [
+    {
+      "name": "data",
+      "ty": {
+        "StructTable": {
+          "struct_ref": "ChatMessage"
+        }
+      }
+    }
+  ],
+  "stream_response": {
+    "StructTable": {
+      "struct_ref": "ChatMessage"
+    }
+  },
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::App",
+    "UserRole::User",
+    "UserRole::AppAdmin"
+  ]
+}"#;
+}
+impl WsResponse for SubscribeEventsResponse {
+    type Request = SubscribeEventsRequest;
+}
+
+impl WsRequest for CloseSessionRequest {
+    type Response = CloseSessionResponse;
+    const METHOD_ID: u32 = 20005;
+    const ROLES: &[u32] = &[2, 3, 4];
+    const SCHEMA: &'static str = r#"{
+  "name": "CloseSession",
+  "code": 20005,
+  "parameters": [
+    {
+      "name": "session_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::App",
+    "UserRole::User",
+    "UserRole::AppAdmin"
+  ]
+}"#;
+}
+impl WsResponse for CloseSessionResponse {
+    type Request = CloseSessionRequest;
+}
+
+impl WsRequest for ListSessionsRequest {
+    type Response = ListSessionsResponse;
+    const METHOD_ID: u32 = 20006;
+    const ROLES: &[u32] = &[2, 3, 4];
+    const SCHEMA: &'static str = r#"{
+  "name": "ListSessions",
+  "code": 20006,
+  "parameters": [],
+  "returns": [
+    {
+      "name": "data",
+      "ty": {
+        "StructTable": {
+          "struct_ref": "ChatSession"
+        }
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::App",
+    "UserRole::User",
+    "UserRole::AppAdmin"
+  ]
+}"#;
+}
+impl WsResponse for ListSessionsResponse {
+    type Request = ListSessionsRequest;
+}
+
 impl WsRequest for AppConnectRequest {
     type Response = AppConnectResponse;
     const METHOD_ID: u32 = 20000;
@@ -537,227 +779,6 @@ impl WsRequest for AppConnectRequest {
 }
 impl WsResponse for AppConnectResponse {
     type Request = AppConnectRequest;
-}
-
-impl WsRequest for CreateSessionRequest {
-    type Response = CreateSessionResponse;
-    const METHOD_ID: u32 = 20001;
-    const ROLES: &[u32] = &[2];
-    const SCHEMA: &'static str = r#"{
-  "name": "CreateSession",
-  "code": 20001,
-  "parameters": [],
-  "returns": [
-    {
-      "name": "session_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "created_at",
-      "ty": "TimeStampMs"
-    }
-  ],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::App"
-  ]
-}"#;
-}
-impl WsResponse for CreateSessionResponse {
-    type Request = CreateSessionRequest;
-}
-
-impl WsRequest for SendMessageRequest {
-    type Response = SendMessageResponse;
-    const METHOD_ID: u32 = 20002;
-    const ROLES: &[u32] = &[2];
-    const SCHEMA: &'static str = r#"{
-  "name": "SendMessage",
-  "code": 20002,
-  "parameters": [
-    {
-      "name": "session_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "content",
-      "ty": "String"
-    }
-  ],
-  "returns": [
-    {
-      "name": "sent_at",
-      "ty": "TimeStampMs"
-    }
-  ],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::App"
-  ]
-}"#;
-}
-impl WsResponse for SendMessageResponse {
-    type Request = SendMessageRequest;
-}
-
-impl WsRequest for ListMessagesRequest {
-    type Response = ListMessagesResponse;
-    const METHOD_ID: u32 = 20003;
-    const ROLES: &[u32] = &[2];
-    const SCHEMA: &'static str = r#"{
-  "name": "ListMessages",
-  "code": 20003,
-  "parameters": [
-    {
-      "name": "session_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    }
-  ],
-  "returns": [
-    {
-      "name": "data",
-      "ty": {
-        "StructTable": {
-          "struct_ref": "ChatMessage"
-        }
-      }
-    }
-  ],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::App"
-  ]
-}"#;
-}
-impl WsResponse for ListMessagesResponse {
-    type Request = ListMessagesRequest;
-}
-
-impl WsRequest for SubscribeEventsRequest {
-    type Response = SubscribeEventsResponse;
-    const METHOD_ID: u32 = 20004;
-    const ROLES: &[u32] = &[2];
-    const SCHEMA: &'static str = r#"{
-  "name": "SubscribeEvents",
-  "code": 20004,
-  "parameters": [
-    {
-      "name": "session_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "unsub",
-      "ty": {
-        "Optional": "Boolean"
-      }
-    }
-  ],
-  "returns": [
-    {
-      "name": "data",
-      "ty": {
-        "StructTable": {
-          "struct_ref": "ChatMessage"
-        }
-      }
-    }
-  ],
-  "stream_response": {
-    "StructTable": {
-      "struct_ref": "ChatMessage"
-    }
-  },
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::App"
-  ]
-}"#;
-}
-impl WsResponse for SubscribeEventsResponse {
-    type Request = SubscribeEventsRequest;
-}
-
-impl WsRequest for CloseSessionRequest {
-    type Response = CloseSessionResponse;
-    const METHOD_ID: u32 = 20005;
-    const ROLES: &[u32] = &[2];
-    const SCHEMA: &'static str = r#"{
-  "name": "CloseSession",
-  "code": 20005,
-  "parameters": [
-    {
-      "name": "session_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    }
-  ],
-  "returns": [],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::App"
-  ]
-}"#;
-}
-impl WsResponse for CloseSessionResponse {
-    type Request = CloseSessionRequest;
-}
-
-impl WsRequest for ListSessionsRequest {
-    type Response = ListSessionsResponse;
-    const METHOD_ID: u32 = 20006;
-    const ROLES: &[u32] = &[2];
-    const SCHEMA: &'static str = r#"{
-  "name": "ListSessions",
-  "code": 20006,
-  "parameters": [],
-  "returns": [
-    {
-      "name": "data",
-      "ty": {
-        "StructTable": {
-          "struct_ref": "ChatSession"
-        }
-      }
-    }
-  ],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::App"
-  ]
-}"#;
-}
-impl WsResponse for ListSessionsResponse {
-    type Request = ListSessionsRequest;
 }
 
 impl WsRequest for CreateAppRequest {

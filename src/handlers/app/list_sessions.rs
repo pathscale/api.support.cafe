@@ -3,16 +3,17 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
-use worktable::select::SelectQueryExecutor;
 
 use crate::codegen::model::{ChatSession, ListSessionsRequest, ListSessionsResponse};
-use crate::db::schema::chat_session::ChatSessionWorkTable;
-use crate::id_types::PackedNanoId;
 use crate::service::app_connection_registry::AppConnectionRegistry;
+use crate::service::session::SessionService;
+use crate::service::user_connection_registry::UserConnectionRegistry;
 
+#[derive(Clone)]
 pub struct MethodListSessions {
-    pub chat_session_table: Arc<ChatSessionWorkTable>,
+    pub session_service: Arc<SessionService>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
+    pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
 #[async_trait(?Send)]
@@ -24,25 +25,39 @@ impl RequestHandler for MethodListSessions {
         ctx: RequestContext,
         _req: Self::Request,
     ) -> Response<Self::Request> {
-        let app_public_id = self.app_connection_registry
+        tracing::debug!(
+            connection_id = ctx.connection_id,
+            "ListSessions: received request"
+        );
+
+        let user_pub_id = self
+            .user_connection_registry
             .get(ctx.connection_id)
             .await
-            .ok_or_else(|| eyre::eyre!("Connection not authenticated as app"))?;
+            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
 
-        let app_public_id_packed: PackedNanoId = app_public_id.pack()?;
+        // Optional app filter - if connected via app, filter by that app
+        let app_filter = self.app_connection_registry.get(ctx.connection_id).await;
 
-        let rows = self.chat_session_table.select_all().execute()?;
-        let data: Vec<ChatSession> = rows
+        let sessions = self.session_service.list_sessions(user_pub_id, app_filter)?;
+
+        let data: Vec<ChatSession> = sessions
             .into_iter()
-            .filter(|r| r.app_public_id == app_public_id_packed)
-            .map(|r| ChatSession {
-                session_id: r.session_id.unpack().expect("valid packed nanoid"),
-                app_public_id: r.app_public_id.unpack().expect("valid packed nanoid"),
-                user_pub_id: r.user_pub_id.unpack().expect("valid packed nanoid"),
-                created_at: r.created_at,
-                closed_at: r.closed_at,
+            .map(|s| ChatSession {
+                session_id: s.session_id.into(),
+                app_public_id: s.app_public_id.into(),
+                user_pub_id: s.user_pub_id.into(),
+                created_at: s.created_at,
+                closed_at: s.closed_at,
             })
             .collect();
+
+        tracing::debug!(
+            connection_id = ctx.connection_id,
+            count = data.len(),
+            "ListSessions: completed successfully"
+        );
+
         Ok(ListSessionsResponse { data })
     }
 }
