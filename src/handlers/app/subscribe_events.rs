@@ -6,7 +6,7 @@ use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
 use crate::codegen::model::{SubscribeEventsRequest, SubscribeEventsResponse};
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
-use crate::id_types::SessionId;
+use crate::id_types::{AppPublicId, SessionId};
 use crate::service::bot::{ChatMessageEvent, SessionKey};
 use crate::service::session::SessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
@@ -43,9 +43,10 @@ impl RequestHandler for MethodSubscribeEvents {
             .await
             .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
 
-        let verified = self.session_service.verify_session_access(session_id, user_pub_id)?;
+        let row = self.session_service.verify_session_access(session_id, user_pub_id)?;
+        let app_public_id = AppPublicId::from_packed(row.app_public_id)?;
 
-        let key: SessionKey = (verified.app_public_id, verified.session_id);
+        let key: SessionKey = (app_public_id, session_id);
 
         if req.unsub.unwrap_or(false) {
             self.event_router.unsubscribe(connection_id).await;
@@ -55,7 +56,7 @@ impl RequestHandler for MethodSubscribeEvents {
 
         tracing::debug!(
             connection_id = connection_id,
-            session_id = %req.session_id,
+            session_id = ?session_id,
             "SubscribeEvents: completed successfully"
         );
 

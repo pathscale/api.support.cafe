@@ -12,32 +12,6 @@ use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
 use crate::service::bot::BotService;
 use worktable::prelude::SelectQueryExecutor;
 
-/// Session ownership verification result.
-#[derive(Debug, Clone)]
-pub struct VerifiedSession {
-    pub session_id: SessionId,
-    pub app_public_id: AppPublicId,
-    pub user_pub_id: UserPublicId,
-    pub row_id: u64,
-}
-
-/// Result of successful session creation.
-#[derive(Debug, Clone)]
-pub struct CreatedSession {
-    pub session_id: SessionId,
-    pub created_at: i64,
-}
-
-/// Session information for listing.
-#[derive(Debug, Clone)]
-pub struct SessionInfo {
-    pub session_id: SessionId,
-    pub app_public_id: AppPublicId,
-    pub user_pub_id: UserPublicId,
-    pub created_at: i64,
-    pub closed_at: Option<i64>,
-}
-
 /// Service for session operations.
 pub struct SessionService {
     chat_session_table: Arc<ChatSessionWorkTable>,
@@ -58,12 +32,12 @@ impl SessionService {
         }
     }
 
-    /// Create a new chat session.
+    /// Create a new chat session. Returns the created row.
     pub fn create_session(
         &self,
         user_pub_id: UserPublicId,
         app_public_id: AppPublicId,
-    ) -> eyre::Result<CreatedSession> {
+    ) -> eyre::Result<ChatSessionRow> {
         tracing::debug!(
             app_public_id = %app_public_id,
             user_pub_id = %user_pub_id,
@@ -83,7 +57,7 @@ impl SessionService {
             created_at,
             closed_at: None,
         };
-        self.chat_session_table.insert(row)?;
+        self.chat_session_table.insert(row.clone())?;
 
         tracing::debug!(
             session_id = %session_id,
@@ -92,7 +66,7 @@ impl SessionService {
             "SessionService::create_session: completed"
         );
 
-        Ok(CreatedSession { session_id, created_at })
+        Ok(row)
     }
 
     /// Close a session by setting closed_at timestamp.
@@ -107,13 +81,13 @@ impl SessionService {
             "SessionService::close_session: closing"
         );
 
-        let verified = self.verify_session_access(session_id, user_pub_id)?;
+        let row = self.verify_session_access(session_id, user_pub_id)?;
 
         let closed_at = Utc::now().timestamp_millis();
         self.chat_session_table
             .update_closed_at_by_id(
                 ClosedAtByIdQuery { closed_at: Some(closed_at) },
-                verified.row_id,
+                row.id,
             )
             .await?;
 
@@ -141,11 +115,12 @@ impl SessionService {
             "SessionService::send_message: sending"
         );
 
-        let verified = self.verify_session_access(session_id, user_pub_id)?;
+        let row = self.verify_session_access(session_id, user_pub_id)?;
+        let app_public_id = AppPublicId::from_packed(row.app_public_id)?;
 
         let sent_at = self
             .bot_service
-            .send_message(verified.app_public_id, session_id, content, "User".to_string())
+            .send_message(app_public_id, session_id, content, "User".to_string())
             .await
             .map_err(|e| eyre::eyre!("Failed to send message: {e}"))?;
 
@@ -188,12 +163,12 @@ impl SessionService {
         Ok(belongs)
     }
 
-    /// Verify session exists and belongs to user.
+    /// Verify session exists and belongs to user. Returns the row.
     pub fn verify_session_access(
         &self,
         session_id: SessionId,
         user_pub_id: UserPublicId,
-    ) -> eyre::Result<VerifiedSession> {
+    ) -> eyre::Result<ChatSessionRow> {
         tracing::debug!(
             session_id = %session_id,
             user_pub_id = %user_pub_id,
@@ -223,13 +198,7 @@ impl SessionService {
             "SessionService::verify_session_access: verified"
         );
 
-        Ok(VerifiedSession {
-            session_id,
-            app_public_id: AppPublicId::from_packed(session.app_public_id)?,
-            user_pub_id: UserPublicId::unpack(session.user_pub_id)
-                .map_err(|e| eyre::eyre!("Failed to unpack user_pub_id: {}", e))?,
-            row_id: session.id,
-        })
+        Ok(session)
     }
 
     /// List messages for session.
@@ -275,7 +244,7 @@ impl SessionService {
         &self,
         user_pub_id: UserPublicId,
         app_filter: Option<AppPublicId>,
-    ) -> eyre::Result<Vec<SessionInfo>> {
+    ) -> eyre::Result<Vec<ChatSessionRow>> {
         tracing::debug!(
             user_pub_id = %user_pub_id,
             app_filter = ?app_filter,
@@ -292,7 +261,7 @@ impl SessionService {
             );
         })?;
 
-        let sessions: Vec<SessionInfo> = rows
+        let sessions: Vec<ChatSessionRow> = rows
             .into_iter()
             .filter(|r| r.user_pub_id == packed_user_id)
             .filter(|r| {
@@ -303,17 +272,7 @@ impl SessionService {
                     true
                 }
             })
-            .map(|r| {
-                Ok(SessionInfo {
-                    session_id: SessionId::from_packed(r.session_id)?,
-                    app_public_id: AppPublicId::from_packed(r.app_public_id)?,
-                    user_pub_id: UserPublicId::unpack(r.user_pub_id)
-                        .map_err(|e| eyre::eyre!("Failed to unpack user_pub_id: {}", e))?,
-                    created_at: r.created_at,
-                    closed_at: r.closed_at,
-                })
-            })
-            .collect::<eyre::Result<Vec<_>>>()?;
+            .collect();
 
         tracing::debug!(
             user_pub_id = %user_pub_id,
