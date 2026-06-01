@@ -74,6 +74,8 @@ pub enum UserRole {
     User = 3,
     /// App admin authenticated via honey.id Init
     AppAdmin = 4,
+    /// Support user authenticated via honey.id Init
+    Support = 5,
     /// honey.id callback endpoints
     HoneyAuth = 6,
 }
@@ -118,6 +120,13 @@ pub struct ChatSession {
     pub created_at: i64,
     #[serde(default)]
     pub closed_at: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SupportInfo {
+    pub user_pub_id: Nanoid<16, Base62Alphabet>,
+    pub tg_handle: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -173,6 +182,10 @@ pub enum EnumEndpoint {
     ///
     ListSessions = 20006,
     ///
+    SetMyTgHandle = 20007,
+    ///
+    GetMyTgHandle = 20008,
+    ///
     CreateApp = 30000,
     ///
     EditApp = 30001,
@@ -218,6 +231,8 @@ impl EnumEndpoint {
             Self::GetUsers => GetUsersRequest::SCHEMA,
             Self::SetRole => SetRoleRequest::SCHEMA,
             Self::GetAllApps => GetAllAppsRequest::SCHEMA,
+            Self::SetMyTgHandle => SetMyTgHandleRequest::SCHEMA,
+            Self::GetMyTgHandle => GetMyTgHandleRequest::SCHEMA,
         };
         serde_json::from_str(schema).unwrap()
     }
@@ -339,6 +354,15 @@ pub struct GetAllAppsResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct GetMyTgHandleRequest {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GetMyTgHandleResponse {
+    #[serde(default)]
+    pub tg_handle: Option<String>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct GetUsersRequest {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -421,6 +445,14 @@ pub struct SetLogLevelRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SetLogLevelResponse {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SetMyTgHandleRequest {
+    pub tg_handle: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SetMyTgHandleResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SetRoleRequest {
@@ -1175,4 +1207,58 @@ impl WsRequest for GetAllAppsRequest {
 }
 impl WsResponse for GetAllAppsResponse {
     type Request = GetAllAppsRequest;
+}
+
+impl WsRequest for SetMyTgHandleRequest {
+    type Response = SetMyTgHandleResponse;
+    const METHOD_ID: u32 = 20007;
+    const ROLES: &[u32] = &[5];
+    const SCHEMA: &'static str = r#"{
+  "name": "SetMyTgHandle",
+  "code": 20007,
+  "parameters": [
+    {
+      "name": "tg_handle",
+      "ty": "String"
+    }
+  ],
+  "returns": [],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Support"
+  ]
+}"#;
+}
+impl WsResponse for SetMyTgHandleResponse {
+    type Request = SetMyTgHandleRequest;
+}
+
+impl WsRequest for GetMyTgHandleRequest {
+    type Response = GetMyTgHandleResponse;
+    const METHOD_ID: u32 = 20008;
+    const ROLES: &[u32] = &[5];
+    const SCHEMA: &'static str = r#"{
+  "name": "GetMyTgHandle",
+  "code": 20008,
+  "parameters": [],
+  "returns": [
+    {
+      "name": "tg_handle",
+      "ty": {
+        "Optional": "String"
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Support"
+  ]
+}"#;
+}
+impl WsResponse for GetMyTgHandleResponse {
+    type Request = GetMyTgHandleRequest;
 }

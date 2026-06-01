@@ -90,6 +90,7 @@ impl App {
         handlers::admin::register_handlers(server, &self.ctx);
         handlers::app_admin::register_handlers(server, &self.ctx);
         handlers::app::register_handlers(server, &self.ctx).await;
+        handlers::support::register_handlers(server, &self.ctx);
     }
 
     pub async fn run(self) -> Result<()> {
