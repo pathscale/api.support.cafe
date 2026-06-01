@@ -16,6 +16,9 @@ struct ChatMessage{ sessionId: Nanoid<16, Base62Alphabet>, incoming: bool, sentB
 struct ChatSession{ sessionId: Nanoid<16, Base62Alphabet>, appPublicId: Nanoid<16, Base62Alphabet>, userPubId: Nanoid<16, Base62Alphabet>, createdAt: i64, closedAt: Option<i64> }
 
 
+struct SupportInfo{ userPubId: Nanoid<16, Base62Alphabet>, tgHandle: String }
+
+
 struct SupportUser{ id: i64, appPublicId: Nanoid<16, Base62Alphabet>, tgHandle: String, chatId: Option<i64>, isActive: bool }
 
 
@@ -30,7 +33,7 @@ struct UserInfo{ id: i64, pubId: Nanoid<16, Base62Alphabet>, username: String, r
 enum LogLevel { Trace, Debug, Info, Warn, Error }
 
 
-enum UserRole { Public, Admin, App, User, AppAdmin, HoneyAuth }
+enum UserRole { Public, Admin, App, User, AppAdmin, Support, HoneyAuth }
 
 ```
 ---
@@ -85,3 +88,11 @@ ID: 4
 |40002|GetUsers||`data: Vec<UserInfo>`||true|
 |40003|SetRole|`userPubId: Nanoid<16, Base62Alphabet>`, `role: UserRole`|||true|
 |40004|GetAllApps||`data: Vec<AppInfo>`||true|
+
+## supportApi Server
+ID: 5
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|20007|SetMyTgHandle|`tgHandle: String`|||true|
+|20008|GetMyTgHandle||`tgHandle: Option<String>`||true|

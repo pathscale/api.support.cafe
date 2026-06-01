@@ -75,6 +75,15 @@ Config(
                     ],
                 ),
             ),
+            StructElement(
+                inner: Struct(
+                    name: "SupportInfo",
+                    fields: [
+                        Field(name: "user_pub_id", ty: NanoId(len: 16)),
+                        Field(name: "tg_handle", ty: String),
+                    ],
+                ),
+            ),
         ],
     ),
 )

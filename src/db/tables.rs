@@ -12,6 +12,7 @@ use crate::config::DatabaseConfig;
 use crate::config::S3Config;
 use crate::db::schema::app_config::AppConfigWorkTable;
 use crate::db::schema::chat_session::ChatSessionWorkTable;
+use crate::db::schema::support_info::SupportInfoWorkTable;
 use crate::db::schema::support_message::SupportMessageWorkTable;
 use crate::db::schema::support_user::SupportUserWorkTable;
 use crate::db::schema::user::UserWorkTable;
@@ -20,6 +21,7 @@ use crate::db::schema::user::UserWorkTable;
 use crate::db::schema::{
     app_config::AppConfigPersistenceEngine,
     chat_session::ChatSessionPersistenceEngine,
+    support_info::SupportInfoPersistenceEngine,
     support_message::SupportMessagePersistenceEngine,
     support_user::SupportUserPersistenceEngine,
     user::UserPersistenceEngine,
@@ -29,6 +31,7 @@ use crate::db::schema::{
 use crate::db::schema::{
     app_config::AppConfigS3SyncPersistenceEngine,
     chat_session::ChatSessionS3SyncPersistenceEngine,
+    support_info::SupportInfoS3SyncPersistenceEngine,
     support_message::SupportMessageS3SyncPersistenceEngine,
     support_user::SupportUserS3SyncPersistenceEngine,
     user::UserS3SyncPersistenceEngine,
@@ -40,6 +43,7 @@ pub struct Tables {
     pub support_user_table: Arc<SupportUserWorkTable>,
     pub chat_session_table: Arc<ChatSessionWorkTable>,
     pub support_message_table: Arc<SupportMessageWorkTable>,
+    pub support_info_table: Arc<SupportInfoWorkTable>,
     pub user_table: Arc<UserWorkTable>,
 }
 
@@ -64,6 +68,7 @@ impl Tables {
         let support_user_table = disk_load!(SupportUserPersistenceEngine, SupportUserWorkTable);
         let chat_session_table = disk_load!(ChatSessionPersistenceEngine, ChatSessionWorkTable);
         let support_message_table = disk_load!(SupportMessagePersistenceEngine, SupportMessageWorkTable);
+        let support_info_table = disk_load!(SupportInfoPersistenceEngine, SupportInfoWorkTable);
         let user_table = disk_load!(UserPersistenceEngine, UserWorkTable);
 
         Ok(Self {
@@ -71,6 +76,7 @@ impl Tables {
             support_user_table,
             chat_session_table,
             support_message_table,
+            support_info_table,
             user_table,
         })
     }
@@ -107,6 +113,7 @@ impl Tables {
             let support_user_table = s3_load!(SupportUserS3SyncPersistenceEngine, SupportUserWorkTable);
             let chat_session_table = s3_load!(ChatSessionS3SyncPersistenceEngine, ChatSessionWorkTable);
             let support_message_table = s3_load!(SupportMessageS3SyncPersistenceEngine, SupportMessageWorkTable);
+            let support_info_table = s3_load!(SupportInfoS3SyncPersistenceEngine, SupportInfoWorkTable);
             let user_table = s3_load!(UserS3SyncPersistenceEngine, UserWorkTable);
 
             Ok(Self {
@@ -114,6 +121,7 @@ impl Tables {
                 support_user_table,
                 chat_session_table,
                 support_message_table,
+                support_info_table,
                 user_table,
             })
         } else {
@@ -154,6 +162,7 @@ impl Tables {
         let support_user_table = s3_load!(SupportUserS3SyncPersistenceEngine, SupportUserWorkTable);
         let chat_session_table = s3_load!(ChatSessionS3SyncPersistenceEngine, ChatSessionWorkTable);
         let support_message_table = s3_load!(SupportMessageS3SyncPersistenceEngine, SupportMessageWorkTable);
+        let support_info_table = s3_load!(SupportInfoS3SyncPersistenceEngine, SupportInfoWorkTable);
         let user_table = s3_load!(UserS3SyncPersistenceEngine, UserWorkTable);
 
         Ok(Self {
@@ -161,6 +170,7 @@ impl Tables {
             support_user_table,
             chat_session_table,
             support_message_table,
+            support_info_table,
             user_table,
         })
     }
@@ -170,6 +180,7 @@ impl Tables {
         self.support_user_table.wait_for_ops().await;
         self.chat_session_table.wait_for_ops().await;
         self.support_message_table.wait_for_ops().await;
+        self.support_info_table.wait_for_ops().await;
         self.user_table.wait_for_ops().await;
     }
 }

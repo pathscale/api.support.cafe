@@ -62,6 +62,11 @@
             "value": 4
           },
           {
+            "description": "Support user authenticated via honey.id Init",
+            "name": "Support",
+            "value": 5
+          },
+          {
             "description": "honey.id callback endpoints",
             "name": "HoneyAuth",
             "value": 6
@@ -663,6 +668,48 @@
       ],
       "id": 4,
       "name": "adminApi"
+    },
+    {
+      "endpoints": [
+        {
+          "code": 20007,
+          "description": "",
+          "json_schema": null,
+          "name": "SetMyTgHandle",
+          "parameters": [
+            {
+              "name": "tgHandle",
+              "ty": "String"
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::Support"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 20008,
+          "description": "",
+          "json_schema": null,
+          "name": "GetMyTgHandle",
+          "parameters": [],
+          "returns": [
+            {
+              "name": "tgHandle",
+              "ty": {
+                "Optional": "String"
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::Support"
+          ],
+          "stream_response": null
+        }
+      ],
+      "id": 5,
+      "name": "supportApi"
     }
   ],
   "structs": [
@@ -798,6 +845,25 @@
           }
         ],
         "name": "ChatSession"
+      }
+    },
+    {
+      "Struct": {
+        "fields": [
+          {
+            "name": "userPubId",
+            "ty": {
+              "NanoId": {
+                "len": 16
+              }
+            }
+          },
+          {
+            "name": "tgHandle",
+            "ty": "String"
+          }
+        ],
+        "name": "SupportInfo"
       }
     },
     {
