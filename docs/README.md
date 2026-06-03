@@ -10,6 +10,9 @@ struct AppConfig{ appPublicId: Nanoid<16, Base62Alphabet>, tgBotToken: String, a
 struct AppInfo{ publicId: Nanoid<16, Base62Alphabet>, appName: Option<String>, active: bool, createdAt: i64 }
 
 
+struct AppMember{ id: i64, appPublicId: Nanoid<16, Base62Alphabet>, userPubId: Nanoid<16, Base62Alphabet>, role: AppMemberRole, createdAt: i64 }
+
+
 struct ChatMessage{ sessionId: Nanoid<16, Base62Alphabet>, incoming: bool, sentBy: String, sentAt: i64, content: String }
 
 
@@ -30,6 +33,9 @@ struct UserInfo{ id: i64, pubId: Nanoid<16, Base62Alphabet>, username: String, r
 ## Enums
 
 ```rust
+enum AppMemberRole { Owner, Admin, Support }
+
+
 enum LogLevel { Trace, Debug, Info, Warn, Error }
 
 
@@ -47,13 +53,6 @@ ID: 1
 |-----------|-----------|----------|--------|-----------|-----------|
 |10000|Init|`accessToken: String`|`userId: Nanoid<16, Base62Alphabet>`, `role: UserRole`, `version: String`||true|
 
-## appConnect Server
-ID: 2
-### Endpoints
-|Code|Name|Parameters|Response|Description|FE Facing|
-|-----------|-----------|----------|--------|-----------|-----------|
-|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
-
 ## appApi Server
 ID: 2
 ### Endpoints
@@ -66,6 +65,13 @@ ID: 2
 |20005|CloseSession|`sessionId: Nanoid<16, Base62Alphabet>`|||true|
 |20006|ListSessions||`data: Vec<ChatSession>`||true|
 
+## appConnect Server
+ID: 2
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
+
 ## appAdminApi Server
 ID: 3
 ### Endpoints
@@ -77,6 +83,9 @@ ID: 3
 |30003|AddSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgHandle: String`|||true|
 |30004|ListSupportUsers|`appPublicId: Nanoid<16, Base62Alphabet>`|`data: Vec<SupportUser>`||true|
 |30005|RemoveSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgHandle: String`|||true|
+|30006|AddAppMember|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`|||true|
+|30007|SetAppMemberRole|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`, `role: AppMemberRole`|||true|
+|30008|ListAppMembers|`appPublicId: Nanoid<16, Base62Alphabet>`|`data: Vec<AppMember>`||true|
 
 ## adminApi Server
 ID: 4
@@ -88,6 +97,7 @@ ID: 4
 |40002|GetUsers||`data: Vec<UserInfo>`||true|
 |40003|SetRole|`userPubId: Nanoid<16, Base62Alphabet>`, `role: UserRole`|||true|
 |40004|GetAllApps||`data: Vec<AppInfo>`||true|
+|40005|SetOwnerForOwnerlessApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`|||true|
 
 ## supportApi Server
 ID: 5

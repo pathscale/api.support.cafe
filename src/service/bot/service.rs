@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use tokio::time::{Duration, sleep};
 use tracing::info;
-use tokio::time::{sleep, Duration};
 
 use crate::db::schema::app_config::AppConfigRow;
 use crate::id_types::AppPublicId;
@@ -16,18 +16,27 @@ pub struct BotService {
 }
 
 impl BotService {
-    pub fn new(support_user_table: Arc<crate::db::schema::support_user::SupportUserWorkTable>,
-               support_message_table: Arc<crate::db::schema::support_message::SupportMessageWorkTable>,
-               app_service: Arc<AppService>) -> Self {
+    pub fn new(
+        support_user_table: Arc<crate::db::schema::support_user::SupportUserWorkTable>,
+        support_message_table: Arc<crate::db::schema::support_message::SupportMessageWorkTable>,
+        app_service: Arc<AppService>,
+    ) -> Self {
         let bot_router = Arc::new(BotRouter::new(support_user_table, support_message_table));
-        Self { bot_router, app_service }
+        Self {
+            bot_router,
+            app_service,
+        }
     }
 
     pub async fn take_event_stream(&self) -> eyre::Result<SupportEventStream> {
         self.bot_router.take_event_stream().await
     }
 
-    pub async fn register_bot(&self, app_public_id: AppPublicId, token: String) -> eyre::Result<()> {
+    pub async fn register_bot(
+        &self,
+        app_public_id: AppPublicId,
+        token: String,
+    ) -> eyre::Result<()> {
         self.bot_router.register_bot(app_public_id, token).await
     }
 
@@ -41,7 +50,8 @@ impl BotService {
 
         for app in active_apps {
             let app_public_id = AppPublicId::from_packed(app.public_id)?;
-            self.register_bot(app_public_id, app.tg_bot_token.clone()).await?;
+            self.register_bot(app_public_id, app.tg_bot_token.clone())
+                .await?;
             info!(?app_public_id, "Bot restored from persisted config");
             sleep(Duration::from_millis(500)).await;
         }
@@ -67,6 +77,8 @@ impl BotService {
         content: String,
         sender_name: String,
     ) -> eyre::Result<i64> {
-        self.bot_router.send_message(app_public_id, session_id, content, sender_name).await
+        self.bot_router
+            .send_message(app_public_id, session_id, content, sender_name)
+            .await
     }
 }

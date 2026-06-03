@@ -3,7 +3,7 @@ use std::sync::Arc;
 use chrono::Utc;
 use eyre::bail;
 use honey_id_types::id_entities::UserPublicId;
-use psc_nanoid::{alphabet::Base62Alphabet, Nanoid};
+use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
 
 use crate::codegen::model::ChatMessage;
 use crate::db::schema::chat_session::{ChatSessionRow, ChatSessionWorkTable, ClosedAtByIdQuery};
@@ -86,7 +86,9 @@ impl SessionService {
         let closed_at = Utc::now().timestamp_millis();
         self.chat_session_table
             .update_closed_at_by_id(
-                ClosedAtByIdQuery { closed_at: Some(closed_at) },
+                ClosedAtByIdQuery {
+                    closed_at: Some(closed_at),
+                },
                 row.id,
             )
             .await?;
@@ -148,7 +150,10 @@ impl SessionService {
         let packed_session_id: PackedNanoId = session_id.pack()?;
         let packed_app_id: PackedNanoId = app_public_id.pack()?;
 
-        let belongs = match self.chat_session_table.select_by_session_id(packed_session_id) {
+        let belongs = match self
+            .chat_session_table
+            .select_by_session_id(packed_session_id)
+        {
             Some(session) => session.app_public_id == packed_app_id,
             None => false,
         };
@@ -224,7 +229,8 @@ impl SessionService {
         let messages: Vec<ChatMessage> = rows
             .into_iter()
             .map(|r| {
-                let session_id: Nanoid<16, Base62Alphabet> = r.session_id.unpack().expect("valid session_id");
+                let session_id: Nanoid<16, Base62Alphabet> =
+                    r.session_id.unpack().expect("valid session_id");
                 ChatMessage {
                     session_id,
                     incoming: r.incoming,
@@ -258,13 +264,17 @@ impl SessionService {
 
         let packed_user_id: PackedNanoId = user_pub_id.pack()?;
 
-        let rows = self.chat_session_table.select_all().execute().inspect_err(|e| {
-            tracing::error!(
-                user_pub_id = %user_pub_id,
-                error = %e,
-                "SessionService::list_sessions: query failed"
-            );
-        })?;
+        let rows = self
+            .chat_session_table
+            .select_all()
+            .execute()
+            .inspect_err(|e| {
+                tracing::error!(
+                    user_pub_id = %user_pub_id,
+                    error = %e,
+                    "SessionService::list_sessions: query failed"
+                );
+            })?;
 
         let sessions: Vec<ChatSessionRow> = rows
             .into_iter()

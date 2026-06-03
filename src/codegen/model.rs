@@ -2,13 +2,42 @@ use endpoint_libs::libs::error_code::ErrorCode;
 use endpoint_libs::libs::types::*;
 use endpoint_libs::libs::ws::*;
 use num_derive::FromPrimitive;
-use psc_nanoid::{alphabet::Base62Alphabet, Nanoid};
+use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
 use rkyv::Archive;
 use serde::*;
 use std::net::IpAddr;
 use strum_macros::{Display, EnumString};
 use uuid::Uuid;
 use worktable::prelude::*;
+
+#[derive(
+    MemStat,
+    Archive,
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    PartialEq,
+    PartialOrd,
+    Eq,
+    Hash,
+    Ord,
+    EnumString,
+    rkyv::Deserialize,
+    rkyv::Serialize,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[rkyv(compare(PartialEq), derive(Debug))]
+#[repr(u8)]
+pub enum AppMemberRole {
+    /// App owner
+    Owner = 0,
+    /// App admin
+    Admin = 1,
+    /// App support member
+    Support = 2,
+}
 
 #[derive(
     MemStat,
@@ -98,6 +127,16 @@ pub struct AppInfo {
     #[serde(default)]
     pub app_name: Option<String>,
     pub active: bool,
+    pub created_at: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMember {
+    pub id: i64,
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
+    pub user_pub_id: Nanoid<16, Base62Alphabet>,
+    pub role: AppMemberRole,
     pub created_at: i64,
 }
 
@@ -198,6 +237,12 @@ pub enum EnumEndpoint {
     ///
     RemoveSupportUser = 30005,
     ///
+    AddAppMember = 30006,
+    ///
+    SetAppMemberRole = 30007,
+    ///
+    ListAppMembers = 30008,
+    ///
     DeleteApp = 40000,
     ///
     SetLogLevel = 40001,
@@ -207,30 +252,36 @@ pub enum EnumEndpoint {
     SetRole = 40003,
     ///
     GetAllApps = 40004,
+    ///
+    SetOwnerForOwnerlessApp = 40005,
 }
 
 impl EnumEndpoint {
     pub fn schema(&self) -> endpoint_libs::model::EndpointSchema {
         let schema = match self {
             Self::Init => InitRequest::SCHEMA,
-            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateSession => CreateSessionRequest::SCHEMA,
             Self::SendMessage => SendMessageRequest::SCHEMA,
             Self::ListMessages => ListMessagesRequest::SCHEMA,
             Self::SubscribeEvents => SubscribeEventsRequest::SCHEMA,
             Self::CloseSession => CloseSessionRequest::SCHEMA,
             Self::ListSessions => ListSessionsRequest::SCHEMA,
+            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateApp => CreateAppRequest::SCHEMA,
             Self::EditApp => EditAppRequest::SCHEMA,
             Self::ListApps => ListAppsRequest::SCHEMA,
             Self::AddSupportUser => AddSupportUserRequest::SCHEMA,
             Self::ListSupportUsers => ListSupportUsersRequest::SCHEMA,
             Self::RemoveSupportUser => RemoveSupportUserRequest::SCHEMA,
+            Self::AddAppMember => AddAppMemberRequest::SCHEMA,
+            Self::SetAppMemberRole => SetAppMemberRoleRequest::SCHEMA,
+            Self::ListAppMembers => ListAppMembersRequest::SCHEMA,
             Self::DeleteApp => DeleteAppRequest::SCHEMA,
             Self::SetLogLevel => SetLogLevelRequest::SCHEMA,
             Self::GetUsers => GetUsersRequest::SCHEMA,
             Self::SetRole => SetRoleRequest::SCHEMA,
             Self::GetAllApps => GetAllAppsRequest::SCHEMA,
+            Self::SetOwnerForOwnerlessApp => SetOwnerForOwnerlessAppRequest::SCHEMA,
             Self::SetMyTgHandle => SetMyTgHandleRequest::SCHEMA,
             Self::GetMyTgHandle => GetMyTgHandleRequest::SCHEMA,
         };
@@ -268,6 +319,15 @@ impl From<EnumErrorCode> for ErrorCode {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AddAppMemberRequest {
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
+    pub user_pub_id: Nanoid<16, Base62Alphabet>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AddAppMemberResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AddSupportUserRequest {
@@ -383,6 +443,16 @@ pub struct InitResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct ListAppMembersRequest {
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ListAppMembersResponse {
+    pub data: Vec<AppMember>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ListAppsRequest {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -439,6 +509,16 @@ pub struct SendMessageResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct SetAppMemberRoleRequest {
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
+    pub user_pub_id: Nanoid<16, Base62Alphabet>,
+    pub role: AppMemberRole,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SetAppMemberRoleResponse {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SetLogLevelRequest {
     pub level: LogLevel,
 }
@@ -453,6 +533,15 @@ pub struct SetMyTgHandleRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SetMyTgHandleResponse {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SetOwnerForOwnerlessAppRequest {
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
+    pub user_pub_id: Nanoid<16, Base62Alphabet>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SetOwnerForOwnerlessAppResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SetRoleRequest {
@@ -520,59 +609,6 @@ impl WsRequest for InitRequest {
 }
 impl WsResponse for InitResponse {
     type Request = InitRequest;
-}
-
-impl WsRequest for AppConnectRequest {
-    type Response = AppConnectResponse;
-    const METHOD_ID: u32 = 20000;
-    const ROLES: &[u32] = &[0];
-    const SCHEMA: &'static str = r#"{
-  "name": "AppConnect",
-  "code": 20000,
-  "parameters": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "user_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    }
-  ],
-  "returns": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "app_name",
-      "ty": {
-        "Optional": "String"
-      }
-    }
-  ],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::Public"
-  ]
-}"#;
-}
-impl WsResponse for AppConnectResponse {
-    type Request = AppConnectRequest;
 }
 
 impl WsRequest for CreateSessionRequest {
@@ -815,6 +851,59 @@ impl WsResponse for ListSessionsResponse {
     type Request = ListSessionsRequest;
 }
 
+impl WsRequest for AppConnectRequest {
+    type Response = AppConnectResponse;
+    const METHOD_ID: u32 = 20000;
+    const ROLES: &[u32] = &[0];
+    const SCHEMA: &'static str = r#"{
+  "name": "AppConnect",
+  "code": 20000,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "user_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "app_name",
+      "ty": {
+        "Optional": "String"
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Public"
+  ]
+}"#;
+}
+impl WsResponse for AppConnectResponse {
+    type Request = AppConnectRequest;
+}
+
 impl WsRequest for CreateAppRequest {
     type Response = CreateAppResponse;
     const METHOD_ID: u32 = 30000;
@@ -979,7 +1068,7 @@ impl WsResponse for AddSupportUserResponse {
 impl WsRequest for ListSupportUsersRequest {
     type Response = ListSupportUsersResponse;
     const METHOD_ID: u32 = 30004;
-    const ROLES: &[u32] = &[1, 4];
+    const ROLES: &[u32] = &[1, 4, 5];
     const SCHEMA: &'static str = r#"{
   "name": "ListSupportUsers",
   "code": 30004,
@@ -1008,7 +1097,8 @@ impl WsRequest for ListSupportUsersRequest {
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
-    "UserRole::AppAdmin"
+    "UserRole::AppAdmin",
+    "UserRole::Support"
   ]
 }"#;
 }
@@ -1051,10 +1141,137 @@ impl WsResponse for RemoveSupportUserResponse {
     type Request = RemoveSupportUserRequest;
 }
 
+impl WsRequest for AddAppMemberRequest {
+    type Response = AddAppMemberResponse;
+    const METHOD_ID: u32 = 30006;
+    const ROLES: &[u32] = &[1, 4];
+    const SCHEMA: &'static str = r#"{
+  "name": "AddAppMember",
+  "code": 30006,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "user_pub_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Admin",
+    "UserRole::AppAdmin"
+  ]
+}"#;
+}
+impl WsResponse for AddAppMemberResponse {
+    type Request = AddAppMemberRequest;
+}
+
+impl WsRequest for SetAppMemberRoleRequest {
+    type Response = SetAppMemberRoleResponse;
+    const METHOD_ID: u32 = 30007;
+    const ROLES: &[u32] = &[1, 4];
+    const SCHEMA: &'static str = r#"{
+  "name": "SetAppMemberRole",
+  "code": 30007,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "user_pub_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "role",
+      "ty": {
+        "EnumRef": {
+          "name": "AppMemberRole"
+        }
+      }
+    }
+  ],
+  "returns": [],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Admin",
+    "UserRole::AppAdmin"
+  ]
+}"#;
+}
+impl WsResponse for SetAppMemberRoleResponse {
+    type Request = SetAppMemberRoleRequest;
+}
+
+impl WsRequest for ListAppMembersRequest {
+    type Response = ListAppMembersResponse;
+    const METHOD_ID: u32 = 30008;
+    const ROLES: &[u32] = &[1, 4, 5];
+    const SCHEMA: &'static str = r#"{
+  "name": "ListAppMembers",
+  "code": 30008,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [
+    {
+      "name": "data",
+      "ty": {
+        "StructTable": {
+          "struct_ref": "AppMember"
+        }
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Admin",
+    "UserRole::AppAdmin",
+    "UserRole::Support"
+  ]
+}"#;
+}
+impl WsResponse for ListAppMembersResponse {
+    type Request = ListAppMembersRequest;
+}
+
 impl WsRequest for DeleteAppRequest {
     type Response = DeleteAppResponse;
     const METHOD_ID: u32 = 40000;
-    const ROLES: &[u32] = &[1];
+    const ROLES: &[u32] = &[1, 4];
     const SCHEMA: &'static str = r#"{
   "name": "DeleteApp",
   "code": 40000,
@@ -1073,7 +1290,8 @@ impl WsRequest for DeleteAppRequest {
   "description": "",
   "json_schema": null,
   "roles": [
-    "UserRole::Admin"
+    "UserRole::Admin",
+    "UserRole::AppAdmin"
   ]
 }"#;
 }
@@ -1209,10 +1427,48 @@ impl WsResponse for GetAllAppsResponse {
     type Request = GetAllAppsRequest;
 }
 
+impl WsRequest for SetOwnerForOwnerlessAppRequest {
+    type Response = SetOwnerForOwnerlessAppResponse;
+    const METHOD_ID: u32 = 40005;
+    const ROLES: &[u32] = &[1];
+    const SCHEMA: &'static str = r#"{
+  "name": "SetOwnerForOwnerlessApp",
+  "code": 40005,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "user_pub_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Admin"
+  ]
+}"#;
+}
+impl WsResponse for SetOwnerForOwnerlessAppResponse {
+    type Request = SetOwnerForOwnerlessAppRequest;
+}
+
 impl WsRequest for SetMyTgHandleRequest {
     type Response = SetMyTgHandleResponse;
     const METHOD_ID: u32 = 20007;
-    const ROLES: &[u32] = &[5];
+    const ROLES: &[u32] = &[1, 4, 5];
     const SCHEMA: &'static str = r#"{
   "name": "SetMyTgHandle",
   "code": 20007,
@@ -1227,6 +1483,8 @@ impl WsRequest for SetMyTgHandleRequest {
   "description": "",
   "json_schema": null,
   "roles": [
+    "UserRole::Admin",
+    "UserRole::AppAdmin",
     "UserRole::Support"
   ]
 }"#;
@@ -1238,7 +1496,7 @@ impl WsResponse for SetMyTgHandleResponse {
 impl WsRequest for GetMyTgHandleRequest {
     type Response = GetMyTgHandleResponse;
     const METHOD_ID: u32 = 20008;
-    const ROLES: &[u32] = &[5];
+    const ROLES: &[u32] = &[1, 4, 5];
     const SCHEMA: &'static str = r#"{
   "name": "GetMyTgHandle",
   "code": 20008,
@@ -1255,6 +1513,8 @@ impl WsRequest for GetMyTgHandleRequest {
   "description": "",
   "json_schema": null,
   "roles": [
+    "UserRole::Admin",
+    "UserRole::AppAdmin",
     "UserRole::Support"
   ]
 }"#;

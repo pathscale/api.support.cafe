@@ -16,7 +16,7 @@ Config(
                         Field(name: "tg_handle", ty: String),
                     ],
                     returns: [],
-                    roles: ["UserRole::Support"],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin", "UserRole::Support"],
                 ),
             ),
             EndpointSchemaElement(
@@ -28,7 +28,7 @@ Config(
                     returns: [
                         Field(name: "tg_handle", ty: Optional(String)),
                     ],
-                    roles: ["UserRole::Support"],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin", "UserRole::Support"],
                 ),
             ),
         ],

@@ -8,11 +8,13 @@ use crate::codegen::model::{EditAppRequest, EditAppResponse};
 use crate::id_types::AppPublicId;
 use crate::service::app::{AppService, AppUpdate};
 use crate::service::bot::BotService;
+use crate::service::user_connection_registry::UserConnectionRegistry;
 
 #[derive(Clone)]
 pub struct MethodEditApp {
     pub app_service: Arc<AppService>,
     pub bot_service: Arc<BotService>,
+    pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
 #[async_trait(?Send)]
@@ -27,6 +29,14 @@ impl RequestHandler for MethodEditApp {
         );
 
         let app_public_id: AppPublicId = req.app_public_id.into();
+        let user_pub_id = self
+            .user_connection_registry
+            .get(ctx.connection_id)
+            .await
+            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
+
+        self.app_service
+            .ensure_app_admin_or_owner(app_public_id, user_pub_id)?;
 
         let update = AppUpdate {
             tg_bot_token: req.tg_bot_token.clone(),
@@ -38,14 +48,18 @@ impl RequestHandler for MethodEditApp {
 
         if let Some(token) = &req.tg_bot_token {
             self.bot_service.unregister_bot(app_public_id).await;
-            self.bot_service.register_bot(app_public_id, token.clone()).await?;
+            self.bot_service
+                .register_bot(app_public_id, token.clone())
+                .await?;
         }
 
         if let Some(active) = req.active {
             if active {
                 let app = self.app_service.get_app(app_public_id)?;
                 if let Some(app) = app {
-                    self.bot_service.register_bot(app_public_id, app.tg_bot_token).await?;
+                    self.bot_service
+                        .register_bot(app_public_id, app.tg_bot_token)
+                        .await?;
                 }
             } else {
                 self.bot_service.unregister_bot(app_public_id).await;
