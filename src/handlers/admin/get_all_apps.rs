@@ -3,14 +3,13 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
-use worktable::prelude::SelectQueryExecutor;
 
 use crate::codegen::model::{AppInfo, GetAllAppsRequest, GetAllAppsResponse};
-use crate::db::schema::app_config::AppConfigWorkTable;
+use crate::service::app::AppService;
 
 #[derive(Clone)]
 pub struct MethodGetAllApps {
-    pub app_config_table: Arc<AppConfigWorkTable>,
+    pub app_service: Arc<AppService>,
 }
 
 #[async_trait(?Send)]
@@ -23,7 +22,7 @@ impl RequestHandler for MethodGetAllApps {
             "MethodGetAllApps: received request"
         );
 
-        let rows = self.app_config_table.select_all().execute()?;
+        let rows = self.app_service.list_apps()?;
 
         tracing::debug!(
             connection_id = ctx.connection_id,

@@ -16,7 +16,7 @@ Config(
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                     ],
                     returns: [],
-                    roles: ["UserRole::Admin"],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin"],
                 ),
             ),
             EndpointSchemaElement(
@@ -65,6 +65,19 @@ Config(
                     returns: [
                         Field(name: "data", ty: StructTable(struct_ref: "AppInfo")),
                     ],
+                    roles: ["UserRole::Admin"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "SetOwnerForOwnerlessApp",
+                    code: 40005,
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                        Field(name: "user_pub_id", ty: NanoId(len: 16)),
+                    ],
+                    returns: [],
                     roles: ["UserRole::Admin"],
                 ),
             ),

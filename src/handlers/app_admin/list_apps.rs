@@ -6,10 +6,12 @@ use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
 use crate::codegen::model::{AppConfig, ListAppsRequest, ListAppsResponse};
 use crate::service::app::AppService;
+use crate::service::user_connection_registry::UserConnectionRegistry;
 
 #[derive(Clone)]
 pub struct MethodListApps {
     pub app_service: Arc<AppService>,
+    pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
 #[async_trait(?Send)]
@@ -22,7 +24,18 @@ impl RequestHandler for MethodListApps {
             "MethodListApps: received request"
         );
 
-        let rows = self.app_service.list_apps()?;
+        let user_pub_id = self
+            .user_connection_registry
+            .get(ctx.connection_id)
+            .await
+            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
+
+        // TODO: Split this into separate endpoints for platform admin and regular users
+        let rows = if self.app_service.is_platform_admin(user_pub_id)? {
+            self.app_service.list_apps()?
+        } else {
+            self.app_service.list_apps_for_user(user_pub_id)?
+        };
 
         tracing::debug!(
             connection_id = ctx.connection_id,

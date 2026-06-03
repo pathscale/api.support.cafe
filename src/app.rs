@@ -47,7 +47,11 @@ impl App {
         let db = Arc::new(Tables::new(config.database.clone()).await?);
         let app_connection_registry = Arc::new(AppConnectionRegistry::new());
         let user_connection_registry = Arc::new(UserConnectionRegistry::new());
-        let app_service = Arc::new(AppService::new(db.app_config_table.clone()));
+        let app_service = Arc::new(AppService::new(
+            db.app_config_table.clone(),
+            db.app_member_table.clone(),
+            db.user_table.clone(),
+        ));
         let bot_service = Arc::new(BotService::new(
             db.support_user_table.clone(),
             db.support_message_table.clone(),

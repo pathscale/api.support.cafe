@@ -49,6 +49,28 @@ Config(
             ),
             EnumElement(
                 inner: Enum(
+                    name: "AppMemberRole",
+                    variants: [
+                        EnumVariant(
+                            name: "Owner",
+                            value: 0,
+                            description: "App owner",
+                        ),
+                        EnumVariant(
+                            name: "Admin",
+                            value: 1,
+                            description: "App admin",
+                        ),
+                        EnumVariant(
+                            name: "Support",
+                            value: 2,
+                            description: "App support member",
+                        ),
+                    ],
+                ),
+            ),
+            EnumElement(
+                inner: Enum(
                     name: "LogLevel",
                     variants: [
                         EnumVariant(
