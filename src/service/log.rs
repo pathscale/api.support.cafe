@@ -20,9 +20,9 @@ impl LogService {
 
     pub fn set_level(&self, level: ModelLogLevel) -> Result<(), CustomError> {
         let libs_level: LogLevel = level.into();
-        self.reload_handle
-            .set_log_level(libs_level)
-            .map_err(|e| CustomError::new(EnumErrorCode::Xxx, format!("Failed to set log level: {e}")))?;
+        self.reload_handle.set_log_level(libs_level).map_err(|e| {
+            CustomError::new(EnumErrorCode::Xxx, format!("Failed to set log level: {e}"))
+        })?;
         *self.current_level.lock() = libs_level;
         Ok(())
     }

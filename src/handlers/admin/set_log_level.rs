@@ -15,11 +15,7 @@ pub struct MethodSetLogLevel {
 impl RequestHandler for MethodSetLogLevel {
     type Request = SetLogLevelRequest;
 
-    async fn handle(
-        &self,
-        _ctx: RequestContext,
-        req: Self::Request,
-    ) -> Response<Self::Request> {
+    async fn handle(&self, _ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         self.log_service.set_level(req.level)?;
         Ok(SetLogLevelResponse {})
     }

@@ -4,21 +4,19 @@ use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
-use crate::codegen::model::{DeleteAppRequest, DeleteAppResponse};
+use crate::codegen::model::{SetAppMemberRoleRequest, SetAppMemberRoleResponse};
 use crate::id_types::AppPublicId;
 use crate::service::app::AppService;
-use crate::service::bot::BotService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
-pub struct MethodDeleteApp {
+pub struct MethodSetAppMemberRole {
     pub app_service: Arc<AppService>,
-    pub bot_service: Arc<BotService>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
 #[async_trait(?Send)]
-impl RequestHandler for MethodDeleteApp {
-    type Request = DeleteAppRequest;
+impl RequestHandler for MethodSetAppMemberRole {
+    type Request = SetAppMemberRoleRequest;
 
     async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         let app_public_id: AppPublicId = req.app_public_id.into();
@@ -30,8 +28,10 @@ impl RequestHandler for MethodDeleteApp {
 
         self.app_service
             .ensure_app_owner(app_public_id, actor_pub_id)?;
-        self.bot_service.unregister_bot(app_public_id).await;
-        self.app_service.delete_app(app_public_id).await?;
-        Ok(DeleteAppResponse {})
+        self.app_service
+            .set_member_role(app_public_id, req.user_pub_id.into(), req.role)
+            .await?;
+
+        Ok(SetAppMemberRoleResponse {})
     }
 }
