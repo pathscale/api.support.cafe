@@ -5,7 +5,7 @@ use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
 use crate::codegen::model::{SetRoleRequest, SetRoleResponse};
-use crate::db::schema::user::{UserWorkTable, RoleByPubIdQuery};
+use crate::db::schema::user::{RoleByPubIdQuery, UserWorkTable};
 use crate::db::util::PackedUserPubId;
 
 #[derive(Clone)]

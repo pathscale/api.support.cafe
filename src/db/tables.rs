@@ -11,6 +11,7 @@ use crate::config::DatabaseConfig;
 #[cfg(feature = "s3-sync")]
 use crate::config::S3Config;
 use crate::db::schema::app_config::AppConfigWorkTable;
+use crate::db::schema::app_member::AppMemberWorkTable;
 use crate::db::schema::chat_session::ChatSessionWorkTable;
 use crate::db::schema::support_info::SupportInfoWorkTable;
 use crate::db::schema::support_message::SupportMessageWorkTable;
@@ -19,27 +20,25 @@ use crate::db::schema::user::UserWorkTable;
 
 #[cfg(not(feature = "s3-sync"))]
 use crate::db::schema::{
-    app_config::AppConfigPersistenceEngine,
-    chat_session::ChatSessionPersistenceEngine,
-    support_info::SupportInfoPersistenceEngine,
-    support_message::SupportMessagePersistenceEngine,
-    support_user::SupportUserPersistenceEngine,
+    app_config::AppConfigPersistenceEngine, app_member::AppMemberPersistenceEngine,
+    chat_session::ChatSessionPersistenceEngine, support_info::SupportInfoPersistenceEngine,
+    support_message::SupportMessagePersistenceEngine, support_user::SupportUserPersistenceEngine,
     user::UserPersistenceEngine,
 };
 
 #[cfg(feature = "s3-sync")]
 use crate::db::schema::{
-    app_config::AppConfigS3SyncPersistenceEngine,
+    app_config::AppConfigS3SyncPersistenceEngine, app_member::AppMemberS3SyncPersistenceEngine,
     chat_session::ChatSessionS3SyncPersistenceEngine,
     support_info::SupportInfoS3SyncPersistenceEngine,
     support_message::SupportMessageS3SyncPersistenceEngine,
-    support_user::SupportUserS3SyncPersistenceEngine,
-    user::UserS3SyncPersistenceEngine,
+    support_user::SupportUserS3SyncPersistenceEngine, user::UserS3SyncPersistenceEngine,
 };
 
 #[derive(Debug)]
 pub struct Tables {
     pub app_config_table: Arc<AppConfigWorkTable>,
+    pub app_member_table: Arc<AppMemberWorkTable>,
     pub support_user_table: Arc<SupportUserWorkTable>,
     pub chat_session_table: Arc<ChatSessionWorkTable>,
     pub support_message_table: Arc<SupportMessageWorkTable>,
@@ -65,14 +64,17 @@ impl Tables {
         }
 
         let app_config_table = disk_load!(AppConfigPersistenceEngine, AppConfigWorkTable);
+        let app_member_table = disk_load!(AppMemberPersistenceEngine, AppMemberWorkTable);
         let support_user_table = disk_load!(SupportUserPersistenceEngine, SupportUserWorkTable);
         let chat_session_table = disk_load!(ChatSessionPersistenceEngine, ChatSessionWorkTable);
-        let support_message_table = disk_load!(SupportMessagePersistenceEngine, SupportMessageWorkTable);
+        let support_message_table =
+            disk_load!(SupportMessagePersistenceEngine, SupportMessageWorkTable);
         let support_info_table = disk_load!(SupportInfoPersistenceEngine, SupportInfoWorkTable);
         let user_table = disk_load!(UserPersistenceEngine, UserWorkTable);
 
         Ok(Self {
             app_config_table,
+            app_member_table,
             support_user_table,
             chat_session_table,
             support_message_table,
@@ -110,14 +112,22 @@ impl Tables {
             }
 
             let app_config_table = s3_load!(AppConfigS3SyncPersistenceEngine, AppConfigWorkTable);
-            let support_user_table = s3_load!(SupportUserS3SyncPersistenceEngine, SupportUserWorkTable);
-            let chat_session_table = s3_load!(ChatSessionS3SyncPersistenceEngine, ChatSessionWorkTable);
-            let support_message_table = s3_load!(SupportMessageS3SyncPersistenceEngine, SupportMessageWorkTable);
-            let support_info_table = s3_load!(SupportInfoS3SyncPersistenceEngine, SupportInfoWorkTable);
+            let app_member_table = s3_load!(AppMemberS3SyncPersistenceEngine, AppMemberWorkTable);
+            let support_user_table =
+                s3_load!(SupportUserS3SyncPersistenceEngine, SupportUserWorkTable);
+            let chat_session_table =
+                s3_load!(ChatSessionS3SyncPersistenceEngine, ChatSessionWorkTable);
+            let support_message_table = s3_load!(
+                SupportMessageS3SyncPersistenceEngine,
+                SupportMessageWorkTable
+            );
+            let support_info_table =
+                s3_load!(SupportInfoS3SyncPersistenceEngine, SupportInfoWorkTable);
             let user_table = s3_load!(UserS3SyncPersistenceEngine, UserWorkTable);
 
             Ok(Self {
                 app_config_table,
+                app_member_table,
                 support_user_table,
                 chat_session_table,
                 support_message_table,
@@ -159,14 +169,19 @@ impl Tables {
         }
 
         let app_config_table = s3_load!(AppConfigS3SyncPersistenceEngine, AppConfigWorkTable);
+        let app_member_table = s3_load!(AppMemberS3SyncPersistenceEngine, AppMemberWorkTable);
         let support_user_table = s3_load!(SupportUserS3SyncPersistenceEngine, SupportUserWorkTable);
         let chat_session_table = s3_load!(ChatSessionS3SyncPersistenceEngine, ChatSessionWorkTable);
-        let support_message_table = s3_load!(SupportMessageS3SyncPersistenceEngine, SupportMessageWorkTable);
+        let support_message_table = s3_load!(
+            SupportMessageS3SyncPersistenceEngine,
+            SupportMessageWorkTable
+        );
         let support_info_table = s3_load!(SupportInfoS3SyncPersistenceEngine, SupportInfoWorkTable);
         let user_table = s3_load!(UserS3SyncPersistenceEngine, UserWorkTable);
 
         Ok(Self {
             app_config_table,
+            app_member_table,
             support_user_table,
             chat_session_table,
             support_message_table,
@@ -177,6 +192,7 @@ impl Tables {
 
     pub async fn wait_for_ops(&self) {
         self.app_config_table.wait_for_ops().await;
+        self.app_member_table.wait_for_ops().await;
         self.support_user_table.wait_for_ops().await;
         self.chat_session_table.wait_for_ops().await;
         self.support_message_table.wait_for_ops().await;
