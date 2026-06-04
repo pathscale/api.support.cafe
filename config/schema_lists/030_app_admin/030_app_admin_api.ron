@@ -56,11 +56,11 @@ Config(
             EndpointSchemaElement(
                 frontend_facing: true,
                 schema: (
-                    name: "AddSupportUser",
+                    name: "EnableSupportUser",
                     code: 30003,
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
-                        Field(name: "tg_handle", ty: String),
+                        Field(name: "user_pub_id", ty: NanoId(len: 16)),
                     ],
                     returns: [],
                     roles: ["UserRole::Admin", "UserRole::AppAdmin"],
@@ -69,28 +69,11 @@ Config(
             EndpointSchemaElement(
                 frontend_facing: true,
                 schema: (
-                    name: "ListSupportUsers",
-                    code: 30004,
-                    parameters: [
-                        Field(name: "app_public_id", ty: NanoId(len: 16)),
-                    ],
-                    returns: [
-                        Field(
-                            name: "data",
-                            ty: StructTable(struct_ref: "SupportUser"),
-                        ),
-                    ],
-                    roles: ["UserRole::Admin", "UserRole::AppAdmin", "UserRole::Support"],
-                ),
-            ),
-            EndpointSchemaElement(
-                frontend_facing: true,
-                schema: (
-                    name: "RemoveSupportUser",
+                    name: "DisableSupportUser",
                     code: 30005,
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
-                        Field(name: "tg_handle", ty: String),
+                        Field(name: "user_pub_id", ty: NanoId(len: 16)),
                     ],
                     returns: [],
                     roles: ["UserRole::Admin", "UserRole::AppAdmin"],

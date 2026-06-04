@@ -2,7 +2,7 @@ use endpoint_libs::libs::error_code::ErrorCode;
 use endpoint_libs::libs::types::*;
 use endpoint_libs::libs::ws::*;
 use num_derive::FromPrimitive;
-use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
+use psc_nanoid::{alphabet::Base62Alphabet, Nanoid};
 use rkyv::Archive;
 use serde::*;
 use std::net::IpAddr;
@@ -133,11 +133,13 @@ pub struct AppInfo {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AppMember {
-    pub id: i64,
     pub app_public_id: Nanoid<16, Base62Alphabet>,
     pub user_pub_id: Nanoid<16, Base62Alphabet>,
     pub role: AppMemberRole,
     pub created_at: i64,
+    pub is_support_enabled: bool,
+    #[serde(default)]
+    pub tg_handle: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -166,17 +168,8 @@ pub struct ChatSession {
 pub struct SupportInfo {
     pub user_pub_id: Nanoid<16, Base62Alphabet>,
     pub tg_handle: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct SupportUser {
-    pub id: i64,
-    pub app_public_id: Nanoid<16, Base62Alphabet>,
-    pub tg_handle: String,
     #[serde(default)]
     pub chat_id: Option<i64>,
-    pub is_active: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -231,11 +224,9 @@ pub enum EnumEndpoint {
     ///
     ListApps = 30002,
     ///
-    AddSupportUser = 30003,
+    EnableSupportUser = 30003,
     ///
-    ListSupportUsers = 30004,
-    ///
-    RemoveSupportUser = 30005,
+    DisableSupportUser = 30005,
     ///
     AddAppMember = 30006,
     ///
@@ -260,19 +251,18 @@ impl EnumEndpoint {
     pub fn schema(&self) -> endpoint_libs::model::EndpointSchema {
         let schema = match self {
             Self::Init => InitRequest::SCHEMA,
+            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateSession => CreateSessionRequest::SCHEMA,
             Self::SendMessage => SendMessageRequest::SCHEMA,
             Self::ListMessages => ListMessagesRequest::SCHEMA,
             Self::SubscribeEvents => SubscribeEventsRequest::SCHEMA,
             Self::CloseSession => CloseSessionRequest::SCHEMA,
             Self::ListSessions => ListSessionsRequest::SCHEMA,
-            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateApp => CreateAppRequest::SCHEMA,
             Self::EditApp => EditAppRequest::SCHEMA,
             Self::ListApps => ListAppsRequest::SCHEMA,
-            Self::AddSupportUser => AddSupportUserRequest::SCHEMA,
-            Self::ListSupportUsers => ListSupportUsersRequest::SCHEMA,
-            Self::RemoveSupportUser => RemoveSupportUserRequest::SCHEMA,
+            Self::EnableSupportUser => EnableSupportUserRequest::SCHEMA,
+            Self::DisableSupportUser => DisableSupportUserRequest::SCHEMA,
             Self::AddAppMember => AddAppMemberRequest::SCHEMA,
             Self::SetAppMemberRole => SetAppMemberRoleRequest::SCHEMA,
             Self::ListAppMembers => ListAppMembersRequest::SCHEMA,
@@ -330,15 +320,6 @@ pub struct AddAppMemberRequest {
 pub struct AddAppMemberResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct AddSupportUserRequest {
-    pub app_public_id: Nanoid<16, Base62Alphabet>,
-    pub tg_handle: String,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct AddSupportUserResponse {}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
 pub struct AppConnectRequest {
     pub app_public_id: Nanoid<16, Base62Alphabet>,
     pub user_public_id: Nanoid<16, Base62Alphabet>,
@@ -392,6 +373,15 @@ pub struct DeleteAppRequest {
 pub struct DeleteAppResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct DisableSupportUserRequest {
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
+    pub user_pub_id: Nanoid<16, Base62Alphabet>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DisableSupportUserResponse {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct EditAppRequest {
     pub app_public_id: Nanoid<16, Base62Alphabet>,
     #[serde(default)]
@@ -404,6 +394,15 @@ pub struct EditAppRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct EditAppResponse {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EnableSupportUserRequest {
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
+    pub user_pub_id: Nanoid<16, Base62Alphabet>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EnableSupportUserResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GetAllAppsRequest {}
@@ -477,25 +476,6 @@ pub struct ListSessionsRequest {}
 pub struct ListSessionsResponse {
     pub data: Vec<ChatSession>,
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ListSupportUsersRequest {
-    pub app_public_id: Nanoid<16, Base62Alphabet>,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ListSupportUsersResponse {
-    pub data: Vec<SupportUser>,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct RemoveSupportUserRequest {
-    pub app_public_id: Nanoid<16, Base62Alphabet>,
-    pub tg_handle: String,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct RemoveSupportUserResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SendMessageRequest {
@@ -609,6 +589,59 @@ impl WsRequest for InitRequest {
 }
 impl WsResponse for InitResponse {
     type Request = InitRequest;
+}
+
+impl WsRequest for AppConnectRequest {
+    type Response = AppConnectResponse;
+    const METHOD_ID: u32 = 20000;
+    const ROLES: &[u32] = &[0];
+    const SCHEMA: &'static str = r#"{
+  "name": "AppConnect",
+  "code": 20000,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "user_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "app_name",
+      "ty": {
+        "Optional": "String"
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Public"
+  ]
+}"#;
+}
+impl WsResponse for AppConnectResponse {
+    type Request = AppConnectRequest;
 }
 
 impl WsRequest for CreateSessionRequest {
@@ -851,59 +884,6 @@ impl WsResponse for ListSessionsResponse {
     type Request = ListSessionsRequest;
 }
 
-impl WsRequest for AppConnectRequest {
-    type Response = AppConnectResponse;
-    const METHOD_ID: u32 = 20000;
-    const ROLES: &[u32] = &[0];
-    const SCHEMA: &'static str = r#"{
-  "name": "AppConnect",
-  "code": 20000,
-  "parameters": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "user_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    }
-  ],
-  "returns": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "app_name",
-      "ty": {
-        "Optional": "String"
-      }
-    }
-  ],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::Public"
-  ]
-}"#;
-}
-impl WsResponse for AppConnectResponse {
-    type Request = AppConnectRequest;
-}
-
 impl WsRequest for CreateAppRequest {
     type Response = CreateAppResponse;
     const METHOD_ID: u32 = 30000;
@@ -1030,12 +1010,12 @@ impl WsResponse for ListAppsResponse {
     type Request = ListAppsRequest;
 }
 
-impl WsRequest for AddSupportUserRequest {
-    type Response = AddSupportUserResponse;
+impl WsRequest for EnableSupportUserRequest {
+    type Response = EnableSupportUserResponse;
     const METHOD_ID: u32 = 30003;
     const ROLES: &[u32] = &[1, 4];
     const SCHEMA: &'static str = r#"{
-  "name": "AddSupportUser",
+  "name": "EnableSupportUser",
   "code": 30003,
   "parameters": [
     {
@@ -1047,8 +1027,12 @@ impl WsRequest for AddSupportUserRequest {
       }
     },
     {
-      "name": "tg_handle",
-      "ty": "String"
+      "name": "user_pub_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
     }
   ],
   "returns": [],
@@ -1061,57 +1045,16 @@ impl WsRequest for AddSupportUserRequest {
   ]
 }"#;
 }
-impl WsResponse for AddSupportUserResponse {
-    type Request = AddSupportUserRequest;
+impl WsResponse for EnableSupportUserResponse {
+    type Request = EnableSupportUserRequest;
 }
 
-impl WsRequest for ListSupportUsersRequest {
-    type Response = ListSupportUsersResponse;
-    const METHOD_ID: u32 = 30004;
-    const ROLES: &[u32] = &[1, 4, 5];
-    const SCHEMA: &'static str = r#"{
-  "name": "ListSupportUsers",
-  "code": 30004,
-  "parameters": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    }
-  ],
-  "returns": [
-    {
-      "name": "data",
-      "ty": {
-        "StructTable": {
-          "struct_ref": "SupportUser"
-        }
-      }
-    }
-  ],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::Admin",
-    "UserRole::AppAdmin",
-    "UserRole::Support"
-  ]
-}"#;
-}
-impl WsResponse for ListSupportUsersResponse {
-    type Request = ListSupportUsersRequest;
-}
-
-impl WsRequest for RemoveSupportUserRequest {
-    type Response = RemoveSupportUserResponse;
+impl WsRequest for DisableSupportUserRequest {
+    type Response = DisableSupportUserResponse;
     const METHOD_ID: u32 = 30005;
     const ROLES: &[u32] = &[1, 4];
     const SCHEMA: &'static str = r#"{
-  "name": "RemoveSupportUser",
+  "name": "DisableSupportUser",
   "code": 30005,
   "parameters": [
     {
@@ -1123,8 +1066,12 @@ impl WsRequest for RemoveSupportUserRequest {
       }
     },
     {
-      "name": "tg_handle",
-      "ty": "String"
+      "name": "user_pub_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
     }
   ],
   "returns": [],
@@ -1137,8 +1084,8 @@ impl WsRequest for RemoveSupportUserRequest {
   ]
 }"#;
 }
-impl WsResponse for RemoveSupportUserResponse {
-    type Request = RemoveSupportUserRequest;
+impl WsResponse for DisableSupportUserResponse {
+    type Request = DisableSupportUserRequest;
 }
 
 impl WsRequest for AddAppMemberRequest {

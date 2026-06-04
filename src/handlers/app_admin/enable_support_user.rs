@@ -4,19 +4,19 @@ use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
-use crate::codegen::model::{ListAppMembersRequest, ListAppMembersResponse};
+use crate::codegen::model::{EnableSupportUserRequest, EnableSupportUserResponse};
 use crate::id_types::AppPublicId;
 use crate::service::app::AppService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
-pub struct MethodListAppMembers {
+pub struct MethodEnableSupportUser {
     pub app_service: Arc<AppService>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
 #[async_trait(?Send)]
-impl RequestHandler for MethodListAppMembers {
-    type Request = ListAppMembersRequest;
+impl RequestHandler for MethodEnableSupportUser {
+    type Request = EnableSupportUserRequest;
 
     async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         let app_public_id: AppPublicId = req.app_public_id.into();
@@ -27,12 +27,11 @@ impl RequestHandler for MethodListAppMembers {
             .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
 
         self.app_service
-            .ensure_app_member(app_public_id, actor_pub_id)?;
+            .ensure_app_admin_or_owner(app_public_id, actor_pub_id)?;
+        self.app_service
+            .enable_support_user(app_public_id, req.user_pub_id.into())
+            .await?;
 
-        let data = self
-            .app_service
-            .list_members_with_support_info(app_public_id)?;
-
-        Ok(ListAppMembersResponse { data })
+        Ok(EnableSupportUserResponse {})
     }
 }

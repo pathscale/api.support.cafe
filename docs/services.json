@@ -145,6 +145,56 @@
     {
       "endpoints": [
         {
+          "code": 20000,
+          "description": "",
+          "json_schema": null,
+          "name": "AppConnect",
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "userPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "appName",
+              "ty": {
+                "Optional": "String"
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::Public"
+          ],
+          "stream_response": null
+        }
+      ],
+      "id": 2,
+      "name": "appConnect"
+    },
+    {
+      "endpoints": [
+        {
           "code": 20001,
           "description": "",
           "json_schema": null,
@@ -337,56 +387,6 @@
     {
       "endpoints": [
         {
-          "code": 20000,
-          "description": "",
-          "json_schema": null,
-          "name": "AppConnect",
-          "parameters": [
-            {
-              "name": "appPublicId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            },
-            {
-              "name": "userPublicId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            }
-          ],
-          "returns": [
-            {
-              "name": "appPublicId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            },
-            {
-              "name": "appName",
-              "ty": {
-                "Optional": "String"
-              }
-            }
-          ],
-          "roles": [
-            "UserRole::Public"
-          ],
-          "stream_response": null
-        }
-      ],
-      "id": 2,
-      "name": "appConnect"
-    },
-    {
-      "endpoints": [
-        {
           "code": 30000,
           "description": "",
           "json_schema": null,
@@ -489,7 +489,7 @@
           "code": 30003,
           "description": "",
           "json_schema": null,
-          "name": "AddSupportUser",
+          "name": "EnableSupportUser",
           "parameters": [
             {
               "name": "appPublicId",
@@ -500,8 +500,12 @@
               }
             },
             {
-              "name": "tgHandle",
-              "ty": "String"
+              "name": "userPubId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
             }
           ],
           "returns": [],
@@ -512,42 +516,10 @@
           "stream_response": null
         },
         {
-          "code": 30004,
-          "description": "",
-          "json_schema": null,
-          "name": "ListSupportUsers",
-          "parameters": [
-            {
-              "name": "appPublicId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            }
-          ],
-          "returns": [
-            {
-              "name": "data",
-              "ty": {
-                "StructTable": {
-                  "struct_ref": "SupportUser"
-                }
-              }
-            }
-          ],
-          "roles": [
-            "UserRole::Admin",
-            "UserRole::AppAdmin",
-            "UserRole::Support"
-          ],
-          "stream_response": null
-        },
-        {
           "code": 30005,
           "description": "",
           "json_schema": null,
-          "name": "RemoveSupportUser",
+          "name": "DisableSupportUser",
           "parameters": [
             {
               "name": "appPublicId",
@@ -558,8 +530,12 @@
               }
             },
             {
-              "name": "tgHandle",
-              "ty": "String"
+              "name": "userPubId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
             }
           ],
           "returns": [],
@@ -936,10 +912,6 @@
       "Struct": {
         "fields": [
           {
-            "name": "id",
-            "ty": "Int64"
-          },
-          {
             "name": "appPublicId",
             "ty": {
               "NanoId": {
@@ -966,6 +938,16 @@
           {
             "name": "createdAt",
             "ty": "TimeStampMs"
+          },
+          {
+            "name": "isSupportEnabled",
+            "ty": "Boolean"
+          },
+          {
+            "name": "tgHandle",
+            "ty": {
+              "Optional": "String"
+            }
           }
         ],
         "name": "AppMember"
@@ -1057,42 +1039,15 @@
           {
             "name": "tgHandle",
             "ty": "String"
-          }
-        ],
-        "name": "SupportInfo"
-      }
-    },
-    {
-      "Struct": {
-        "fields": [
-          {
-            "name": "id",
-            "ty": "Int64"
-          },
-          {
-            "name": "appPublicId",
-            "ty": {
-              "NanoId": {
-                "len": 16
-              }
-            }
-          },
-          {
-            "name": "tgHandle",
-            "ty": "String"
           },
           {
             "name": "chatId",
             "ty": {
               "Optional": "Int64"
             }
-          },
-          {
-            "name": "isActive",
-            "ty": "Boolean"
           }
         ],
-        "name": "SupportUser"
+        "name": "SupportInfo"
       }
     },
     {

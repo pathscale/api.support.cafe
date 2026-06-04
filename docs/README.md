@@ -10,7 +10,7 @@ struct AppConfig{ appPublicId: Nanoid<16, Base62Alphabet>, tgBotToken: String, a
 struct AppInfo{ publicId: Nanoid<16, Base62Alphabet>, appName: Option<String>, active: bool, createdAt: i64 }
 
 
-struct AppMember{ id: i64, appPublicId: Nanoid<16, Base62Alphabet>, userPubId: Nanoid<16, Base62Alphabet>, role: AppMemberRole, createdAt: i64 }
+struct AppMember{ appPublicId: Nanoid<16, Base62Alphabet>, userPubId: Nanoid<16, Base62Alphabet>, role: AppMemberRole, createdAt: i64, isSupportEnabled: bool, tgHandle: Option<String> }
 
 
 struct ChatMessage{ sessionId: Nanoid<16, Base62Alphabet>, incoming: bool, sentBy: String, sentAt: i64, content: String }
@@ -19,10 +19,7 @@ struct ChatMessage{ sessionId: Nanoid<16, Base62Alphabet>, incoming: bool, sentB
 struct ChatSession{ sessionId: Nanoid<16, Base62Alphabet>, appPublicId: Nanoid<16, Base62Alphabet>, userPubId: Nanoid<16, Base62Alphabet>, createdAt: i64, closedAt: Option<i64> }
 
 
-struct SupportInfo{ userPubId: Nanoid<16, Base62Alphabet>, tgHandle: String }
-
-
-struct SupportUser{ id: i64, appPublicId: Nanoid<16, Base62Alphabet>, tgHandle: String, chatId: Option<i64>, isActive: bool }
+struct SupportInfo{ userPubId: Nanoid<16, Base62Alphabet>, tgHandle: String, chatId: Option<i64> }
 
 
 struct UserInfo{ id: i64, pubId: Nanoid<16, Base62Alphabet>, username: String, role: UserRole }
@@ -53,6 +50,13 @@ ID: 1
 |-----------|-----------|----------|--------|-----------|-----------|
 |10000|Init|`accessToken: String`|`userId: Nanoid<16, Base62Alphabet>`, `role: UserRole`, `version: String`||true|
 
+## appConnect Server
+ID: 2
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
+
 ## appApi Server
 ID: 2
 ### Endpoints
@@ -65,13 +69,6 @@ ID: 2
 |20005|CloseSession|`sessionId: Nanoid<16, Base62Alphabet>`|||true|
 |20006|ListSessions||`data: Vec<ChatSession>`||true|
 
-## appConnect Server
-ID: 2
-### Endpoints
-|Code|Name|Parameters|Response|Description|FE Facing|
-|-----------|-----------|----------|--------|-----------|-----------|
-|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`||true|
-
 ## appAdminApi Server
 ID: 3
 ### Endpoints
@@ -80,9 +77,8 @@ ID: 3
 |30000|CreateApp|`tgBotToken: String`, `appName: Option<String>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`||true|
 |30001|EditApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgBotToken: Option<String>`, `appName: Option<String>`, `active: Option<bool>`|||true|
 |30002|ListApps||`data: Vec<AppConfig>`||true|
-|30003|AddSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgHandle: String`|||true|
-|30004|ListSupportUsers|`appPublicId: Nanoid<16, Base62Alphabet>`|`data: Vec<SupportUser>`||true|
-|30005|RemoveSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgHandle: String`|||true|
+|30003|EnableSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`|||true|
+|30005|DisableSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`|||true|
 |30006|AddAppMember|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`|||true|
 |30007|SetAppMemberRole|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`, `role: AppMemberRole`|||true|
 |30008|ListAppMembers|`appPublicId: Nanoid<16, Base62Alphabet>`|`data: Vec<AppMember>`||true|
