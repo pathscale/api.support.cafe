@@ -1,0 +1,12 @@
+# Usage: cargo run -p support_cafe_migrate -- --config migration/config.migrate.toml
+# Env override prefix: SUPPORT_CAFE_MIGRATE__
+
+[s3]
+bucket_name = "tg-support-db"
+endpoint = "https://t3.storage.dev"
+access_key = ""
+secret_key = ""
+prefix = "db"
+
+[migration]
+output_path = "./data/new"

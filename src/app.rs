@@ -50,10 +50,12 @@ impl App {
         let app_service = Arc::new(AppService::new(
             db.app_config_table.clone(),
             db.app_member_table.clone(),
+            db.support_info_table.clone(),
             db.user_table.clone(),
         ));
         let bot_service = Arc::new(BotService::new(
-            db.support_user_table.clone(),
+            db.app_member_table.clone(),
+            db.support_info_table.clone(),
             db.support_message_table.clone(),
             app_service.clone(),
         ));

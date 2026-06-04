@@ -3,8 +3,10 @@ use eyre::bail;
 use honey_id_types::id_entities::UserPublicId;
 use worktable::prelude::SelectQueryExecutor;
 
-use crate::codegen::model::{AppMemberRole, UserRole};
-use crate::db::schema::app_member::{AppMemberRow, RoleByMembershipKeyQuery, membership_key};
+use crate::codegen::model::{AppMember, AppMemberRole, UserRole};
+use crate::db::schema::app_member::{
+    AppMemberRow, IsSupportEnabledByMembershipKeyQuery, RoleByMembershipKeyQuery, membership_key,
+};
 use crate::db::schema::user::RoleByPubIdQuery;
 use crate::id_types::AppPublicId;
 use crate::service::app::AppService;
@@ -60,6 +62,7 @@ impl AppService {
             membership_key: key,
             role,
             created_at: Utc::now().timestamp_millis(),
+            is_support_enabled: false,
         };
         self.app_member_table.insert(row.clone())?;
         self.recompute_user_role_from_memberships(user_pub_id)
@@ -126,6 +129,79 @@ impl AppService {
             .app_member_table
             .select_by_app_public_id(packed_app)
             .execute()?)
+    }
+
+    pub fn list_members_with_support_info(
+        &self,
+        app_public_id: AppPublicId,
+    ) -> eyre::Result<Vec<AppMember>> {
+        Ok(self
+            .list_members(app_public_id)?
+            .into_iter()
+            .map(|row| {
+                let support_info = self.support_info_table.select(row.user_pub_id);
+                AppMember {
+                    app_public_id: row.app_public_id.unpack().expect("valid packed nanoid"),
+                    user_pub_id: row.user_pub_id.unpack().expect("valid packed nanoid"),
+                    role: row.role,
+                    created_at: row.created_at,
+                    is_support_enabled: row.is_support_enabled,
+                    tg_handle: support_info.map(|info| info.tg_handle),
+                }
+            })
+            .collect())
+    }
+
+    pub async fn enable_support_user(
+        &self,
+        app_public_id: AppPublicId,
+        user_pub_id: UserPublicId,
+    ) -> eyre::Result<()> {
+        let member = self
+            .get_member(app_public_id, user_pub_id)?
+            .ok_or_else(|| eyre::eyre!("User is not a member of this app"))?;
+
+        let packed_user = user_pub_id.pack()?;
+        let support_info = self
+            .support_info_table
+            .select(packed_user)
+            .ok_or_else(|| eyre::eyre!("Support user Telegram handle is not set"))?;
+
+        if support_info.tg_handle.trim().is_empty() {
+            bail!("Support user Telegram handle is not set");
+        }
+
+        self.app_member_table
+            .update_is_support_enabled_by_membership_key(
+                IsSupportEnabledByMembershipKeyQuery {
+                    is_support_enabled: true,
+                },
+                member.membership_key,
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn disable_support_user(
+        &self,
+        app_public_id: AppPublicId,
+        user_pub_id: UserPublicId,
+    ) -> eyre::Result<()> {
+        let member = self
+            .get_member(app_public_id, user_pub_id)?
+            .ok_or_else(|| eyre::eyre!("User is not a member of this app"))?;
+
+        self.app_member_table
+            .update_is_support_enabled_by_membership_key(
+                IsSupportEnabledByMembershipKeyQuery {
+                    is_support_enabled: false,
+                },
+                member.membership_key,
+            )
+            .await?;
+
+        Ok(())
     }
 
     pub fn list_apps_for_user(

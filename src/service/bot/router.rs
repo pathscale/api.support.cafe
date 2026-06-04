@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::codegen::model::AppMemberRole;
 use crate::codegen::model::ChatMessage;
 use chrono::Utc;
 use crossfire::spsc::{One, new};
@@ -15,8 +16,9 @@ use tokio::sync::{Mutex, RwLock};
 use tracing::{info, warn};
 use worktable::prelude::SelectQueryExecutor;
 
+use crate::db::schema::app_member::AppMemberWorkTable;
+use crate::db::schema::support_info::{ChatIdByTgHandleQuery, SupportInfoWorkTable};
 use crate::db::schema::support_message::{SupportMessageRow, SupportMessageWorkTable};
-use crate::db::schema::support_user::{ChatIdByHandleQuery, SupportUserWorkTable};
 use crate::handlers::utils::routing_message::RoutingMessage;
 use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
 
@@ -39,13 +41,15 @@ pub struct BotRouter {
     bots: RwLock<HashMap<AppPublicId, BotInstance>>,
     event_tx: SupportEventProducer,
     event_rx: Mutex<Option<SupportEventRx>>,
-    support_user_table: Arc<SupportUserWorkTable>,
+    app_member_table: Arc<AppMemberWorkTable>,
+    support_info_table: Arc<SupportInfoWorkTable>,
     support_message_table: Arc<SupportMessageWorkTable>,
 }
 
 impl BotRouter {
     pub fn new(
-        support_user_table: Arc<SupportUserWorkTable>,
+        app_member_table: Arc<AppMemberWorkTable>,
+        support_info_table: Arc<SupportInfoWorkTable>,
         support_message_table: Arc<SupportMessageWorkTable>,
     ) -> Self {
         let (tx, rx) =
@@ -54,7 +58,8 @@ impl BotRouter {
             bots: RwLock::new(HashMap::new()),
             event_tx: Arc::new(Mutex::new(tx)),
             event_rx: Mutex::new(Some(rx)),
-            support_user_table,
+            app_member_table,
+            support_info_table,
             support_message_table,
         }
     }
@@ -75,7 +80,8 @@ impl BotRouter {
         let handler = BotUpdateHandler {
             client: client_arc.clone(),
             app_public_id,
-            support_user_table: self.support_user_table.clone(),
+            app_member_table: self.app_member_table.clone(),
+            support_info_table: self.support_info_table.clone(),
             support_message_table: self.support_message_table.clone(),
             event_tx: self.event_tx.clone(),
         };
@@ -110,17 +116,7 @@ impl BotRouter {
         sender_name: String,
     ) -> Result<i64> {
         let app_public_id_packed: PackedNanoId = app_public_id.pack()?;
-        let all_users = self
-            .support_user_table
-            .select_all()
-            .execute()
-            .map_err(|e| eyre::eyre!("DB error: {e}"))?;
-
-        let supports: Vec<_> = all_users
-            .into_iter()
-            .filter(|r| r.app_public_id == app_public_id_packed)
-            .filter_map(|r| r.chat_id)
-            .collect();
+        let supports = self.enabled_support_chat_ids(app_public_id_packed)?;
 
         let sent_at = Utc::now().timestamp_millis();
         let nanoid: crate::id_types::NanoId = session_id.into();
@@ -176,6 +172,25 @@ impl BotRouter {
             .get(&app_public_id)
             .ok_or_else(|| eyre::eyre!("bot not found for app"))?;
         Ok(instance.client.clone())
+    }
+
+    fn enabled_support_chat_ids(&self, app_public_id: PackedNanoId) -> Result<Vec<i64>> {
+        Ok(self
+            .app_member_table
+            .select_by_app_public_id(app_public_id)
+            .execute()
+            .map_err(|e| eyre::eyre!("DB error: {e}"))?
+            .into_iter()
+            .filter(|r| r.is_support_enabled)
+            .filter(|r| {
+                matches!(
+                    r.role,
+                    AppMemberRole::Owner | AppMemberRole::Admin | AppMemberRole::Support
+                )
+            })
+            .filter_map(|r| self.support_info_table.select(r.user_pub_id))
+            .filter_map(|r| r.chat_id)
+            .collect())
     }
 
     pub async fn get_status(&self, app_public_id: AppPublicId) -> Option<BotStatus> {
@@ -242,7 +257,8 @@ impl BotInstance {
 struct BotUpdateHandler {
     client: Arc<Client>,
     app_public_id: AppPublicId,
-    support_user_table: Arc<SupportUserWorkTable>,
+    app_member_table: Arc<AppMemberWorkTable>,
+    support_info_table: Arc<SupportInfoWorkTable>,
     support_message_table: Arc<SupportMessageWorkTable>,
     event_tx: SupportEventProducer,
 }
@@ -254,6 +270,28 @@ impl BotUpdateHandler {
             .execute(SendMessage::new(ChatPeerId::from(chat_id), msg))
             .await
             .inspect_err(|e| warn!("Error sending message: {e:?}"));
+    }
+
+    fn is_chat_enabled_for_app(&self, app_public_id: PackedNanoId, chat_id: i64) -> bool {
+        let Ok(members) = self
+            .app_member_table
+            .select_by_app_public_id(app_public_id)
+            .execute()
+        else {
+            return false;
+        };
+
+        members
+            .into_iter()
+            .filter(|r| r.is_support_enabled)
+            .filter(|r| {
+                matches!(
+                    r.role,
+                    AppMemberRole::Owner | AppMemberRole::Admin | AppMemberRole::Support
+                )
+            })
+            .filter_map(|r| self.support_info_table.select(r.user_pub_id))
+            .any(|info| info.chat_id == Some(chat_id))
     }
 }
 
@@ -325,6 +363,13 @@ impl UpdateHandler for BotUpdateHandler {
                             .await;
                         return;
                     };
+
+                    if !self.is_chat_enabled_for_app(packed_app_public_id, chat_id) {
+                        self.try_send_msg(chat_id, "Support access is disabled".to_string())
+                            .await;
+                        return;
+                    }
+
                     if let Err(e) = self.support_message_table.insert(SupportMessageRow {
                         id: self.support_message_table.get_next_pk().into(),
                         session_id: packed_session_id,
@@ -371,19 +416,18 @@ impl UpdateHandler for BotUpdateHandler {
             };
             let handle_str = format!("@{user_handle}");
 
-            let all_users = self
-                .support_user_table
-                .select_all()
-                .execute()
-                .unwrap_or_default();
-            if let Some(user) = all_users.iter().find(|u| u.tg_handle == handle_str) {
+            if self
+                .support_info_table
+                .select_by_tg_handle(handle_str.clone())
+                .is_some()
+            {
                 if let Err(e) = self
-                    .support_user_table
-                    .update_chat_id_by_handle(
-                        ChatIdByHandleQuery {
+                    .support_info_table
+                    .update_chat_id_by_tg_handle(
+                        ChatIdByTgHandleQuery {
                             chat_id: Some(chat_id),
                         },
-                        user.tg_handle.clone(),
+                        handle_str,
                     )
                     .await
                 {

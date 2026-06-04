@@ -17,11 +17,16 @@ pub struct BotService {
 
 impl BotService {
     pub fn new(
-        support_user_table: Arc<crate::db::schema::support_user::SupportUserWorkTable>,
+        app_member_table: Arc<crate::db::schema::app_member::AppMemberWorkTable>,
+        support_info_table: Arc<crate::db::schema::support_info::SupportInfoWorkTable>,
         support_message_table: Arc<crate::db::schema::support_message::SupportMessageWorkTable>,
         app_service: Arc<AppService>,
     ) -> Self {
-        let bot_router = Arc::new(BotRouter::new(support_user_table, support_message_table));
+        let bot_router = Arc::new(BotRouter::new(
+            app_member_table,
+            support_info_table,
+            support_message_table,
+        ));
         Self {
             bot_router,
             app_service,

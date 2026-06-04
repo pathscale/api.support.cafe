@@ -4,21 +4,19 @@ use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
-use crate::codegen::model::{AddSupportUserRequest, AddSupportUserResponse};
-use crate::db::schema::support_user::{SupportUserRow, SupportUserWorkTable};
-use crate::id_types::{AppPublicId, PackedNanoId};
+use crate::codegen::model::{DisableSupportUserRequest, DisableSupportUserResponse};
+use crate::id_types::AppPublicId;
 use crate::service::app::AppService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
-pub struct MethodAddSupportUser {
+pub struct MethodDisableSupportUser {
     pub app_service: Arc<AppService>,
-    pub support_user_table: Arc<SupportUserWorkTable>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
 #[async_trait(?Send)]
-impl RequestHandler for MethodAddSupportUser {
-    type Request = AddSupportUserRequest;
+impl RequestHandler for MethodDisableSupportUser {
+    type Request = DisableSupportUserRequest;
 
     async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         let app_public_id: AppPublicId = req.app_public_id.into();
@@ -30,16 +28,10 @@ impl RequestHandler for MethodAddSupportUser {
 
         self.app_service
             .ensure_app_admin_or_owner(app_public_id, actor_pub_id)?;
+        self.app_service
+            .disable_support_user(app_public_id, req.user_pub_id.into())
+            .await?;
 
-        let packed_pub_id: PackedNanoId = app_public_id.pack()?;
-        let row = SupportUserRow {
-            id: self.support_user_table.get_next_pk().into(),
-            app_public_id: packed_pub_id,
-            tg_handle: req.tg_handle,
-            chat_id: None,
-            is_active: true,
-        };
-        self.support_user_table.insert(row)?;
-        Ok(AddSupportUserResponse {})
+        Ok(DisableSupportUserResponse {})
     }
 }

@@ -1,18 +1,8 @@
-use app::App;
 use endpoint_libs::libs::log::{FileLoggingConfig, LoggingConfig, setup_logging};
 use eyre::Result;
-use service::log::LogService;
-
-mod app;
-pub mod codegen;
-pub mod config;
-pub mod db;
-pub mod handlers;
-pub mod id_types;
-pub mod service;
-
-#[cfg(feature = "acme")]
-pub mod acme;
+use support_cafe::app::App;
+use support_cafe::config;
+use support_cafe::service::log::LogService;
 
 fn main() -> Result<()> {
     rustls::crypto::ring::default_provider()
@@ -44,7 +34,7 @@ fn main() -> Result<()> {
             std::sync::Arc::new(LogService::new(log_setup.reload_handle, config.log.level));
 
         #[cfg(feature = "acme")]
-        let _acme_guard = acme::init_acme(&mut config).await?;
+        let _acme_guard = support_cafe::acme::init_acme(&mut config).await?;
 
         let app = App::init(config, log_service).await?;
         app.run().await

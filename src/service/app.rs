@@ -16,6 +16,7 @@ use crate::db::schema::app_config::{
 };
 use crate::db::schema::app_member::AppMemberWorkTable;
 use crate::db::schema::app_member::{AppMemberRow, membership_key};
+use crate::db::schema::support_info::SupportInfoWorkTable;
 use crate::db::schema::user::UserWorkTable;
 use crate::id_types::AppPublicId;
 
@@ -35,6 +36,7 @@ pub struct AppUpdate {
 pub struct AppService {
     app_config_table: Arc<AppConfigWorkTable>,
     app_member_table: Arc<AppMemberWorkTable>,
+    support_info_table: Arc<SupportInfoWorkTable>,
     user_table: Arc<UserWorkTable>,
 }
 
@@ -42,11 +44,13 @@ impl AppService {
     pub fn new(
         app_config_table: Arc<AppConfigWorkTable>,
         app_member_table: Arc<AppMemberWorkTable>,
+        support_info_table: Arc<SupportInfoWorkTable>,
         user_table: Arc<UserWorkTable>,
     ) -> Self {
         Self {
             app_config_table,
             app_member_table,
+            support_info_table,
             user_table,
         }
     }
@@ -96,6 +100,7 @@ impl AppService {
             membership_key: membership_key(packed_pub_id, packed_owner),
             role: AppMemberRole::Owner,
             created_at,
+            is_support_enabled: false,
         };
         self.app_member_table.insert(owner_row).inspect_err(|e| {
             tracing::error!(
