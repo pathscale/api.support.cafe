@@ -9,7 +9,7 @@ use crate::id_types::PackedNanoId;
 
 worktable!(
     name: AppMember,
-    version: 1,
+    version: 2,
     persist: true,
     columns: {
         id: u64 primary_key autoincrement,
@@ -18,6 +18,7 @@ worktable!(
         membership_key: String,
         role: AppMemberRole,
         created_at: i64,
+        is_support_enabled: bool,
     },
     indexes: {
         app_public_id_idx: app_public_id,
@@ -27,6 +28,7 @@ worktable!(
     queries: {
         update: {
             RoleByMembershipKey(role) by membership_key,
+            IsSupportEnabledByMembershipKey(is_support_enabled) by membership_key,
         },
         delete: {
             ByMembershipKey() by membership_key,
@@ -41,11 +43,12 @@ s3_sync_persistence!(AppMemberWorkTable);
 impl From<AppMemberRow> for AppMember {
     fn from(row: AppMemberRow) -> Self {
         Self {
-            id: row.id as i64,
             app_public_id: row.app_public_id.unpack().expect("valid packed nanoid"),
             user_pub_id: row.user_pub_id.unpack().expect("valid packed nanoid"),
             role: row.role,
             created_at: row.created_at,
+            is_support_enabled: row.is_support_enabled,
+            tg_handle: None,
         }
     }
 }
