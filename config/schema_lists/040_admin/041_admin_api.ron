@@ -68,19 +68,6 @@ Config(
                     roles: ["UserRole::Admin"],
                 ),
             ),
-            EndpointSchemaElement(
-                frontend_facing: true,
-                schema: (
-                    name: "SetOwnerForOwnerlessApp",
-                    code: 40005,
-                    parameters: [
-                        Field(name: "app_public_id", ty: NanoId(len: 16)),
-                        Field(name: "user_pub_id", ty: NanoId(len: 16)),
-                    ],
-                    returns: [],
-                    roles: ["UserRole::Admin"],
-                ),
-            ),
         ],
     ),
 )

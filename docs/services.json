@@ -764,35 +764,6 @@
             "UserRole::Admin"
           ],
           "stream_response": null
-        },
-        {
-          "code": 40005,
-          "description": "",
-          "json_schema": null,
-          "name": "SetOwnerForOwnerlessApp",
-          "parameters": [
-            {
-              "name": "appPublicId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            },
-            {
-              "name": "userPubId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            }
-          ],
-          "returns": [],
-          "roles": [
-            "UserRole::Admin"
-          ],
-          "stream_response": null
         }
       ],
       "id": 4,

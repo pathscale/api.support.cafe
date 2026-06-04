@@ -2,7 +2,6 @@ mod delete_app;
 mod get_all_apps;
 mod get_users;
 mod set_log_level;
-mod set_owner_for_ownerless_app;
 mod set_role;
 
 use endpoint_libs::libs::ws::WebsocketServer;
@@ -12,7 +11,6 @@ use crate::handlers::admin::delete_app::MethodDeleteApp;
 use crate::handlers::admin::get_all_apps::MethodGetAllApps;
 use crate::handlers::admin::get_users::MethodGetUsers;
 use crate::handlers::admin::set_log_level::MethodSetLogLevel;
-use crate::handlers::admin::set_owner_for_ownerless_app::MethodSetOwnerForOwnerlessApp;
 use crate::handlers::admin::set_role::MethodSetRole;
 
 pub fn register_handlers(server: &mut WebsocketServer, ctx: &AppCtx) {
@@ -31,9 +29,6 @@ pub fn register_handlers(server: &mut WebsocketServer, ctx: &AppCtx) {
         user_table: ctx.db.user_table.clone(),
     });
     server.add_handler(MethodGetAllApps {
-        app_service: ctx.app_service.clone(),
-    });
-    server.add_handler(MethodSetOwnerForOwnerlessApp {
         app_service: ctx.app_service.clone(),
     });
 }
