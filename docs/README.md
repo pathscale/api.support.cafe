@@ -93,7 +93,6 @@ ID: 4
 |40002|GetUsers||`data: Vec<UserInfo>`||true|
 |40003|SetRole|`userPubId: Nanoid<16, Base62Alphabet>`, `role: UserRole`|||true|
 |40004|GetAllApps||`data: Vec<AppInfo>`||true|
-|40005|SetOwnerForOwnerlessApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`|||true|
 
 ## supportApi Server
 ID: 5

@@ -243,8 +243,6 @@ pub enum EnumEndpoint {
     SetRole = 40003,
     ///
     GetAllApps = 40004,
-    ///
-    SetOwnerForOwnerlessApp = 40005,
 }
 
 impl EnumEndpoint {
@@ -271,7 +269,6 @@ impl EnumEndpoint {
             Self::GetUsers => GetUsersRequest::SCHEMA,
             Self::SetRole => SetRoleRequest::SCHEMA,
             Self::GetAllApps => GetAllAppsRequest::SCHEMA,
-            Self::SetOwnerForOwnerlessApp => SetOwnerForOwnerlessAppRequest::SCHEMA,
             Self::SetMyTgHandle => SetMyTgHandleRequest::SCHEMA,
             Self::GetMyTgHandle => GetMyTgHandleRequest::SCHEMA,
         };
@@ -513,15 +510,6 @@ pub struct SetMyTgHandleRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SetMyTgHandleResponse {}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct SetOwnerForOwnerlessAppRequest {
-    pub app_public_id: Nanoid<16, Base62Alphabet>,
-    pub user_pub_id: Nanoid<16, Base62Alphabet>,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct SetOwnerForOwnerlessAppResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SetRoleRequest {
@@ -1372,44 +1360,6 @@ impl WsRequest for GetAllAppsRequest {
 }
 impl WsResponse for GetAllAppsResponse {
     type Request = GetAllAppsRequest;
-}
-
-impl WsRequest for SetOwnerForOwnerlessAppRequest {
-    type Response = SetOwnerForOwnerlessAppResponse;
-    const METHOD_ID: u32 = 40005;
-    const ROLES: &[u32] = &[1];
-    const SCHEMA: &'static str = r#"{
-  "name": "SetOwnerForOwnerlessApp",
-  "code": 40005,
-  "parameters": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "user_pub_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    }
-  ],
-  "returns": [],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::Admin"
-  ]
-}"#;
-}
-impl WsResponse for SetOwnerForOwnerlessAppResponse {
-    type Request = SetOwnerForOwnerlessAppRequest;
 }
 
 impl WsRequest for SetMyTgHandleRequest {

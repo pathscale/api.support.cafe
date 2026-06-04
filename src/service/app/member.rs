@@ -12,28 +12,6 @@ use crate::id_types::AppPublicId;
 use crate::service::app::AppService;
 
 impl AppService {
-    pub async fn set_owner_for_ownerless_app(
-        &self,
-        app_public_id: AppPublicId,
-        user_pub_id: UserPublicId,
-    ) -> eyre::Result<AppMemberRow> {
-        self.ensure_app_exists(app_public_id)?;
-        self.ensure_user_exists(user_pub_id)?;
-
-        let packed_app = app_public_id.pack()?;
-        let rows = self
-            .app_member_table
-            .select_by_app_public_id(packed_app)
-            .execute()?;
-
-        if rows.iter().any(|r| r.role == AppMemberRole::Owner) {
-            bail!("App already has an owner");
-        }
-
-        self.add_member(app_public_id, user_pub_id, AppMemberRole::Owner)
-            .await
-    }
-
     pub async fn add_member(
         &self,
         app_public_id: AppPublicId,
