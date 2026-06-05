@@ -117,6 +117,7 @@ pub struct AppConfig {
     #[serde(default)]
     pub app_name: Option<String>,
     pub active: bool,
+    pub message_persistence_enabled: bool,
     pub created_at: i64,
 }
 
@@ -202,7 +203,7 @@ pub enum EnumEndpoint {
     ///
     AppConnect = 20000,
     ///
-    CreateSession = 20001,
+    CreateChatSession = 20001,
     ///
     SendMessage = 20002,
     ///
@@ -210,9 +211,9 @@ pub enum EnumEndpoint {
     ///
     SubscribeEvents = 20004,
     ///
-    CloseSession = 20005,
+    CloseChatSession = 20005,
     ///
-    ListSessions = 20006,
+    ListChatSessions = 20006,
     ///
     SetMyTgHandle = 20007,
     ///
@@ -234,6 +235,10 @@ pub enum EnumEndpoint {
     ///
     ListAppMembers = 30008,
     ///
+    EnableMessagePersistence = 30009,
+    ///
+    DisableMessagePersistence = 30010,
+    ///
     DeleteApp = 40000,
     ///
     SetLogLevel = 40001,
@@ -250,12 +255,12 @@ impl EnumEndpoint {
         let schema = match self {
             Self::Init => InitRequest::SCHEMA,
             Self::AppConnect => AppConnectRequest::SCHEMA,
-            Self::CreateSession => CreateSessionRequest::SCHEMA,
+            Self::CreateChatSession => CreateChatSessionRequest::SCHEMA,
             Self::SendMessage => SendMessageRequest::SCHEMA,
             Self::ListMessages => ListMessagesRequest::SCHEMA,
             Self::SubscribeEvents => SubscribeEventsRequest::SCHEMA,
-            Self::CloseSession => CloseSessionRequest::SCHEMA,
-            Self::ListSessions => ListSessionsRequest::SCHEMA,
+            Self::CloseChatSession => CloseChatSessionRequest::SCHEMA,
+            Self::ListChatSessions => ListChatSessionsRequest::SCHEMA,
             Self::CreateApp => CreateAppRequest::SCHEMA,
             Self::EditApp => EditAppRequest::SCHEMA,
             Self::ListApps => ListAppsRequest::SCHEMA,
@@ -264,6 +269,8 @@ impl EnumEndpoint {
             Self::AddAppMember => AddAppMemberRequest::SCHEMA,
             Self::SetAppMemberRole => SetAppMemberRoleRequest::SCHEMA,
             Self::ListAppMembers => ListAppMembersRequest::SCHEMA,
+            Self::EnableMessagePersistence => EnableMessagePersistenceRequest::SCHEMA,
+            Self::DisableMessagePersistence => DisableMessagePersistenceRequest::SCHEMA,
             Self::DeleteApp => DeleteAppRequest::SCHEMA,
             Self::SetLogLevel => SetLogLevelRequest::SCHEMA,
             Self::GetUsers => GetUsersRequest::SCHEMA,
@@ -330,18 +337,20 @@ pub struct AppConnectResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CloseSessionRequest {
+pub struct CloseChatSessionRequest {
     pub session_id: Nanoid<16, Base62Alphabet>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CloseSessionResponse {}
+pub struct CloseChatSessionResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateAppRequest {
     pub tg_bot_token: String,
     #[serde(default)]
     pub app_name: Option<String>,
+    #[serde(default)]
+    pub message_persistence_enabled: Option<bool>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -351,12 +360,12 @@ pub struct CreateAppResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateSessionRequest {
+pub struct CreateChatSessionRequest {
     pub user_pub_id: Nanoid<16, Base62Alphabet>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateSessionResponse {
+pub struct CreateChatSessionResponse {
     pub session_id: Nanoid<16, Base62Alphabet>,
     pub created_at: i64,
 }
@@ -368,6 +377,14 @@ pub struct DeleteAppRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteAppResponse {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DisableMessagePersistenceRequest {
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DisableMessagePersistenceResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DisableSupportUserRequest {
@@ -387,10 +404,20 @@ pub struct EditAppRequest {
     pub app_name: Option<String>,
     #[serde(default)]
     pub active: Option<bool>,
+    #[serde(default)]
+    pub message_persistence_enabled: Option<bool>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct EditAppResponse {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EnableMessagePersistenceRequest {
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EnableMessagePersistenceResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct EnableSupportUserRequest {
@@ -457,6 +484,14 @@ pub struct ListAppsResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct ListChatSessionsRequest {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ListChatSessionsResponse {
+    pub data: Vec<ChatSession>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ListMessagesRequest {
     pub session_id: Nanoid<16, Base62Alphabet>,
 }
@@ -464,14 +499,6 @@ pub struct ListMessagesRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ListMessagesResponse {
     pub data: Vec<ChatMessage>,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ListSessionsRequest {}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ListSessionsResponse {
-    pub data: Vec<ChatSession>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -632,12 +659,12 @@ impl WsResponse for AppConnectResponse {
     type Request = AppConnectRequest;
 }
 
-impl WsRequest for CreateSessionRequest {
-    type Response = CreateSessionResponse;
+impl WsRequest for CreateChatSessionRequest {
+    type Response = CreateChatSessionResponse;
     const METHOD_ID: u32 = 20001;
     const ROLES: &[u32] = &[2];
     const SCHEMA: &'static str = r#"{
-  "name": "CreateSession",
+  "name": "CreateChatSession",
   "code": 20001,
   "parameters": [
     {
@@ -671,8 +698,8 @@ impl WsRequest for CreateSessionRequest {
   ]
 }"#;
 }
-impl WsResponse for CreateSessionResponse {
-    type Request = CreateSessionRequest;
+impl WsResponse for CreateChatSessionResponse {
+    type Request = CreateChatSessionRequest;
 }
 
 impl WsRequest for SendMessageRequest {
@@ -808,12 +835,12 @@ impl WsResponse for SubscribeEventsResponse {
     type Request = SubscribeEventsRequest;
 }
 
-impl WsRequest for CloseSessionRequest {
-    type Response = CloseSessionResponse;
+impl WsRequest for CloseChatSessionRequest {
+    type Response = CloseChatSessionResponse;
     const METHOD_ID: u32 = 20005;
     const ROLES: &[u32] = &[2, 3, 4];
     const SCHEMA: &'static str = r#"{
-  "name": "CloseSession",
+  "name": "CloseChatSession",
   "code": 20005,
   "parameters": [
     {
@@ -836,16 +863,16 @@ impl WsRequest for CloseSessionRequest {
   ]
 }"#;
 }
-impl WsResponse for CloseSessionResponse {
-    type Request = CloseSessionRequest;
+impl WsResponse for CloseChatSessionResponse {
+    type Request = CloseChatSessionRequest;
 }
 
-impl WsRequest for ListSessionsRequest {
-    type Response = ListSessionsResponse;
+impl WsRequest for ListChatSessionsRequest {
+    type Response = ListChatSessionsResponse;
     const METHOD_ID: u32 = 20006;
     const ROLES: &[u32] = &[2, 3, 4];
     const SCHEMA: &'static str = r#"{
-  "name": "ListSessions",
+  "name": "ListChatSessions",
   "code": 20006,
   "parameters": [],
   "returns": [
@@ -868,8 +895,8 @@ impl WsRequest for ListSessionsRequest {
   ]
 }"#;
 }
-impl WsResponse for ListSessionsResponse {
-    type Request = ListSessionsRequest;
+impl WsResponse for ListChatSessionsResponse {
+    type Request = ListChatSessionsRequest;
 }
 
 impl WsRequest for CreateAppRequest {
@@ -888,6 +915,12 @@ impl WsRequest for CreateAppRequest {
       "name": "app_name",
       "ty": {
         "Optional": "String"
+      }
+    },
+    {
+      "name": "message_persistence_enabled",
+      "ty": {
+        "Optional": "Boolean"
       }
     }
   ],
@@ -948,6 +981,12 @@ impl WsRequest for EditAppRequest {
     },
     {
       "name": "active",
+      "ty": {
+        "Optional": "Boolean"
+      }
+    },
+    {
+      "name": "message_persistence_enabled",
       "ty": {
         "Optional": "Boolean"
       }
@@ -1201,6 +1240,68 @@ impl WsRequest for ListAppMembersRequest {
 }
 impl WsResponse for ListAppMembersResponse {
     type Request = ListAppMembersRequest;
+}
+
+impl WsRequest for EnableMessagePersistenceRequest {
+    type Response = EnableMessagePersistenceResponse;
+    const METHOD_ID: u32 = 30009;
+    const ROLES: &[u32] = &[1, 4];
+    const SCHEMA: &'static str = r#"{
+  "name": "EnableMessagePersistence",
+  "code": 30009,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Admin",
+    "UserRole::AppAdmin"
+  ]
+}"#;
+}
+impl WsResponse for EnableMessagePersistenceResponse {
+    type Request = EnableMessagePersistenceRequest;
+}
+
+impl WsRequest for DisableMessagePersistenceRequest {
+    type Response = DisableMessagePersistenceResponse;
+    const METHOD_ID: u32 = 30010;
+    const ROLES: &[u32] = &[1, 4];
+    const SCHEMA: &'static str = r#"{
+  "name": "DisableMessagePersistence",
+  "code": 30010,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Admin",
+    "UserRole::AppAdmin"
+  ]
+}"#;
+}
+impl WsResponse for DisableMessagePersistenceResponse {
+    type Request = DisableMessagePersistenceRequest;
 }
 
 impl WsRequest for DeleteAppRequest {

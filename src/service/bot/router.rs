@@ -17,10 +17,12 @@ use tracing::{info, warn};
 use worktable::prelude::SelectQueryExecutor;
 
 use crate::db::schema::app_member::AppMemberWorkTable;
+use crate::db::schema::chat_session::ChatSessionWorkTable;
 use crate::db::schema::support_info::{ChatIdByTgHandleQuery, SupportInfoWorkTable};
-use crate::db::schema::support_message::{SupportMessageRow, SupportMessageWorkTable};
+use crate::db::schema::support_message::SupportMessageRow;
 use crate::handlers::utils::routing_message::RoutingMessage;
 use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
+use crate::service::message_store::MessageStore;
 
 pub type SessionKey = (AppPublicId, SessionId);
 
@@ -42,15 +44,17 @@ pub struct BotRouter {
     event_tx: SupportEventProducer,
     event_rx: Mutex<Option<SupportEventRx>>,
     app_member_table: Arc<AppMemberWorkTable>,
+    chat_session_table: Arc<ChatSessionWorkTable>,
     support_info_table: Arc<SupportInfoWorkTable>,
-    support_message_table: Arc<SupportMessageWorkTable>,
+    message_store: Arc<MessageStore>,
 }
 
 impl BotRouter {
     pub fn new(
         app_member_table: Arc<AppMemberWorkTable>,
+        chat_session_table: Arc<ChatSessionWorkTable>,
         support_info_table: Arc<SupportInfoWorkTable>,
-        support_message_table: Arc<SupportMessageWorkTable>,
+        message_store: Arc<MessageStore>,
     ) -> Self {
         let (tx, rx) =
             new::<One<RoutingMessage<SessionKey, ChatMessage>>, AsyncTx<_>, AsyncRx<_>>();
@@ -59,8 +63,9 @@ impl BotRouter {
             event_tx: Arc::new(Mutex::new(tx)),
             event_rx: Mutex::new(Some(rx)),
             app_member_table,
+            chat_session_table,
             support_info_table,
-            support_message_table,
+            message_store,
         }
     }
 
@@ -81,8 +86,9 @@ impl BotRouter {
             client: client_arc.clone(),
             app_public_id,
             app_member_table: self.app_member_table.clone(),
+            chat_session_table: self.chat_session_table.clone(),
             support_info_table: self.support_info_table.clone(),
-            support_message_table: self.support_message_table.clone(),
+            message_store: self.message_store.clone(),
             event_tx: self.event_tx.clone(),
         };
 
@@ -123,27 +129,28 @@ impl BotRouter {
         let session_id_str = nanoid.to_string();
         let msg_prefix = format!("{session_id_str}\nfrom: {sender_name}\n");
 
-        let session_id_packed: PackedNanoId = session_id.pack()?;
+        self.message_store
+            .store_message(SupportMessageRow {
+                id: 0,
+                message_id: new_message_id()?,
+                session_id: session_id.pack()?,
+                app_public_id: app_public_id.pack()?,
+                incoming: false,
+                sent_by: sender_name.clone(),
+                sent_at,
+                content: content.clone(),
+                tg_chat_id: None,
+            })
+            .await?;
 
-        for chat_id in supports {
-            self.support_message_table
-                .insert(SupportMessageRow {
-                    id: self.support_message_table.get_next_pk().into(),
-                    session_id: session_id_packed,
-                    app_public_id: app_public_id_packed,
-                    incoming: false,
-                    sent_by: sender_name.clone(),
-                    sent_at,
-                    content: content.clone(),
-                    tg_chat_id: Some(chat_id),
-                })
-                .map_err(|e| eyre::eyre!("Insert error: {e}"))?;
-
+        if !supports.is_empty() {
             let client = self.get_bot_client(app_public_id).await?;
-            let method =
-                SendMessage::new(ChatPeerId::from(chat_id), format!("{msg_prefix}{content}"));
-            if let Err(e) = client.execute(method).await {
-                warn!(?app_public_id, ?chat_id, "failed to send TG message: {e:?}");
+            for chat_id in supports {
+                let method =
+                    SendMessage::new(ChatPeerId::from(chat_id), format!("{msg_prefix}{content}"));
+                if let Err(e) = client.execute(method).await {
+                    warn!(?app_public_id, ?chat_id, "failed to send TG message: {e:?}");
+                }
             }
         }
 
@@ -258,8 +265,9 @@ struct BotUpdateHandler {
     client: Arc<Client>,
     app_public_id: AppPublicId,
     app_member_table: Arc<AppMemberWorkTable>,
+    chat_session_table: Arc<ChatSessionWorkTable>,
     support_info_table: Arc<SupportInfoWorkTable>,
-    support_message_table: Arc<SupportMessageWorkTable>,
+    message_store: Arc<MessageStore>,
     event_tx: SupportEventProducer,
 }
 
@@ -313,35 +321,42 @@ impl UpdateHandler for BotUpdateHandler {
                 let session_id_str = lines[0].trim();
                 // Session ID is a 16-char Nanoid string
                 if session_id_str.len() == 16 {
-                    // Find the session by looking up messages with this session_id string representation
-                    let all_msgs = self
-                        .support_message_table
-                        .select_all()
-                        .execute()
-                        .unwrap_or_default();
-
-                    // Find a message where the packed session_id unpacks to this string
-                    let Some(first_msg) = all_msgs.iter().find(|m| {
-                        let unpacked = m.session_id.unpack();
-                        unpacked
-                            .map(|n| n.to_string() == session_id_str)
-                            .unwrap_or(false)
-                    }) else {
-                        self.try_send_msg(chat_id, "Session not found".to_string())
-                            .await;
-                        return;
-                    };
-                    let Ok(session_id) = SessionId::from_packed(first_msg.session_id) else {
+                    let Ok(session_nanoid) = session_id_str.parse::<crate::id_types::NanoId>()
+                    else {
                         self.try_send_msg(chat_id, "Invalid session ID".to_string())
                             .await;
                         return;
                     };
-                    let Ok(app_public_id) = AppPublicId::from_packed(first_msg.app_public_id)
-                    else {
-                        self.try_send_msg(chat_id, "Invalid app ID".to_string())
+
+                    let session_id: SessionId = session_nanoid.into();
+                    let Ok(packed_session_id) = session_id.pack() else {
+                        warn!("Failed to pack session_id");
+                        self.try_send_msg(chat_id, "Internal Server Error".to_string())
                             .await;
                         return;
                     };
+
+                    let Some(session) = self
+                        .chat_session_table
+                        .select_by_session_id(packed_session_id)
+                    else {
+                        self.try_send_msg(chat_id, "Session not found".to_string())
+                            .await;
+                        return;
+                    };
+
+                    let Ok(packed_app_public_id) = self.app_public_id.pack() else {
+                        warn!("Failed to pack app_public_id");
+                        self.try_send_msg(chat_id, "Internal Server Error".to_string())
+                            .await;
+                        return;
+                    };
+
+                    if session.app_public_id != packed_app_public_id {
+                        self.try_send_msg(chat_id, "Session not found".to_string())
+                            .await;
+                        return;
+                    }
 
                     let Some(reply_txt) = message.get_text() else {
                         self.try_send_msg(chat_id, "Error fetching reply text".to_string())
@@ -351,35 +366,34 @@ impl UpdateHandler for BotUpdateHandler {
 
                     let sent_at = Utc::now().timestamp_millis();
 
-                    let Ok(packed_session_id) = session_id.pack() else {
-                        warn!("Failed to pack session_id");
-                        self.try_send_msg(chat_id, "Internal Server Error".to_string())
-                            .await;
-                        return;
-                    };
-                    let Ok(packed_app_public_id) = app_public_id.pack() else {
-                        warn!("Failed to pack app_public_id");
-                        self.try_send_msg(chat_id, "Internal Server Error".to_string())
-                            .await;
-                        return;
-                    };
-
                     if !self.is_chat_enabled_for_app(packed_app_public_id, chat_id) {
                         self.try_send_msg(chat_id, "Support access is disabled".to_string())
                             .await;
                         return;
                     }
 
-                    if let Err(e) = self.support_message_table.insert(SupportMessageRow {
-                        id: self.support_message_table.get_next_pk().into(),
-                        session_id: packed_session_id,
-                        app_public_id: packed_app_public_id,
-                        incoming: true,
-                        sent_by: "Support".to_string(),
-                        sent_at,
-                        content: reply_txt.data.clone(),
-                        tg_chat_id: Some(chat_id),
-                    }) {
+                    let Ok(message_id) = new_message_id() else {
+                        warn!("Failed to create message_id");
+                        self.try_send_msg(chat_id, "Internal Server Error".to_string())
+                            .await;
+                        return;
+                    };
+
+                    if let Err(e) = self
+                        .message_store
+                        .store_message(SupportMessageRow {
+                            id: 0,
+                            message_id,
+                            session_id: packed_session_id,
+                            app_public_id: packed_app_public_id,
+                            incoming: true,
+                            sent_by: "Support".to_string(),
+                            sent_at,
+                            content: reply_txt.data.clone(),
+                            tg_chat_id: Some(chat_id),
+                        })
+                        .await
+                    {
                         warn!("Error saving support msg: {e:?}");
                         self.try_send_msg(chat_id, "Internal Server Error".to_string())
                             .await;
@@ -394,7 +408,7 @@ impl UpdateHandler for BotUpdateHandler {
                         sent_at,
                         content: reply_txt.data.clone(),
                     };
-                    let key = (app_public_id, session_id);
+                    let key = (self.app_public_id, session_id);
                     let _ = self
                         .event_tx
                         .lock()
@@ -441,4 +455,9 @@ impl UpdateHandler for BotUpdateHandler {
             }
         }
     }
+}
+
+fn new_message_id() -> eyre::Result<PackedNanoId> {
+    PackedNanoId::pack(&crate::id_types::NanoId::new())
+        .map_err(|e| eyre::eyre!("Failed to pack message_id: {e}"))
 }

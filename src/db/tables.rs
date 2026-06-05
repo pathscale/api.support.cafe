@@ -14,6 +14,7 @@ use crate::db::schema::app_config::AppConfigWorkTable;
 use crate::db::schema::app_member::AppMemberWorkTable;
 use crate::db::schema::chat_session::ChatSessionWorkTable;
 use crate::db::schema::support_info::SupportInfoWorkTable;
+use crate::db::schema::support_memory_message::SupportMemoryMessageWorkTable;
 use crate::db::schema::support_message::SupportMessageWorkTable;
 use crate::db::schema::user::UserWorkTable;
 
@@ -38,6 +39,7 @@ pub struct Tables {
     pub app_member_table: Arc<AppMemberWorkTable>,
     pub chat_session_table: Arc<ChatSessionWorkTable>,
     pub support_message_table: Arc<SupportMessageWorkTable>,
+    pub support_memory_message_table: Arc<SupportMemoryMessageWorkTable>,
     pub support_info_table: Arc<SupportInfoWorkTable>,
     pub user_table: Arc<UserWorkTable>,
 }
@@ -64,6 +66,7 @@ impl Tables {
         let chat_session_table = disk_load!(ChatSessionPersistenceEngine, ChatSessionWorkTable);
         let support_message_table =
             disk_load!(SupportMessagePersistenceEngine, SupportMessageWorkTable);
+        let support_memory_message_table = Arc::new(SupportMemoryMessageWorkTable::default());
         let support_info_table = disk_load!(SupportInfoPersistenceEngine, SupportInfoWorkTable);
         let user_table = disk_load!(UserPersistenceEngine, UserWorkTable);
 
@@ -72,6 +75,7 @@ impl Tables {
             app_member_table,
             chat_session_table,
             support_message_table,
+            support_memory_message_table,
             support_info_table,
             user_table,
         })
@@ -113,6 +117,7 @@ impl Tables {
                 SupportMessageS3SyncPersistenceEngine,
                 SupportMessageWorkTable
             );
+            let support_memory_message_table = Arc::new(SupportMemoryMessageWorkTable::default());
             let support_info_table =
                 s3_load!(SupportInfoS3SyncPersistenceEngine, SupportInfoWorkTable);
             let user_table = s3_load!(UserS3SyncPersistenceEngine, UserWorkTable);
@@ -122,6 +127,7 @@ impl Tables {
                 app_member_table,
                 chat_session_table,
                 support_message_table,
+                support_memory_message_table,
                 support_info_table,
                 user_table,
             })
@@ -166,6 +172,7 @@ impl Tables {
             SupportMessageS3SyncPersistenceEngine,
             SupportMessageWorkTable
         );
+        let support_memory_message_table = Arc::new(SupportMemoryMessageWorkTable::default());
         let support_info_table = s3_load!(SupportInfoS3SyncPersistenceEngine, SupportInfoWorkTable);
         let user_table = s3_load!(UserS3SyncPersistenceEngine, UserWorkTable);
 
@@ -174,6 +181,7 @@ impl Tables {
             app_member_table,
             chat_session_table,
             support_message_table,
+            support_memory_message_table,
             support_info_table,
             user_table,
         })

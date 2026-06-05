@@ -4,30 +4,26 @@ use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::RequestContext;
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
-use crate::codegen::model::{ChatSession, ListSessionsRequest, ListSessionsResponse};
+use crate::codegen::model::{ChatSession, ListChatSessionsRequest, ListChatSessionsResponse};
 use crate::service::app_connection_registry::AppConnectionRegistry;
-use crate::service::session::SessionService;
+use crate::service::session::ChatSessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
 #[derive(Clone)]
-pub struct MethodListSessions {
-    pub session_service: Arc<SessionService>,
+pub struct MethodListChatSessions {
+    pub session_service: Arc<ChatSessionService>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
 #[async_trait(?Send)]
-impl RequestHandler for MethodListSessions {
-    type Request = ListSessionsRequest;
+impl RequestHandler for MethodListChatSessions {
+    type Request = ListChatSessionsRequest;
 
-    async fn handle(
-        &self,
-        ctx: RequestContext,
-        _req: Self::Request,
-    ) -> Response<Self::Request> {
+    async fn handle(&self, ctx: RequestContext, _req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
             connection_id = ctx.connection_id,
-            "ListSessions: received request"
+            "ListChatSessions: received request"
         );
 
         let user_pub_id = self
@@ -38,7 +34,9 @@ impl RequestHandler for MethodListSessions {
 
         let app_filter = self.app_connection_registry.get(ctx.connection_id).await;
 
-        let sessions = self.session_service.list_sessions(user_pub_id, app_filter)?;
+        let sessions = self
+            .session_service
+            .list_sessions(user_pub_id, app_filter)?;
 
         let data: Vec<ChatSession> = sessions
             .into_iter()
@@ -54,9 +52,9 @@ impl RequestHandler for MethodListSessions {
         tracing::debug!(
             connection_id = ctx.connection_id,
             count = data.len(),
-            "ListSessions: completed successfully"
+            "ListChatSessions: completed successfully"
         );
 
-        Ok(ListSessionsResponse { data })
+        Ok(ListChatSessionsResponse { data })
     }
 }

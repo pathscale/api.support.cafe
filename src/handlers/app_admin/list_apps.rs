@@ -50,6 +50,7 @@ impl RequestHandler for MethodListApps {
                 tg_bot_token: r.tg_bot_token,
                 app_name: r.app_name,
                 active: r.active,
+                message_persistence_enabled: r.message_persistence_enabled,
                 created_at: r.created_at,
             })
             .collect();

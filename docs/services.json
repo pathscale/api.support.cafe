@@ -198,7 +198,7 @@
           "code": 20001,
           "description": "",
           "json_schema": null,
-          "name": "CreateSession",
+          "name": "CreateChatSession",
           "parameters": [
             {
               "name": "userPubId",
@@ -338,7 +338,7 @@
           "code": 20005,
           "description": "",
           "json_schema": null,
-          "name": "CloseSession",
+          "name": "CloseChatSession",
           "parameters": [
             {
               "name": "sessionId",
@@ -361,7 +361,7 @@
           "code": 20006,
           "description": "",
           "json_schema": null,
-          "name": "ListSessions",
+          "name": "ListChatSessions",
           "parameters": [],
           "returns": [
             {
@@ -400,6 +400,12 @@
               "name": "appName",
               "ty": {
                 "Optional": "String"
+              }
+            },
+            {
+              "name": "messagePersistenceEnabled",
+              "ty": {
+                "Optional": "Boolean"
               }
             }
           ],
@@ -451,6 +457,12 @@
             },
             {
               "name": "active",
+              "ty": {
+                "Optional": "Boolean"
+              }
+            },
+            {
+              "name": "messagePersistenceEnabled",
               "ty": {
                 "Optional": "Boolean"
               }
@@ -642,6 +654,50 @@
             "UserRole::Admin",
             "UserRole::AppAdmin",
             "UserRole::Support"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 30009,
+          "description": "",
+          "json_schema": null,
+          "name": "EnableMessagePersistence",
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::Admin",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 30010,
+          "description": "",
+          "json_schema": null,
+          "name": "DisableMessagePersistence",
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::Admin",
+            "UserRole::AppAdmin"
           ],
           "stream_response": null
         }
@@ -840,6 +896,10 @@
           },
           {
             "name": "active",
+            "ty": "Boolean"
+          },
+          {
+            "name": "messagePersistenceEnabled",
             "ty": "Boolean"
           },
           {

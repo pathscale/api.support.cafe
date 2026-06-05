@@ -42,6 +42,7 @@ impl RequestHandler for MethodEditApp {
             tg_bot_token: req.tg_bot_token.clone(),
             app_name: req.app_name.clone(),
             active: req.active,
+            message_persistence_enabled: req.message_persistence_enabled,
         };
 
         self.app_service.edit_app(app_public_id, update).await?;

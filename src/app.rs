@@ -18,7 +18,8 @@ use crate::handlers::auth_api::register_auth_api_handlers;
 use crate::service::app::AppService;
 use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::bot::BotService;
-use crate::service::session::SessionService;
+use crate::service::message_store::MessageStore;
+use crate::service::session::ChatSessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
 pub struct AppCtx {
@@ -27,8 +28,9 @@ pub struct AppCtx {
     pub bot_service: Arc<BotService>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
-    pub session_service: Arc<SessionService>,
+    pub session_service: Arc<ChatSessionService>,
     pub app_service: Arc<AppService>,
+    pub message_store: Arc<MessageStore>,
     pub log_service: Arc<LogService>,
     pub honey_id_client: Arc<HoneyIdClient>,
     pub token_storage: Arc<TokenWorkTableStorage>,
@@ -47,22 +49,30 @@ impl App {
         let db = Arc::new(Tables::new(config.database.clone()).await?);
         let app_connection_registry = Arc::new(AppConnectionRegistry::new());
         let user_connection_registry = Arc::new(UserConnectionRegistry::new());
+        let message_store = Arc::new(MessageStore::new(
+            db.app_config_table.clone(),
+            db.chat_session_table.clone(),
+            db.support_message_table.clone(),
+            db.support_memory_message_table.clone(),
+        ));
         let app_service = Arc::new(AppService::new(
             db.app_config_table.clone(),
             db.app_member_table.clone(),
             db.support_info_table.clone(),
             db.user_table.clone(),
+            message_store.clone(),
         ));
         let bot_service = Arc::new(BotService::new(
             db.app_member_table.clone(),
+            db.chat_session_table.clone(),
             db.support_info_table.clone(),
-            db.support_message_table.clone(),
+            message_store.clone(),
             app_service.clone(),
         ));
-        let session_service = Arc::new(SessionService::new(
+        let session_service = Arc::new(ChatSessionService::new(
             db.chat_session_table.clone(),
-            db.support_message_table.clone(),
             bot_service.clone(),
+            message_store.clone(),
         ));
 
         let honey_id_client = Arc::new(HoneyIdClient::new(config.honey_id.clone()));
@@ -76,6 +86,7 @@ impl App {
             user_connection_registry,
             session_service,
             app_service,
+            message_store,
             log_service,
             honey_id_client,
             token_storage,
@@ -102,6 +113,10 @@ impl App {
     pub async fn run(self) -> Result<()> {
         self.bootstrap_admin().await?;
         self.ctx.bot_service.bootstrap_bots().await?;
+        let message_purge_task = self.ctx.message_store.clone().spawn_purge_task(
+            Duration::from_secs(60 * 60),
+            Duration::from_secs(24 * 60 * 60),
+        );
 
         use tokio::signal::unix::{SignalKind, signal};
 
@@ -118,6 +133,7 @@ impl App {
 
         // no matter if it was server issue or thread return signal, go with graceful termination procedure
         self.ctx.bot_service.shutdown().await;
+        message_purge_task.abort();
         tokio::select! {
             _ = self.ctx.db.wait_for_ops() =>{
                 warn!("Gracefully terminated all threads");

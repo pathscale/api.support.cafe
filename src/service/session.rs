@@ -7,28 +7,28 @@ use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
 
 use crate::codegen::model::ChatMessage;
 use crate::db::schema::chat_session::{ChatSessionRow, ChatSessionWorkTable, ClosedAtByIdQuery};
-use crate::db::schema::support_message::SupportMessageWorkTable;
 use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
 use crate::service::bot::BotService;
+use crate::service::message_store::MessageStore;
 use worktable::prelude::SelectQueryExecutor;
 
 /// Service for session operations.
-pub struct SessionService {
+pub struct ChatSessionService {
     chat_session_table: Arc<ChatSessionWorkTable>,
-    support_message_table: Arc<SupportMessageWorkTable>,
     bot_service: Arc<BotService>,
+    message_store: Arc<MessageStore>,
 }
 
-impl SessionService {
+impl ChatSessionService {
     pub fn new(
         chat_session_table: Arc<ChatSessionWorkTable>,
-        support_message_table: Arc<SupportMessageWorkTable>,
         bot_service: Arc<BotService>,
+        message_store: Arc<MessageStore>,
     ) -> Self {
         Self {
             chat_session_table,
-            support_message_table,
             bot_service,
+            message_store,
         }
     }
 
@@ -207,45 +207,8 @@ impl SessionService {
     }
 
     /// List messages for session.
-    pub fn list_messages(&self, session_id: SessionId) -> eyre::Result<Vec<ChatMessage>> {
-        tracing::debug!(
-            session_id = %session_id,
-            "SessionService::list_messages: querying"
-        );
-
-        let packed_session_id: PackedNanoId = session_id.pack()?;
-        let rows = self
-            .support_message_table
-            .select_by_session_id(packed_session_id)
-            .execute()
-            .inspect_err(|e| {
-                tracing::error!(
-                    session_id = %session_id,
-                    error = %e,
-                    "SessionService::list_messages: query failed"
-                );
-            })?;
-
-        let messages: Vec<ChatMessage> = rows
-            .into_iter()
-            .map(|r| {
-                let session_id: Nanoid<16, Base62Alphabet> =
-                    r.session_id.unpack().expect("valid session_id");
-                ChatMessage {
-                    session_id,
-                    incoming: r.incoming,
-                    sent_by: r.sent_by,
-                    sent_at: r.sent_at,
-                    content: r.content,
-                }
-            })
-            .collect();
-
-        tracing::debug!(
-            session_id = %session_id,
-            count = messages.len(),
-            "SessionService::list_messages: completed"
-        );
+    pub async fn list_messages(&self, session_id: SessionId) -> eyre::Result<Vec<ChatMessage>> {
+        let messages = self.message_store.list_messages(session_id).await?;
 
         Ok(messages)
     }

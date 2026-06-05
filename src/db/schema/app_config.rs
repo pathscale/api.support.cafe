@@ -9,7 +9,7 @@ use crate::id_types::PackedNanoId;
 
 worktable!(
     name: AppConfig,
-    version: 1,
+    version: 2,
     persist: true,
     columns: {
         id: u64 primary_key autoincrement,
@@ -17,6 +17,7 @@ worktable!(
         tg_bot_token: String,
         app_name: String optional,
         active: bool,
+        message_persistence_enabled: bool,
         created_at: i64,
     },
     indexes: {
@@ -30,6 +31,7 @@ worktable!(
             AppNameByPubId(app_name) by public_id,
             ActiveById(active) by id,
             ActiveByPubId(active) by public_id,
+            MessagePersistenceEnabledByPubId(message_persistence_enabled) by public_id,
         },
         delete: {
             ByPublicId() by public_id,

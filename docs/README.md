@@ -4,7 +4,7 @@
 ## Structs/Datamodels
 
 ```rust
-struct AppConfig{ appPublicId: Nanoid<16, Base62Alphabet>, tgBotToken: String, appName: Option<String>, active: bool, createdAt: i64 }
+struct AppConfig{ appPublicId: Nanoid<16, Base62Alphabet>, tgBotToken: String, appName: Option<String>, active: bool, messagePersistenceEnabled: bool, createdAt: i64 }
 
 
 struct AppInfo{ publicId: Nanoid<16, Base62Alphabet>, appName: Option<String>, active: bool, createdAt: i64 }
@@ -62,26 +62,28 @@ ID: 2
 ### Endpoints
 |Code|Name|Parameters|Response|Description|FE Facing|
 |-----------|-----------|----------|--------|-----------|-----------|
-|20001|CreateSession|`userPubId: Nanoid<16, Base62Alphabet>`|`sessionId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`||true|
+|20001|CreateChatSession|`userPubId: Nanoid<16, Base62Alphabet>`|`sessionId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`||true|
 |20002|SendMessage|`sessionId: Nanoid<16, Base62Alphabet>`, `content: String`|`sentAt: i64`||true|
 |20003|ListMessages|`sessionId: Nanoid<16, Base62Alphabet>`|`data: Vec<ChatMessage>`||true|
 |20004|SubscribeEvents|`sessionId: Nanoid<16, Base62Alphabet>`, `unsub: Option<bool>`|`data: Vec<ChatMessage>`||true|
-|20005|CloseSession|`sessionId: Nanoid<16, Base62Alphabet>`|||true|
-|20006|ListSessions||`data: Vec<ChatSession>`||true|
+|20005|CloseChatSession|`sessionId: Nanoid<16, Base62Alphabet>`|||true|
+|20006|ListChatSessions||`data: Vec<ChatSession>`||true|
 
 ## appAdminApi Server
 ID: 3
 ### Endpoints
 |Code|Name|Parameters|Response|Description|FE Facing|
 |-----------|-----------|----------|--------|-----------|-----------|
-|30000|CreateApp|`tgBotToken: String`, `appName: Option<String>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`||true|
-|30001|EditApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgBotToken: Option<String>`, `appName: Option<String>`, `active: Option<bool>`|||true|
+|30000|CreateApp|`tgBotToken: String`, `appName: Option<String>`, `messagePersistenceEnabled: Option<bool>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`||true|
+|30001|EditApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgBotToken: Option<String>`, `appName: Option<String>`, `active: Option<bool>`, `messagePersistenceEnabled: Option<bool>`|||true|
 |30002|ListApps||`data: Vec<AppConfig>`||true|
 |30003|EnableSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`|||true|
 |30005|DisableSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`|||true|
 |30006|AddAppMember|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`|||true|
 |30007|SetAppMemberRole|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`, `role: AppMemberRole`|||true|
 |30008|ListAppMembers|`appPublicId: Nanoid<16, Base62Alphabet>`|`data: Vec<AppMember>`||true|
+|30009|EnableMessagePersistence|`appPublicId: Nanoid<16, Base62Alphabet>`|||true|
+|30010|DisableMessagePersistence|`appPublicId: Nanoid<16, Base62Alphabet>`|||true|
 
 ## adminApi Server
 ID: 4

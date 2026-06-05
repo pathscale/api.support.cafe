@@ -9,6 +9,7 @@ use crate::id_types::AppPublicId;
 use crate::id_types::SessionId;
 use crate::service::app::AppService;
 use crate::service::bot::router::{BotRouter, BotStatus, SupportEventStream};
+use crate::service::message_store::MessageStore;
 
 pub struct BotService {
     bot_router: Arc<BotRouter>,
@@ -18,14 +19,16 @@ pub struct BotService {
 impl BotService {
     pub fn new(
         app_member_table: Arc<crate::db::schema::app_member::AppMemberWorkTable>,
+        chat_session_table: Arc<crate::db::schema::chat_session::ChatSessionWorkTable>,
         support_info_table: Arc<crate::db::schema::support_info::SupportInfoWorkTable>,
-        support_message_table: Arc<crate::db::schema::support_message::SupportMessageWorkTable>,
+        message_store: Arc<MessageStore>,
         app_service: Arc<AppService>,
     ) -> Self {
         let bot_router = Arc::new(BotRouter::new(
             app_member_table,
+            chat_session_table,
             support_info_table,
-            support_message_table,
+            message_store,
         ));
         Self {
             bot_router,

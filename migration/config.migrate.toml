@@ -2,10 +2,10 @@
 # Env override prefix: SUPPORT_CAFE_MIGRATE__
 
 [s3]
-bucket_name = "tg-support-db"
+bucket_name = "support-cafe-master-tigris"
 endpoint = "https://t3.storage.dev"
-access_key = ""
-secret_key = ""
+access_key = "tid_bwKSOzpIYWiTdFLPsHmRVNBCfjIrysgIWyuPUqhB_UnkkVkWlO"
+secret_key = "tsec_9mk_7Npd2QN7Czm3eSFstvGfV6G+ZzbLDl3UTNHMBqiC14f5y9TjnVpEFhY_GVnTH+lDDO"
 prefix = "db"
 
 [migration]
