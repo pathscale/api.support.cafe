@@ -7,12 +7,12 @@ use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 use crate::codegen::model::{ListMessagesRequest, ListMessagesResponse};
 use crate::id_types::SessionId;
 use crate::service::app_connection_registry::AppConnectionRegistry;
-use crate::service::session::SessionService;
+use crate::service::session::ChatSessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
 #[derive(Clone)]
 pub struct MethodListMessages {
-    pub session_service: Arc<SessionService>,
+    pub session_service: Arc<ChatSessionService>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
@@ -21,11 +21,7 @@ pub struct MethodListMessages {
 impl RequestHandler for MethodListMessages {
     type Request = ListMessagesRequest;
 
-    async fn handle(
-        &self,
-        ctx: RequestContext,
-        req: Self::Request,
-    ) -> Response<Self::Request> {
+    async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
             connection_id = ctx.connection_id,
             session_id = %req.session_id,
@@ -40,7 +36,9 @@ impl RequestHandler for MethodListMessages {
             .await
             .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
 
-        let row = self.session_service.verify_session_access(session_id, user_pub_id)?;
+        let row = self
+            .session_service
+            .verify_session_access(session_id, user_pub_id)?;
 
         // If connected via app, verify session belongs to that app
         if let Some(app_public_id) = self.app_connection_registry.get(ctx.connection_id).await {
@@ -49,7 +47,7 @@ impl RequestHandler for MethodListMessages {
             }
         }
 
-        let messages = self.session_service.list_messages(session_id)?;
+        let messages = self.session_service.list_messages(session_id).await?;
 
         tracing::debug!(
             connection_id = ctx.connection_id,

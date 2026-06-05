@@ -34,7 +34,12 @@ impl RequestHandler for MethodCreateApp {
 
         let result = self
             .app_service
-            .create_app(req.tg_bot_token.clone(), req.app_name.clone(), user_pub_id)
+            .create_app(
+                req.tg_bot_token.clone(),
+                req.app_name.clone(),
+                req.message_persistence_enabled.unwrap_or(false),
+                user_pub_id,
+            )
             .await?;
 
         self.bot_service

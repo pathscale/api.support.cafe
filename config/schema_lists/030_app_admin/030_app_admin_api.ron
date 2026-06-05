@@ -15,6 +15,7 @@ Config(
                     parameters: [
                         Field(name: "tg_bot_token", ty: String),
                         Field(name: "app_name", ty: Optional(String)),
+                        Field(name: "message_persistence_enabled", ty: Optional(Boolean)),
                     ],
                     returns: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
@@ -33,6 +34,7 @@ Config(
                         Field(name: "tg_bot_token", ty: Optional(String)),
                         Field(name: "app_name", ty: Optional(String)),
                         Field(name: "active", ty: Optional(Boolean)),
+                        Field(name: "message_persistence_enabled", ty: Optional(Boolean)),
                     ],
                     returns: [],
                     roles: ["UserRole::Admin", "UserRole::AppAdmin"],
@@ -121,6 +123,30 @@ Config(
                         ),
                     ],
                     roles: ["UserRole::Admin", "UserRole::AppAdmin", "UserRole::Support"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "EnableMessagePersistence",
+                    code: 30009,
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                    ],
+                    returns: [],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin"],
+                ),
+            ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "DisableMessagePersistence",
+                    code: 30010,
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                    ],
+                    returns: [],
+                    roles: ["UserRole::Admin", "UserRole::AppAdmin"],
                 ),
             ),
         ],

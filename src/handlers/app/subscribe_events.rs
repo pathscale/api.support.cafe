@@ -8,13 +8,13 @@ use crate::codegen::model::{ChatMessage, SubscribeEventsRequest, SubscribeEvents
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
 use crate::id_types::{AppPublicId, SessionId};
 use crate::service::bot::SessionKey;
-use crate::service::session::SessionService;
+use crate::service::session::ChatSessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
 #[derive(Clone)]
 pub struct MethodSubscribeEvents {
     pub event_router: Arc<SubscriptionRouter<SessionKey, ChatMessage>>,
-    pub session_service: Arc<SessionService>,
+    pub session_service: Arc<ChatSessionService>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
@@ -22,11 +22,7 @@ pub struct MethodSubscribeEvents {
 impl RequestHandler for MethodSubscribeEvents {
     type Request = SubscribeEventsRequest;
 
-    async fn handle(
-        &self,
-        ctx: RequestContext,
-        req: Self::Request,
-    ) -> Response<Self::Request> {
+    async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
             connection_id = ctx.connection_id,
             session_id = %req.session_id,
@@ -43,7 +39,9 @@ impl RequestHandler for MethodSubscribeEvents {
             .await
             .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
 
-        let row = self.session_service.verify_session_access(session_id, user_pub_id)?;
+        let row = self
+            .session_service
+            .verify_session_access(session_id, user_pub_id)?;
         let app_public_id = AppPublicId::from_packed(row.app_public_id)?;
 
         let key: SessionKey = (app_public_id, session_id);

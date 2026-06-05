@@ -8,10 +8,11 @@ use crate::id_types::PackedNanoId;
 
 worktable!(
     name: SupportMessage,
-    version: 1,
+    version: 2,
     persist: true,
     columns: {
         id: i64 primary_key autoincrement,
+        message_id: PackedNanoId,
         session_id: PackedNanoId,
         app_public_id: PackedNanoId,
         incoming: bool,
@@ -21,7 +22,10 @@ worktable!(
         tg_chat_id: i64 optional,
     },
     indexes: {
+        message_id_idx: message_id unique,
         session_id_idx: session_id,
+        app_public_id_idx: app_public_id,
+        sent_at_idx: sent_at,
     }
 );
 

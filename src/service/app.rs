@@ -19,6 +19,7 @@ use crate::db::schema::app_member::{AppMemberRow, membership_key};
 use crate::db::schema::support_info::SupportInfoWorkTable;
 use crate::db::schema::user::UserWorkTable;
 use crate::id_types::AppPublicId;
+use crate::service::message_store::MessageStore;
 
 #[derive(Debug, Clone)]
 pub struct CreateAppResponse {
@@ -31,6 +32,7 @@ pub struct AppUpdate {
     pub tg_bot_token: Option<String>,
     pub app_name: Option<String>,
     pub active: Option<bool>,
+    pub message_persistence_enabled: Option<bool>,
 }
 
 pub struct AppService {
@@ -38,6 +40,7 @@ pub struct AppService {
     app_member_table: Arc<AppMemberWorkTable>,
     support_info_table: Arc<SupportInfoWorkTable>,
     user_table: Arc<UserWorkTable>,
+    message_store: Arc<MessageStore>,
 }
 
 impl AppService {
@@ -46,12 +49,14 @@ impl AppService {
         app_member_table: Arc<AppMemberWorkTable>,
         support_info_table: Arc<SupportInfoWorkTable>,
         user_table: Arc<UserWorkTable>,
+        message_store: Arc<MessageStore>,
     ) -> Self {
         Self {
             app_config_table,
             app_member_table,
             support_info_table,
             user_table,
+            message_store,
         }
     }
 
@@ -59,6 +64,7 @@ impl AppService {
         &self,
         tg_bot_token: String,
         app_name: Option<String>,
+        message_persistence_enabled: bool,
         owner_pub_id: UserPublicId,
     ) -> eyre::Result<CreateAppResponse> {
         let created_at = Utc::now().timestamp_millis();
@@ -82,6 +88,7 @@ impl AppService {
             tg_bot_token,
             app_name,
             active: true,
+            message_persistence_enabled,
             created_at,
         };
 
@@ -178,6 +185,12 @@ impl AppService {
                         "AppService::edit_app: active update failed"
                     );
                 })?;
+        }
+
+        if let Some(enabled) = update.message_persistence_enabled {
+            self.message_store
+                .set_app_persistence(app_public_id, enabled)
+                .await?;
         }
 
         Ok(())

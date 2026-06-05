@@ -13,6 +13,7 @@ Config(
                         Field(name: "tg_bot_token", ty: String),
                         Field(name: "app_name", ty: Optional(String)),
                         Field(name: "active", ty: Boolean),
+                        Field(name: "message_persistence_enabled", ty: Boolean),
                         Field(name: "created_at", ty: TimeStampMs),
                     ],
                 ),

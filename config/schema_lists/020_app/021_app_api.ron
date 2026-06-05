@@ -10,7 +10,7 @@ Config(
             EndpointSchemaElement(
                 frontend_facing: true,
                 schema: (
-                    name: "CreateSession",
+                    name: "CreateChatSession",
                     code: 20001,
                     parameters: [
                         Field(name: "user_pub_id", ty: NanoId(len: 16)),
@@ -76,7 +76,7 @@ Config(
             EndpointSchemaElement(
                 frontend_facing: true,
                 schema: (
-                    name: "CloseSession",
+                    name: "CloseChatSession",
                     code: 20005,
                     parameters: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
@@ -88,7 +88,7 @@ Config(
             EndpointSchemaElement(
                 frontend_facing: true,
                 schema: (
-                    name: "ListSessions",
+                    name: "ListChatSessions",
                     code: 20006,
                     parameters: [],
                     returns: [
