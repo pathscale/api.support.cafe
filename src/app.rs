@@ -20,6 +20,7 @@ use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::bot::BotService;
 use crate::service::message_store::MessageStore;
 use crate::service::session::ChatSessionService;
+use crate::service::user::UserService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
 pub struct AppCtx {
@@ -30,6 +31,7 @@ pub struct AppCtx {
     pub user_connection_registry: Arc<UserConnectionRegistry>,
     pub session_service: Arc<ChatSessionService>,
     pub app_service: Arc<AppService>,
+    pub user_service: Arc<UserService>,
     pub message_store: Arc<MessageStore>,
     pub log_service: Arc<LogService>,
     pub honey_id_client: Arc<HoneyIdClient>,
@@ -54,6 +56,11 @@ impl App {
             db.chat_session_table.clone(),
             db.support_message_table.clone(),
             db.support_memory_message_table.clone(),
+        ));
+        let user_service = Arc::new(UserService::new(
+            db.user_table.clone(),
+            db.app_member_table.clone(),
+            db.support_info_table.clone(),
         ));
         let app_service = Arc::new(AppService::new(
             db.app_config_table.clone(),
@@ -86,6 +93,7 @@ impl App {
             user_connection_registry,
             session_service,
             app_service,
+            user_service,
             message_store,
             log_service,
             honey_id_client,
@@ -99,6 +107,7 @@ impl App {
         register_auth_api_handlers(
             server,
             self.ctx.db.clone(),
+            self.ctx.user_service.clone(),
             self.ctx.token_storage.clone(),
             self.ctx.honey_id_client.clone(),
             self.ctx.app_connection_registry.clone(),
@@ -108,6 +117,7 @@ impl App {
         handlers::app_admin::register_handlers(server, &self.ctx);
         handlers::app::register_handlers(server, &self.ctx).await;
         handlers::support::register_handlers(server, &self.ctx);
+        handlers::user::register_handlers(server, &self.ctx);
     }
 
     pub async fn run(self) -> Result<()> {

@@ -1,16 +1,22 @@
 use std::sync::Arc;
 
 use endpoint_libs::libs::ws::{EndpointAuthController, WebsocketServer};
-use honey_id_types::enums::HoneyEndpointMethodCode;
-use honey_id_types::handlers::auth_to_app::{MethodApiKeyConnect, MethodReceiveToken, MethodReceiveUserDeleted, MethodReceiveUserInfo};
-use honey_id_types::handlers::convenience_utils::generic_auth_handler::{AuthorizedConnectContext, AuthorizedConnectRequest, GenericAuthorizedConnect};
-use honey_id_types::handlers::convenience_utils::token_management::TokenStorage;
 use honey_id_types::HoneyIdClient;
+use honey_id_types::enums::HoneyEndpointMethodCode;
+use honey_id_types::handlers::auth_to_app::{
+    MethodApiKeyConnect, MethodReceiveToken, MethodReceiveUserDeleted, MethodReceiveUserInfo,
+};
+use honey_id_types::handlers::convenience_utils::generic_auth_handler::{
+    AuthorizedConnectContext, AuthorizedConnectRequest, GenericAuthorizedConnect,
+};
+use honey_id_types::handlers::convenience_utils::token_management::TokenStorage;
+use honey_id_types::handlers::convenience_utils::user_management::UserStorage;
 
 use crate::codegen::model::{EnumEndpoint, InitRequest, InitResponse};
 use crate::db::tables::Tables;
 use crate::handlers::app::auth::MethodAppConnect;
 use crate::service::app_connection_registry::AppConnectionRegistry;
+use crate::service::user::UserService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -24,12 +30,14 @@ impl AuthorizedConnectRequest for InitRequest {
 pub fn register_auth_api_handlers(
     server: &mut WebsocketServer,
     tables: Arc<Tables>,
+    user_service: Arc<UserService>,
     token_storage: Arc<dyn TokenStorage + Sync + Send>,
     honey_id_client: Arc<HoneyIdClient>,
     app_connection_registry: Arc<AppConnectionRegistry>,
     user_connection_registry: Arc<UserConnectionRegistry>,
 ) {
     let mut auth_controller = EndpointAuthController::default();
+    let user_storage: Arc<dyn UserStorage + Send + Sync> = user_service;
 
     let tables_clone = tables.clone();
     let user_registry_clone = user_connection_registry.clone();
@@ -38,7 +46,7 @@ pub fn register_auth_api_handlers(
         EnumEndpoint::Init.schema(),
         GenericAuthorizedConnect::<InitRequest, InitResponse>::new(
             token_storage.clone(),
-            tables.user_table.clone(),
+            user_storage.clone(),
             move |req, ctx| {
                 let tables = tables_clone.clone();
                 let user_registry = user_registry_clone.clone();
@@ -51,7 +59,7 @@ pub fn register_auth_api_handlers(
         HoneyEndpointMethodCode::ApiKeyConnect.schema(),
         MethodApiKeyConnect {
             honey_id_client: honey_id_client.clone(),
-            user_storage: tables.user_table.clone(),
+            user_storage: user_storage.clone(),
         },
     );
 
@@ -67,17 +75,17 @@ pub fn register_auth_api_handlers(
 
     server.add_handler(MethodReceiveToken {
         token_storage: token_storage.clone(),
-        user_storage: tables.user_table.clone(),
+        user_storage: user_storage.clone(),
     });
 
     server.add_handler(MethodReceiveUserInfo {
-        token_storage,
-        user_storage: tables.user_table.clone(),
+        token_storage: token_storage.clone(),
+        user_storage: user_storage.clone(),
     });
 
     server.add_handler(MethodReceiveUserDeleted {
-        token_storage: Arc::new(honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage::default()),
-        user_storage: tables.user_table.clone(),
+        token_storage,
+        user_storage,
     });
 }
 

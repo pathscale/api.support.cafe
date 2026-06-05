@@ -870,6 +870,48 @@
       ],
       "id": 5,
       "name": "supportApi"
+    },
+    {
+      "endpoints": [
+        {
+          "code": 60000,
+          "description": "",
+          "json_schema": null,
+          "name": "GetMyInfo",
+          "parameters": [],
+          "returns": [
+            {
+              "name": "pubId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "username",
+              "ty": "String"
+            },
+            {
+              "name": "role",
+              "ty": {
+                "EnumRef": {
+                  "name": "UserRole"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::User",
+            "UserRole::Support",
+            "UserRole::AppAdmin",
+            "UserRole::Admin"
+          ],
+          "stream_response": null
+        }
+      ],
+      "id": 6,
+      "name": "userApi"
     }
   ],
   "structs": [
@@ -957,6 +999,10 @@
                 "len": 16
               }
             }
+          },
+          {
+            "name": "username",
+            "ty": "String"
           },
           {
             "name": "role",

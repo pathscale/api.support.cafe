@@ -117,17 +117,22 @@ impl AppService {
             .list_members(app_public_id)?
             .into_iter()
             .map(|row| {
+                let user = self
+                    .user_table
+                    .select_by_pub_id(row.user_pub_id)
+                    .ok_or_else(|| eyre::eyre!("App member user not found"))?;
                 let support_info = self.support_info_table.select(row.user_pub_id);
-                AppMember {
+                Ok(AppMember {
                     app_public_id: row.app_public_id.unpack().expect("valid packed nanoid"),
                     user_pub_id: row.user_pub_id.unpack().expect("valid packed nanoid"),
+                    username: user.username,
                     role: row.role,
                     created_at: row.created_at,
                     is_support_enabled: row.is_support_enabled,
                     tg_handle: support_info.map(|info| info.tg_handle),
-                }
+                })
             })
-            .collect())
+            .collect::<eyre::Result<Vec<_>>>()?)
     }
 
     pub async fn enable_support_user(
