@@ -48,6 +48,7 @@ Config(
                     fields: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "user_pub_id", ty: NanoId(len: 16)),
+                        Field(name: "username", ty: String),
                         Field(name: "role", ty: EnumRef(name: "AppMemberRole")),
                         Field(name: "created_at", ty: TimeStampMs),
                         Field(name: "is_support_enabled", ty: Boolean),

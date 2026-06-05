@@ -2,7 +2,7 @@ use endpoint_libs::libs::error_code::ErrorCode;
 use endpoint_libs::libs::types::*;
 use endpoint_libs::libs::ws::*;
 use num_derive::FromPrimitive;
-use psc_nanoid::{alphabet::Base62Alphabet, Nanoid};
+use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
 use rkyv::Archive;
 use serde::*;
 use std::net::IpAddr;
@@ -136,6 +136,7 @@ pub struct AppInfo {
 pub struct AppMember {
     pub app_public_id: Nanoid<16, Base62Alphabet>,
     pub user_pub_id: Nanoid<16, Base62Alphabet>,
+    pub username: String,
     pub role: AppMemberRole,
     pub created_at: i64,
     pub is_support_enabled: bool,
@@ -248,6 +249,8 @@ pub enum EnumEndpoint {
     SetRole = 40003,
     ///
     GetAllApps = 40004,
+    ///
+    GetMyInfo = 60000,
 }
 
 impl EnumEndpoint {
@@ -278,6 +281,7 @@ impl EnumEndpoint {
             Self::GetAllApps => GetAllAppsRequest::SCHEMA,
             Self::SetMyTgHandle => SetMyTgHandleRequest::SCHEMA,
             Self::GetMyTgHandle => GetMyTgHandleRequest::SCHEMA,
+            Self::GetMyInfo => GetMyInfoRequest::SCHEMA,
         };
         serde_json::from_str(schema).unwrap()
     }
@@ -434,6 +438,16 @@ pub struct GetAllAppsRequest {}
 #[serde(rename_all = "camelCase")]
 pub struct GetAllAppsResponse {
     pub data: Vec<AppInfo>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GetMyInfoRequest {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GetMyInfoResponse {
+    pub pub_id: Nanoid<16, Base62Alphabet>,
+    pub username: String,
+    pub role: UserRole,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -1519,4 +1533,49 @@ impl WsRequest for GetMyTgHandleRequest {
 }
 impl WsResponse for GetMyTgHandleResponse {
     type Request = GetMyTgHandleRequest;
+}
+
+impl WsRequest for GetMyInfoRequest {
+    type Response = GetMyInfoResponse;
+    const METHOD_ID: u32 = 60000;
+    const ROLES: &[u32] = &[1, 3, 4, 5];
+    const SCHEMA: &'static str = r#"{
+  "name": "GetMyInfo",
+  "code": 60000,
+  "parameters": [],
+  "returns": [
+    {
+      "name": "pub_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "username",
+      "ty": "String"
+    },
+    {
+      "name": "role",
+      "ty": {
+        "EnumRef": {
+          "name": "UserRole"
+        }
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "",
+  "json_schema": null,
+  "roles": [
+    "UserRole::User",
+    "UserRole::Support",
+    "UserRole::AppAdmin",
+    "UserRole::Admin"
+  ]
+}"#;
+}
+impl WsResponse for GetMyInfoResponse {
+    type Request = GetMyInfoRequest;
 }

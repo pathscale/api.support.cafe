@@ -10,7 +10,7 @@ struct AppConfig{ appPublicId: Nanoid<16, Base62Alphabet>, tgBotToken: String, a
 struct AppInfo{ publicId: Nanoid<16, Base62Alphabet>, appName: Option<String>, active: bool, createdAt: i64 }
 
 
-struct AppMember{ appPublicId: Nanoid<16, Base62Alphabet>, userPubId: Nanoid<16, Base62Alphabet>, role: AppMemberRole, createdAt: i64, isSupportEnabled: bool, tgHandle: Option<String> }
+struct AppMember{ appPublicId: Nanoid<16, Base62Alphabet>, userPubId: Nanoid<16, Base62Alphabet>, username: String, role: AppMemberRole, createdAt: i64, isSupportEnabled: bool, tgHandle: Option<String> }
 
 
 struct ChatMessage{ sessionId: Nanoid<16, Base62Alphabet>, incoming: bool, sentBy: String, sentAt: i64, content: String }
@@ -103,3 +103,10 @@ ID: 5
 |-----------|-----------|----------|--------|-----------|-----------|
 |20007|SetMyTgHandle|`tgHandle: String`|||true|
 |20008|GetMyTgHandle||`tgHandle: Option<String>`||true|
+
+## userApi Server
+ID: 6
+### Endpoints
+|Code|Name|Parameters|Response|Description|FE Facing|
+|-----------|-----------|----------|--------|-----------|-----------|
+|60000|GetMyInfo||`pubId: Nanoid<16, Base62Alphabet>`, `username: String`, `role: UserRole`||true|
