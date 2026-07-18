@@ -12,6 +12,7 @@ Config(
                 schema: (
                     name: "CreateChatSession",
                     code: 20001,
+                    description: "Create a new support chat session for the given end-user of this app. Returns the 16-character session_id used by all subsequent message operations. Caller must be an App connection.",
                     parameters: [
                         Field(name: "user_pub_id", ty: NanoId(len: 16)),
                     ],
@@ -27,6 +28,7 @@ Config(
                 schema: (
                     name: "SendMessage",
                     code: 20002,
+                    description: "Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, not via this endpoint.",
                     parameters: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
                         Field(name: "content", ty: String),
@@ -42,6 +44,7 @@ Config(
                 schema: (
                     name: "ListMessages",
                     code: 20003,
+                    description: "List all messages of a chat session, oldest first.",
                     parameters: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
                     ],
@@ -59,6 +62,7 @@ Config(
                 schema: (
                     name: "SubscribeEvents",
                     code: 20004,
+                    description: "Subscribe to live chat events (new messages) for a session; pass unsub: true to unsubscribe. Events are delivered as stream frames over the legacy protocol only.",
                     parameters: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
                         Field(name: "unsub", ty: Optional(Boolean)),
@@ -78,6 +82,7 @@ Config(
                 schema: (
                     name: "CloseChatSession",
                     code: 20005,
+                    description: "Close a chat session; no further messages can be sent to it.",
                     parameters: [
                         Field(name: "session_id", ty: NanoId(len: 16)),
                     ],
@@ -90,6 +95,7 @@ Config(
                 schema: (
                     name: "ListChatSessions",
                     code: 20006,
+                    description: "List chat sessions visible to the caller (the app's sessions for App connections, the user's own sessions otherwise).",
                     parameters: [],
                     returns: [
                         Field(

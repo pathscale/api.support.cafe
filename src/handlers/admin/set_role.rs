@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
 use crate::codegen::model::{SetRoleRequest, SetRoleResponse};
 use crate::db::schema::user::{RoleByPubIdQuery, UserWorkTable};
@@ -16,6 +16,7 @@ pub struct MethodSetRole {
 #[async_trait(?Send)]
 impl RequestHandler for MethodSetRole {
     type Request = SetRoleRequest;
+    type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
@@ -26,12 +27,14 @@ impl RequestHandler for MethodSetRole {
         );
 
         let packed_pub_id = PackedUserPubId::pack(&req.user_pub_id.into())
-            .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))?;
+            .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))
+            .internal()?;
 
         self.user_table
             .update_role_by_pub_id(RoleByPubIdQuery { role: req.role }, packed_pub_id)
             .await
-            .map_err(|e| eyre::eyre!("Failed to update role: {}", e))?;
+            .map_err(|e| eyre::eyre!("Failed to update role: {}", e))
+            .internal()?;
 
         tracing::debug!(
             connection_id = ctx.connection_id,

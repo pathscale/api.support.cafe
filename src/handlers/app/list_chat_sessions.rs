@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
-use crate::codegen::model::{ChatSession, ListChatSessionsRequest, ListChatSessionsResponse};
+use crate::codegen::model::{
+    ChatSession, EnumErrorCode, ListChatSessionsRequest, ListChatSessionsResponse,
+};
 use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::session::ChatSessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
@@ -19,6 +21,7 @@ pub struct MethodListChatSessions {
 #[async_trait(?Send)]
 impl RequestHandler for MethodListChatSessions {
     type Request = ListChatSessionsRequest;
+    type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, _req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
@@ -30,13 +33,17 @@ impl RequestHandler for MethodListChatSessions {
             .user_connection_registry
             .get(ctx.connection_id)
             .await
-            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
+            .ok_or_else(|| {
+                CustomError::new(EnumErrorCode::Unauthorized)
+                    .with_message("Connection not authenticated")
+            })?;
 
         let app_filter = self.app_connection_registry.get(ctx.connection_id).await;
 
         let sessions = self
             .session_service
-            .list_sessions(user_pub_id, app_filter)?;
+            .list_sessions(user_pub_id, app_filter)
+            .internal()?;
 
         let data: Vec<ChatSession> = sessions
             .into_iter()

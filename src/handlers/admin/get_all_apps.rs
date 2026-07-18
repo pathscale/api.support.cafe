@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
 use crate::codegen::model::{AppInfo, GetAllAppsRequest, GetAllAppsResponse};
 use crate::service::app::AppService;
@@ -15,6 +15,7 @@ pub struct MethodGetAllApps {
 #[async_trait(?Send)]
 impl RequestHandler for MethodGetAllApps {
     type Request = GetAllAppsRequest;
+    type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, _req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
@@ -22,7 +23,7 @@ impl RequestHandler for MethodGetAllApps {
             "MethodGetAllApps: received request"
         );
 
-        let rows = self.app_service.list_apps()?;
+        let rows = self.app_service.list_apps().internal()?;
 
         tracing::debug!(
             connection_id = ctx.connection_id,

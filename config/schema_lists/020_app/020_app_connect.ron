@@ -12,6 +12,7 @@ Config(
                 schema: (
                     name: "AppConnect",
                     code: 20000,
+                    description: "Connect as an app widget on behalf of an end-user, declaring the app and user public ids. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "user_public_id", ty: NanoId(len: 16)),

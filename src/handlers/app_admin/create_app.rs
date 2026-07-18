@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
-use crate::codegen::model::{CreateAppRequest, CreateAppResponse};
+use crate::codegen::model::{CreateAppRequest, CreateAppResponse, EnumErrorCode};
 use crate::service::app::AppService;
 use crate::service::bot::BotService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
@@ -19,6 +19,7 @@ pub struct MethodCreateApp {
 #[async_trait(?Send)]
 impl RequestHandler for MethodCreateApp {
     type Request = CreateAppRequest;
+    type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
@@ -30,7 +31,10 @@ impl RequestHandler for MethodCreateApp {
             .user_connection_registry
             .get(ctx.connection_id)
             .await
-            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
+            .ok_or_else(|| {
+                CustomError::new(EnumErrorCode::Unauthorized)
+                    .with_message("Connection not authenticated")
+            })?;
 
         let result = self
             .app_service
@@ -40,11 +44,13 @@ impl RequestHandler for MethodCreateApp {
                 req.message_persistence_enabled.unwrap_or(false),
                 user_pub_id,
             )
-            .await?;
+            .await
+            .internal()?;
 
         self.bot_service
             .register_bot(result.app_public_id, req.tg_bot_token)
-            .await?;
+            .await
+            .internal()?;
 
         tracing::debug!(
             connection_id = ctx.connection_id,

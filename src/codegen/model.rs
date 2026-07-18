@@ -1,8 +1,9 @@
 use endpoint_libs::libs::error_code::ErrorCode;
 use endpoint_libs::libs::types::*;
+use endpoint_libs::libs::ws::toolbox::CustomError;
 use endpoint_libs::libs::ws::*;
 use num_derive::FromPrimitive;
-use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
+use psc_nanoid::{alphabet::Base62Alphabet, Nanoid};
 use rkyv::Archive;
 use serde::*;
 use std::net::IpAddr;
@@ -257,13 +258,13 @@ impl EnumEndpoint {
     pub fn schema(&self) -> endpoint_libs::model::EndpointSchema {
         let schema = match self {
             Self::Init => InitRequest::SCHEMA,
-            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateChatSession => CreateChatSessionRequest::SCHEMA,
             Self::SendMessage => SendMessageRequest::SCHEMA,
             Self::ListMessages => ListMessagesRequest::SCHEMA,
             Self::SubscribeEvents => SubscribeEventsRequest::SCHEMA,
             Self::CloseChatSession => CloseChatSessionRequest::SCHEMA,
             Self::ListChatSessions => ListChatSessionsRequest::SCHEMA,
+            Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateApp => CreateAppRequest::SCHEMA,
             Self::EditApp => EditAppRequest::SCHEMA,
             Self::ListApps => ListAppsRequest::SCHEMA,
@@ -287,9 +288,560 @@ impl EnumEndpoint {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ErrorXxx {}
+/// JSON-serialized shared struct/enum definitions referenced by endpoint schemas.
+pub const TYPE_DEFINITIONS: &'static str = r#"[
+  {
+    "Struct": {
+      "name": "AppConfig",
+      "fields": [
+        {
+          "name": "app_public_id",
+          "ty": {
+            "NanoId": {
+              "len": 16
+            }
+          }
+        },
+        {
+          "name": "tg_bot_token",
+          "ty": "String"
+        },
+        {
+          "name": "app_name",
+          "ty": {
+            "Optional": "String"
+          }
+        },
+        {
+          "name": "active",
+          "ty": "Boolean"
+        },
+        {
+          "name": "message_persistence_enabled",
+          "ty": "Boolean"
+        },
+        {
+          "name": "created_at",
+          "ty": "TimeStampMs"
+        }
+      ]
+    }
+  },
+  {
+    "Struct": {
+      "name": "AppInfo",
+      "fields": [
+        {
+          "name": "public_id",
+          "ty": {
+            "NanoId": {
+              "len": 16
+            }
+          }
+        },
+        {
+          "name": "app_name",
+          "ty": {
+            "Optional": "String"
+          }
+        },
+        {
+          "name": "active",
+          "ty": "Boolean"
+        },
+        {
+          "name": "created_at",
+          "ty": "TimeStampMs"
+        }
+      ]
+    }
+  },
+  {
+    "Struct": {
+      "name": "AppMember",
+      "fields": [
+        {
+          "name": "app_public_id",
+          "ty": {
+            "NanoId": {
+              "len": 16
+            }
+          }
+        },
+        {
+          "name": "user_pub_id",
+          "ty": {
+            "NanoId": {
+              "len": 16
+            }
+          }
+        },
+        {
+          "name": "username",
+          "ty": "String"
+        },
+        {
+          "name": "role",
+          "ty": {
+            "EnumRef": {
+              "name": "AppMemberRole"
+            }
+          }
+        },
+        {
+          "name": "created_at",
+          "ty": "TimeStampMs"
+        },
+        {
+          "name": "is_support_enabled",
+          "ty": "Boolean"
+        },
+        {
+          "name": "tg_handle",
+          "ty": {
+            "Optional": "String"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "Struct": {
+      "name": "ChatMessage",
+      "fields": [
+        {
+          "name": "session_id",
+          "ty": {
+            "NanoId": {
+              "len": 16
+            }
+          }
+        },
+        {
+          "name": "incoming",
+          "ty": "Boolean"
+        },
+        {
+          "name": "sent_by",
+          "ty": "String"
+        },
+        {
+          "name": "sent_at",
+          "ty": "TimeStampMs"
+        },
+        {
+          "name": "content",
+          "ty": "String"
+        }
+      ]
+    }
+  },
+  {
+    "Struct": {
+      "name": "ChatSession",
+      "fields": [
+        {
+          "name": "session_id",
+          "ty": {
+            "NanoId": {
+              "len": 16
+            }
+          }
+        },
+        {
+          "name": "app_public_id",
+          "ty": {
+            "NanoId": {
+              "len": 16
+            }
+          }
+        },
+        {
+          "name": "user_pub_id",
+          "ty": {
+            "NanoId": {
+              "len": 16
+            }
+          }
+        },
+        {
+          "name": "created_at",
+          "ty": "TimeStampMs"
+        },
+        {
+          "name": "closed_at",
+          "ty": {
+            "Optional": "TimeStampMs"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "Struct": {
+      "name": "SupportInfo",
+      "fields": [
+        {
+          "name": "user_pub_id",
+          "ty": {
+            "NanoId": {
+              "len": 16
+            }
+          }
+        },
+        {
+          "name": "tg_handle",
+          "ty": "String"
+        },
+        {
+          "name": "chat_id",
+          "ty": {
+            "Optional": "Int64"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "Struct": {
+      "name": "UserInfo",
+      "fields": [
+        {
+          "name": "id",
+          "ty": "Int64"
+        },
+        {
+          "name": "pub_id",
+          "ty": {
+            "NanoId": {
+              "len": 16
+            }
+          }
+        },
+        {
+          "name": "username",
+          "ty": "String"
+        },
+        {
+          "name": "role",
+          "ty": {
+            "EnumRef": {
+              "name": "UserRole"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "Enum": {
+      "name": "AppMemberRole",
+      "variants": [
+        {
+          "name": "Owner",
+          "description": "App owner",
+          "value": 0
+        },
+        {
+          "name": "Admin",
+          "description": "App admin",
+          "value": 1
+        },
+        {
+          "name": "Support",
+          "description": "App support member",
+          "value": 2
+        }
+      ]
+    }
+  },
+  {
+    "Enum": {
+      "name": "LogLevel",
+      "variants": [
+        {
+          "name": "Trace",
+          "description": "Trace-level logging",
+          "value": 0
+        },
+        {
+          "name": "Debug",
+          "description": "Debug-level logging",
+          "value": 1
+        },
+        {
+          "name": "Info",
+          "description": "Info-level logging",
+          "value": 2
+        },
+        {
+          "name": "Warn",
+          "description": "Warn-level logging",
+          "value": 3
+        },
+        {
+          "name": "Error",
+          "description": "Error-level logging",
+          "value": 4
+        }
+      ]
+    }
+  },
+  {
+    "Enum": {
+      "name": "UserRole",
+      "variants": [
+        {
+          "name": "Public",
+          "description": "Unauthenticated",
+          "value": 0
+        },
+        {
+          "name": "Admin",
+          "description": "Platform admin",
+          "value": 1
+        },
+        {
+          "name": "App",
+          "description": "App frontend connection",
+          "value": 2
+        },
+        {
+          "name": "User",
+          "description": "User authenticated via honey.id token",
+          "value": 3
+        },
+        {
+          "name": "AppAdmin",
+          "description": "App admin authenticated via honey.id Init",
+          "value": 4
+        },
+        {
+          "name": "Support",
+          "description": "Support user authenticated via honey.id Init",
+          "value": 5
+        },
+        {
+          "name": "HoneyAuth",
+          "description": "honey.id callback endpoints",
+          "value": 6
+        }
+      ]
+    }
+  },
+  {
+    "Enum": {
+      "name": "ErrorCode",
+      "variants": [
+        {
+          "name": "BadRequest",
+          "description": "Bad request",
+          "value": 100400
+        },
+        {
+          "name": "Unauthorized",
+          "description": "Authentication is required",
+          "value": 100401
+        },
+        {
+          "name": "PaymentRequired",
+          "description": "Payment is required",
+          "value": 100402
+        },
+        {
+          "name": "Forbidden",
+          "description": "Access is forbidden",
+          "value": 100403
+        },
+        {
+          "name": "NotFound",
+          "description": "Resource was not found",
+          "value": 100404
+        },
+        {
+          "name": "MethodNotAllowed",
+          "description": "Method is not allowed",
+          "value": 100405
+        },
+        {
+          "name": "NotAcceptable",
+          "description": "Response format is not acceptable",
+          "value": 100406
+        },
+        {
+          "name": "ProxyAuthenticationRequired",
+          "description": "Proxy authentication is required",
+          "value": 100407
+        },
+        {
+          "name": "RequestTimeout",
+          "description": "Request timed out",
+          "value": 100408
+        },
+        {
+          "name": "Conflict",
+          "description": "Request conflicts with current state",
+          "value": 100409
+        },
+        {
+          "name": "Gone",
+          "description": "Resource is gone",
+          "value": 100410
+        },
+        {
+          "name": "LengthRequired",
+          "description": "Content length is required",
+          "value": 100411
+        },
+        {
+          "name": "PreconditionFailed",
+          "description": "Precondition failed",
+          "value": 100412
+        },
+        {
+          "name": "PayloadTooLarge",
+          "description": "Payload is too large",
+          "value": 100413
+        },
+        {
+          "name": "UriTooLong",
+          "description": "URI is too long",
+          "value": 100414
+        },
+        {
+          "name": "UnsupportedMediaType",
+          "description": "Media type is unsupported",
+          "value": 100415
+        },
+        {
+          "name": "RangeNotSatisfiable",
+          "description": "Requested range cannot be satisfied",
+          "value": 100416
+        },
+        {
+          "name": "ExpectationFailed",
+          "description": "Expectation failed",
+          "value": 100417
+        },
+        {
+          "name": "ImATeapot",
+          "description": "I'm a teapot",
+          "value": 100418
+        },
+        {
+          "name": "MisdirectedRequest",
+          "description": "Request was misdirected",
+          "value": 100421
+        },
+        {
+          "name": "UnprocessableEntity",
+          "description": "Entity could not be processed",
+          "value": 100422
+        },
+        {
+          "name": "Locked",
+          "description": "Resource is locked",
+          "value": 100423
+        },
+        {
+          "name": "FailedDependency",
+          "description": "Dependency failed",
+          "value": 100424
+        },
+        {
+          "name": "UpgradeRequired",
+          "description": "Request must be upgraded",
+          "value": 100426
+        },
+        {
+          "name": "PreconditionRequired",
+          "description": "Precondition is required",
+          "value": 100428
+        },
+        {
+          "name": "TooManyRequests",
+          "description": "Too many requests",
+          "value": 100429
+        },
+        {
+          "name": "RequestHeaderFieldsTooLarge",
+          "description": "Request header fields are too large",
+          "value": 100431
+        },
+        {
+          "name": "UnavailableForLegalReasons",
+          "description": "Unavailable for legal reasons",
+          "value": 100451
+        },
+        {
+          "name": "InternalError",
+          "description": "Internal server error",
+          "value": 100500
+        },
+        {
+          "name": "NotImplemented",
+          "description": "Endpoint is not implemented",
+          "value": 100501
+        },
+        {
+          "name": "BadGateway",
+          "description": "Bad gateway",
+          "value": 100502
+        },
+        {
+          "name": "ServiceUnavailable",
+          "description": "Service is unavailable",
+          "value": 100503
+        },
+        {
+          "name": "GatewayTimeout",
+          "description": "Gateway timed out",
+          "value": 100504
+        },
+        {
+          "name": "HttpVersionNotSupported",
+          "description": "HTTP version is not supported",
+          "value": 100505
+        },
+        {
+          "name": "VariantAlsoNegotiates",
+          "description": "Content negotiation variant problem",
+          "value": 100506
+        },
+        {
+          "name": "InsufficientStorage",
+          "description": "Insufficient storage",
+          "value": 100507
+        },
+        {
+          "name": "LoopDetected",
+          "description": "Loop was detected",
+          "value": 100508
+        },
+        {
+          "name": "NotExtended",
+          "description": "Request must be extended",
+          "value": 100510
+        },
+        {
+          "name": "NetworkAuthenticationRequired",
+          "description": "Network authentication is required",
+          "value": 100511
+        }
+      ]
+    }
+  }
+]"#;
+
+/// Builds the type registry over all shared definitions, for use with
+/// `WebsocketServer::enable_mcp()`.
+pub fn type_registry() -> endpoint_libs::model::TypeRegistry {
+    let types: Vec<endpoint_libs::model::Type> =
+        serde_json::from_str(TYPE_DEFINITIONS).expect("Invalid embedded type definitions");
+    let mut registry = endpoint_libs::model::TypeRegistry::new();
+    registry.add_all(types.iter());
+    registry
+}
 
 #[derive(
     Debug,
@@ -307,8 +859,84 @@ pub struct ErrorXxx {}
     Hash,
 )]
 pub enum EnumErrorCode {
-    /// None Please populate error_codes.json
-    Xxx = 0,
+    /// Bad request
+    BadRequest = 100400,
+    /// Authentication is required
+    Unauthorized = 100401,
+    /// Payment is required
+    PaymentRequired = 100402,
+    /// Access is forbidden
+    Forbidden = 100403,
+    /// Resource was not found
+    NotFound = 100404,
+    /// Method is not allowed
+    MethodNotAllowed = 100405,
+    /// Response format is not acceptable
+    NotAcceptable = 100406,
+    /// Proxy authentication is required
+    ProxyAuthenticationRequired = 100407,
+    /// Request timed out
+    RequestTimeout = 100408,
+    /// Request conflicts with current state
+    Conflict = 100409,
+    /// Resource is gone
+    Gone = 100410,
+    /// Content length is required
+    LengthRequired = 100411,
+    /// Precondition failed
+    PreconditionFailed = 100412,
+    /// Payload is too large
+    PayloadTooLarge = 100413,
+    /// URI is too long
+    UriTooLong = 100414,
+    /// Media type is unsupported
+    UnsupportedMediaType = 100415,
+    /// Requested range cannot be satisfied
+    RangeNotSatisfiable = 100416,
+    /// Expectation failed
+    ExpectationFailed = 100417,
+    /// I'm a teapot
+    ImATeapot = 100418,
+    /// Request was misdirected
+    MisdirectedRequest = 100421,
+    /// Entity could not be processed
+    UnprocessableEntity = 100422,
+    /// Resource is locked
+    Locked = 100423,
+    /// Dependency failed
+    FailedDependency = 100424,
+    /// Request must be upgraded
+    UpgradeRequired = 100426,
+    /// Precondition is required
+    PreconditionRequired = 100428,
+    /// Too many requests
+    TooManyRequests = 100429,
+    /// Request header fields are too large
+    RequestHeaderFieldsTooLarge = 100431,
+    /// Unavailable for legal reasons
+    UnavailableForLegalReasons = 100451,
+    /// Internal server error
+    InternalError = 100500,
+    /// Endpoint is not implemented
+    NotImplemented = 100501,
+    /// Bad gateway
+    BadGateway = 100502,
+    /// Service is unavailable
+    ServiceUnavailable = 100503,
+    /// Gateway timed out
+    GatewayTimeout = 100504,
+    /// HTTP version is not supported
+    HttpVersionNotSupported = 100505,
+    /// Content negotiation variant problem
+    VariantAlsoNegotiates = 100506,
+    /// Insufficient storage
+    InsufficientStorage = 100507,
+    /// Loop was detected
+    LoopDetected = 100508,
+    /// Request must be extended
+    NotExtended = 100510,
+    /// Network authentication is required
+    NetworkAuthenticationRequired = 100511,
 }
 
 impl From<EnumErrorCode> for ErrorCode {
@@ -609,68 +1237,16 @@ impl WsRequest for InitRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "Authenticate this connection with a honey.id access token. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
   "json_schema": null,
   "roles": [
     "UserRole::Public"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for InitResponse {
     type Request = InitRequest;
-}
-
-impl WsRequest for AppConnectRequest {
-    type Response = AppConnectResponse;
-    const METHOD_ID: u32 = 20000;
-    const ROLES: &[u32] = &[0];
-    const SCHEMA: &'static str = r#"{
-  "name": "AppConnect",
-  "code": 20000,
-  "parameters": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "user_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    }
-  ],
-  "returns": [
-    {
-      "name": "app_public_id",
-      "ty": {
-        "NanoId": {
-          "len": 16
-        }
-      }
-    },
-    {
-      "name": "app_name",
-      "ty": {
-        "Optional": "String"
-      }
-    }
-  ],
-  "stream_response": null,
-  "description": "",
-  "json_schema": null,
-  "roles": [
-    "UserRole::Public"
-  ]
-}"#;
-}
-impl WsResponse for AppConnectResponse {
-    type Request = AppConnectRequest;
 }
 
 impl WsRequest for CreateChatSessionRequest {
@@ -705,11 +1281,12 @@ impl WsRequest for CreateChatSessionRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "Create a new support chat session for the given end-user of this app. Returns the 16-character session_id used by all subsequent message operations. Caller must be an App connection.",
   "json_schema": null,
   "roles": [
     "UserRole::App"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for CreateChatSessionResponse {
@@ -744,13 +1321,14 @@ impl WsRequest for SendMessageRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, not via this endpoint.",
   "json_schema": null,
   "roles": [
     "UserRole::App",
     "UserRole::User",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for SendMessageResponse {
@@ -785,13 +1363,14 @@ impl WsRequest for ListMessagesRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "List all messages of a chat session, oldest first.",
   "json_schema": null,
   "roles": [
     "UserRole::App",
     "UserRole::User",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for ListMessagesResponse {
@@ -836,13 +1415,14 @@ impl WsRequest for SubscribeEventsRequest {
       "struct_ref": "ChatMessage"
     }
   },
-  "description": "",
+  "description": "Subscribe to live chat events (new messages) for a session; pass unsub: true to unsubscribe. Events are delivered as stream frames over the legacy protocol only.",
   "json_schema": null,
   "roles": [
     "UserRole::App",
     "UserRole::User",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for SubscribeEventsResponse {
@@ -868,13 +1448,14 @@ impl WsRequest for CloseChatSessionRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Close a chat session; no further messages can be sent to it.",
   "json_schema": null,
   "roles": [
     "UserRole::App",
     "UserRole::User",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for CloseChatSessionResponse {
@@ -900,17 +1481,72 @@ impl WsRequest for ListChatSessionsRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "List chat sessions visible to the caller (the app's sessions for App connections, the user's own sessions otherwise).",
   "json_schema": null,
   "roles": [
     "UserRole::App",
     "UserRole::User",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for ListChatSessionsResponse {
     type Request = ListChatSessionsRequest;
+}
+
+impl WsRequest for AppConnectRequest {
+    type Response = AppConnectResponse;
+    const METHOD_ID: u32 = 20000;
+    const ROLES: &[u32] = &[0];
+    const SCHEMA: &'static str = r#"{
+  "name": "AppConnect",
+  "code": 20000,
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "user_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
+  "returns": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "app_name",
+      "ty": {
+        "Optional": "String"
+      }
+    }
+  ],
+  "stream_response": null,
+  "description": "Connect as an app widget on behalf of an end-user, declaring the app and user public ids. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
+  "json_schema": null,
+  "roles": [
+    "UserRole::Public"
+  ],
+  "errors": []
+}"#;
+}
+impl WsResponse for AppConnectResponse {
+    type Request = AppConnectRequest;
 }
 
 impl WsRequest for CreateAppRequest {
@@ -953,12 +1589,13 @@ impl WsRequest for CreateAppRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "Register a new tenant app with its Telegram bot token. The caller becomes the app Owner and the bot is registered and started.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for CreateAppResponse {
@@ -1008,12 +1645,13 @@ impl WsRequest for EditAppRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Update an app's name, Telegram bot token, active flag, or message persistence. Changing the token or active flag restarts or stops the app's bot.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for EditAppResponse {
@@ -1039,12 +1677,13 @@ impl WsRequest for ListAppsRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "List apps the caller is a member of. The response includes each app's Telegram bot token — treat it as a secret.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for ListAppsResponse {
@@ -1078,12 +1717,13 @@ impl WsRequest for EnableSupportUserRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Enable an app member to receive support messages in Telegram.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for EnableSupportUserResponse {
@@ -1117,12 +1757,13 @@ impl WsRequest for DisableSupportUserRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Stop an app member from receiving support messages in Telegram.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for DisableSupportUserResponse {
@@ -1156,12 +1797,13 @@ impl WsRequest for AddAppMemberRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Add a user to an app as a Support member. Use SetAppMemberRole to change their role afterwards.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for AddAppMemberResponse {
@@ -1203,12 +1845,13 @@ impl WsRequest for SetAppMemberRoleRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Change an app member's role (Owner, Admin, or Support). Only the app Owner may call this.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for SetAppMemberRoleResponse {
@@ -1243,13 +1886,14 @@ impl WsRequest for ListAppMembersRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "List members of an app with their roles and support-enabled status.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin",
     "UserRole::Support"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for ListAppMembersResponse {
@@ -1275,12 +1919,13 @@ impl WsRequest for EnableMessagePersistenceRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Enable disk persistence for the app's chat messages; existing in-memory messages are migrated to disk.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for EnableMessagePersistenceResponse {
@@ -1306,12 +1951,13 @@ impl WsRequest for DisableMessagePersistenceRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Disable disk persistence for the app's chat messages; existing messages are migrated to the in-memory store (purged after 24h).",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for DisableMessagePersistenceResponse {
@@ -1337,12 +1983,13 @@ impl WsRequest for DeleteAppRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Delete an app, its memberships, and stop its Telegram bot. Only the app Owner may call this. Existing sessions and messages are not cascaded.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for DeleteAppResponse {
@@ -1368,11 +2015,12 @@ impl WsRequest for SetLogLevelRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Change the server's log level at runtime (platform admin only).",
   "json_schema": null,
   "roles": [
     "UserRole::Admin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for SetLogLevelResponse {
@@ -1398,11 +2046,12 @@ impl WsRequest for GetUsersRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "List all registered users with their platform roles (platform admin only).",
   "json_schema": null,
   "roles": [
     "UserRole::Admin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for GetUsersResponse {
@@ -1436,11 +2085,12 @@ impl WsRequest for SetRoleRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Override a user's platform role (platform admin only).",
   "json_schema": null,
   "roles": [
     "UserRole::Admin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for SetRoleResponse {
@@ -1466,11 +2116,12 @@ impl WsRequest for GetAllAppsRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "List all apps on the platform (platform admin only).",
   "json_schema": null,
   "roles": [
     "UserRole::Admin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for GetAllAppsResponse {
@@ -1492,13 +2143,14 @@ impl WsRequest for SetMyTgHandleRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "",
+  "description": "Set the caller's Telegram handle, used to route support replies. The handle is bound to a Telegram chat when the member sends /start to the app's bot.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin",
     "UserRole::Support"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for SetMyTgHandleResponse {
@@ -1522,13 +2174,14 @@ impl WsRequest for GetMyTgHandleRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "Get the caller's currently configured Telegram handle, if any.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
     "UserRole::AppAdmin",
     "UserRole::Support"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for GetMyTgHandleResponse {
@@ -1566,14 +2219,15 @@ impl WsRequest for GetMyInfoRequest {
     }
   ],
   "stream_response": null,
-  "description": "",
+  "description": "Return the caller's public id, username, and platform role.",
   "json_schema": null,
   "roles": [
     "UserRole::User",
     "UserRole::Support",
     "UserRole::AppAdmin",
     "UserRole::Admin"
-  ]
+  ],
+  "errors": []
 }"#;
 }
 impl WsResponse for GetMyInfoResponse {

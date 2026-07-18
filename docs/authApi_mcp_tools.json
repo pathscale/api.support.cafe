@@ -1,0 +1,88 @@
+{
+  "tools": [
+    {
+      "code": 10000,
+      "description": "Authenticate this connection with a honey.id access token. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accessToken"
+        ],
+        "type": "object"
+      },
+      "name": "init",
+      "outputSchema": {
+        "$defs": {
+          "UserRole": {
+            "oneOf": [
+              {
+                "const": 0,
+                "description": "Unauthenticated",
+                "title": "Public"
+              },
+              {
+                "const": 1,
+                "description": "Platform admin",
+                "title": "Admin"
+              },
+              {
+                "const": 2,
+                "description": "App frontend connection",
+                "title": "App"
+              },
+              {
+                "const": 3,
+                "description": "User authenticated via honey.id token",
+                "title": "User"
+              },
+              {
+                "const": 4,
+                "description": "App admin authenticated via honey.id Init",
+                "title": "AppAdmin"
+              },
+              {
+                "const": 5,
+                "description": "Support user authenticated via honey.id Init",
+                "title": "Support"
+              },
+              {
+                "const": 6,
+                "description": "honey.id callback endpoints",
+                "title": "HoneyAuth"
+              }
+            ],
+            "title": "UserRole",
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "$ref": "#/$defs/UserRole"
+          },
+          "userId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "role",
+          "version"
+        ],
+        "type": "object"
+      }
+    }
+  ]
+}

@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
-use crate::codegen::model::{ChatMessage, SubscribeEventsRequest, SubscribeEventsResponse};
+use crate::codegen::model::{
+    ChatMessage, EnumErrorCode, SubscribeEventsRequest, SubscribeEventsResponse,
+};
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
 use crate::id_types::{AppPublicId, SessionId};
 use crate::service::bot::SessionKey;
@@ -21,6 +23,7 @@ pub struct MethodSubscribeEvents {
 #[async_trait(?Send)]
 impl RequestHandler for MethodSubscribeEvents {
     type Request = SubscribeEventsRequest;
+    type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
@@ -37,12 +40,16 @@ impl RequestHandler for MethodSubscribeEvents {
             .user_connection_registry
             .get(connection_id)
             .await
-            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
+            .ok_or_else(|| {
+                CustomError::new(EnumErrorCode::Unauthorized)
+                    .with_message("Connection not authenticated")
+            })?;
 
         let row = self
             .session_service
-            .verify_session_access(session_id, user_pub_id)?;
-        let app_public_id = AppPublicId::from_packed(row.app_public_id)?;
+            .verify_session_access(session_id, user_pub_id)
+            .internal()?;
+        let app_public_id = AppPublicId::from_packed(row.app_public_id).internal()?;
 
         let key: SessionKey = (app_public_id, session_id);
 

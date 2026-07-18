@@ -12,6 +12,7 @@ Config(
                 schema: (
                     name: "GetMyInfo",
                     code: 60000,
+                    description: "Return the caller's public id, username, and platform role.",
                     parameters: [],
                     returns: [
                         Field(name: "pub_id", ty: NanoId(len: 16)),

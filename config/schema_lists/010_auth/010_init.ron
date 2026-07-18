@@ -12,6 +12,7 @@ Config(
                 schema: (
                     name: "Init",
                     code: 10000,
+                    description: "Authenticate this connection with a honey.id access token. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
                     parameters: [
                         Field(name: "access_token", ty: String),
                     ],

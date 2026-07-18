@@ -1,0 +1,44 @@
+{
+  "tools": [
+    {
+      "code": 20007,
+      "description": "Set the caller's Telegram handle, used to route support replies. The handle is bound to a Telegram chat when the member sends /start to the app's bot.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "tgHandle": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tgHandle"
+        ],
+        "type": "object"
+      },
+      "name": "set_my_tg_handle"
+    },
+    {
+      "code": 20008,
+      "description": "Get the caller's currently configured Telegram handle, if any.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "name": "get_my_tg_handle",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "tgHandle": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      }
+    }
+  ]
+}

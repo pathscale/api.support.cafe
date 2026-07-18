@@ -95,6 +95,208 @@
           }
         ]
       }
+    },
+    {
+      "Enum": {
+        "name": "ErrorCode",
+        "variants": [
+          {
+            "description": "Bad request",
+            "name": "BadRequest",
+            "value": 100400
+          },
+          {
+            "description": "Authentication is required",
+            "name": "Unauthorized",
+            "value": 100401
+          },
+          {
+            "description": "Payment is required",
+            "name": "PaymentRequired",
+            "value": 100402
+          },
+          {
+            "description": "Access is forbidden",
+            "name": "Forbidden",
+            "value": 100403
+          },
+          {
+            "description": "Resource was not found",
+            "name": "NotFound",
+            "value": 100404
+          },
+          {
+            "description": "Method is not allowed",
+            "name": "MethodNotAllowed",
+            "value": 100405
+          },
+          {
+            "description": "Response format is not acceptable",
+            "name": "NotAcceptable",
+            "value": 100406
+          },
+          {
+            "description": "Proxy authentication is required",
+            "name": "ProxyAuthenticationRequired",
+            "value": 100407
+          },
+          {
+            "description": "Request timed out",
+            "name": "RequestTimeout",
+            "value": 100408
+          },
+          {
+            "description": "Request conflicts with current state",
+            "name": "Conflict",
+            "value": 100409
+          },
+          {
+            "description": "Resource is gone",
+            "name": "Gone",
+            "value": 100410
+          },
+          {
+            "description": "Content length is required",
+            "name": "LengthRequired",
+            "value": 100411
+          },
+          {
+            "description": "Precondition failed",
+            "name": "PreconditionFailed",
+            "value": 100412
+          },
+          {
+            "description": "Payload is too large",
+            "name": "PayloadTooLarge",
+            "value": 100413
+          },
+          {
+            "description": "URI is too long",
+            "name": "UriTooLong",
+            "value": 100414
+          },
+          {
+            "description": "Media type is unsupported",
+            "name": "UnsupportedMediaType",
+            "value": 100415
+          },
+          {
+            "description": "Requested range cannot be satisfied",
+            "name": "RangeNotSatisfiable",
+            "value": 100416
+          },
+          {
+            "description": "Expectation failed",
+            "name": "ExpectationFailed",
+            "value": 100417
+          },
+          {
+            "description": "I'm a teapot",
+            "name": "ImATeapot",
+            "value": 100418
+          },
+          {
+            "description": "Request was misdirected",
+            "name": "MisdirectedRequest",
+            "value": 100421
+          },
+          {
+            "description": "Entity could not be processed",
+            "name": "UnprocessableEntity",
+            "value": 100422
+          },
+          {
+            "description": "Resource is locked",
+            "name": "Locked",
+            "value": 100423
+          },
+          {
+            "description": "Dependency failed",
+            "name": "FailedDependency",
+            "value": 100424
+          },
+          {
+            "description": "Request must be upgraded",
+            "name": "UpgradeRequired",
+            "value": 100426
+          },
+          {
+            "description": "Precondition is required",
+            "name": "PreconditionRequired",
+            "value": 100428
+          },
+          {
+            "description": "Too many requests",
+            "name": "TooManyRequests",
+            "value": 100429
+          },
+          {
+            "description": "Request header fields are too large",
+            "name": "RequestHeaderFieldsTooLarge",
+            "value": 100431
+          },
+          {
+            "description": "Unavailable for legal reasons",
+            "name": "UnavailableForLegalReasons",
+            "value": 100451
+          },
+          {
+            "description": "Internal server error",
+            "name": "InternalError",
+            "value": 100500
+          },
+          {
+            "description": "Endpoint is not implemented",
+            "name": "NotImplemented",
+            "value": 100501
+          },
+          {
+            "description": "Bad gateway",
+            "name": "BadGateway",
+            "value": 100502
+          },
+          {
+            "description": "Service is unavailable",
+            "name": "ServiceUnavailable",
+            "value": 100503
+          },
+          {
+            "description": "Gateway timed out",
+            "name": "GatewayTimeout",
+            "value": 100504
+          },
+          {
+            "description": "HTTP version is not supported",
+            "name": "HttpVersionNotSupported",
+            "value": 100505
+          },
+          {
+            "description": "Content negotiation variant problem",
+            "name": "VariantAlsoNegotiates",
+            "value": 100506
+          },
+          {
+            "description": "Insufficient storage",
+            "name": "InsufficientStorage",
+            "value": 100507
+          },
+          {
+            "description": "Loop was detected",
+            "name": "LoopDetected",
+            "value": 100508
+          },
+          {
+            "description": "Request must be extended",
+            "name": "NotExtended",
+            "value": 100510
+          },
+          {
+            "description": "Network authentication is required",
+            "name": "NetworkAuthenticationRequired",
+            "value": 100511
+          }
+        ]
+      }
     }
   ],
   "services": [
@@ -102,7 +304,8 @@
       "endpoints": [
         {
           "code": 10000,
-          "description": "",
+          "description": "Authenticate this connection with a honey.id access token. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
+          "errors": [],
           "json_schema": null,
           "name": "Init",
           "parameters": [
@@ -145,8 +348,207 @@
     {
       "endpoints": [
         {
+          "code": 20001,
+          "description": "Create a new support chat session for the given end-user of this app. Returns the 16-character session_id used by all subsequent message operations. Caller must be an App connection.",
+          "errors": [],
+          "json_schema": null,
+          "name": "CreateChatSession",
+          "parameters": [
+            {
+              "name": "userPubId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "createdAt",
+              "ty": "TimeStampMs"
+            }
+          ],
+          "roles": [
+            "UserRole::App"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 20002,
+          "description": "Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, not via this endpoint.",
+          "errors": [],
+          "json_schema": null,
+          "name": "SendMessage",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "content",
+              "ty": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "sentAt",
+              "ty": "TimeStampMs"
+            }
+          ],
+          "roles": [
+            "UserRole::App",
+            "UserRole::User",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 20003,
+          "description": "List all messages of a chat session, oldest first.",
+          "errors": [],
+          "json_schema": null,
+          "name": "ListMessages",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "ChatMessage"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::App",
+            "UserRole::User",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 20004,
+          "description": "Subscribe to live chat events (new messages) for a session; pass unsub: true to unsubscribe. Events are delivered as stream frames over the legacy protocol only.",
+          "errors": [],
+          "json_schema": null,
+          "name": "SubscribeEvents",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "unsub",
+              "ty": {
+                "Optional": "Boolean"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "ChatMessage"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::App",
+            "UserRole::User",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": {
+            "StructTable": {
+              "struct_ref": "ChatMessage"
+            }
+          }
+        },
+        {
+          "code": 20005,
+          "description": "Close a chat session; no further messages can be sent to it.",
+          "errors": [],
+          "json_schema": null,
+          "name": "CloseChatSession",
+          "parameters": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
+          "returns": [],
+          "roles": [
+            "UserRole::App",
+            "UserRole::User",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        },
+        {
+          "code": 20006,
+          "description": "List chat sessions visible to the caller (the app's sessions for App connections, the user's own sessions otherwise).",
+          "errors": [],
+          "json_schema": null,
+          "name": "ListChatSessions",
+          "parameters": [],
+          "returns": [
+            {
+              "name": "data",
+              "ty": {
+                "StructTable": {
+                  "struct_ref": "ChatSession"
+                }
+              }
+            }
+          ],
+          "roles": [
+            "UserRole::App",
+            "UserRole::User",
+            "UserRole::AppAdmin"
+          ],
+          "stream_response": null
+        }
+      ],
+      "id": 2,
+      "name": "appApi"
+    },
+    {
+      "endpoints": [
+        {
           "code": 20000,
-          "description": "",
+          "description": "Connect as an app widget on behalf of an end-user, declaring the app and user public ids. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
+          "errors": [],
           "json_schema": null,
           "name": "AppConnect",
           "parameters": [
@@ -195,200 +597,9 @@
     {
       "endpoints": [
         {
-          "code": 20001,
-          "description": "",
-          "json_schema": null,
-          "name": "CreateChatSession",
-          "parameters": [
-            {
-              "name": "userPubId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            }
-          ],
-          "returns": [
-            {
-              "name": "sessionId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            },
-            {
-              "name": "createdAt",
-              "ty": "TimeStampMs"
-            }
-          ],
-          "roles": [
-            "UserRole::App"
-          ],
-          "stream_response": null
-        },
-        {
-          "code": 20002,
-          "description": "",
-          "json_schema": null,
-          "name": "SendMessage",
-          "parameters": [
-            {
-              "name": "sessionId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            },
-            {
-              "name": "content",
-              "ty": "String"
-            }
-          ],
-          "returns": [
-            {
-              "name": "sentAt",
-              "ty": "TimeStampMs"
-            }
-          ],
-          "roles": [
-            "UserRole::App",
-            "UserRole::User",
-            "UserRole::AppAdmin"
-          ],
-          "stream_response": null
-        },
-        {
-          "code": 20003,
-          "description": "",
-          "json_schema": null,
-          "name": "ListMessages",
-          "parameters": [
-            {
-              "name": "sessionId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            }
-          ],
-          "returns": [
-            {
-              "name": "data",
-              "ty": {
-                "StructTable": {
-                  "struct_ref": "ChatMessage"
-                }
-              }
-            }
-          ],
-          "roles": [
-            "UserRole::App",
-            "UserRole::User",
-            "UserRole::AppAdmin"
-          ],
-          "stream_response": null
-        },
-        {
-          "code": 20004,
-          "description": "",
-          "json_schema": null,
-          "name": "SubscribeEvents",
-          "parameters": [
-            {
-              "name": "sessionId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            },
-            {
-              "name": "unsub",
-              "ty": {
-                "Optional": "Boolean"
-              }
-            }
-          ],
-          "returns": [
-            {
-              "name": "data",
-              "ty": {
-                "StructTable": {
-                  "struct_ref": "ChatMessage"
-                }
-              }
-            }
-          ],
-          "roles": [
-            "UserRole::App",
-            "UserRole::User",
-            "UserRole::AppAdmin"
-          ],
-          "stream_response": {
-            "StructTable": {
-              "struct_ref": "ChatMessage"
-            }
-          }
-        },
-        {
-          "code": 20005,
-          "description": "",
-          "json_schema": null,
-          "name": "CloseChatSession",
-          "parameters": [
-            {
-              "name": "sessionId",
-              "ty": {
-                "NanoId": {
-                  "len": 16
-                }
-              }
-            }
-          ],
-          "returns": [],
-          "roles": [
-            "UserRole::App",
-            "UserRole::User",
-            "UserRole::AppAdmin"
-          ],
-          "stream_response": null
-        },
-        {
-          "code": 20006,
-          "description": "",
-          "json_schema": null,
-          "name": "ListChatSessions",
-          "parameters": [],
-          "returns": [
-            {
-              "name": "data",
-              "ty": {
-                "StructTable": {
-                  "struct_ref": "ChatSession"
-                }
-              }
-            }
-          ],
-          "roles": [
-            "UserRole::App",
-            "UserRole::User",
-            "UserRole::AppAdmin"
-          ],
-          "stream_response": null
-        }
-      ],
-      "id": 2,
-      "name": "appApi"
-    },
-    {
-      "endpoints": [
-        {
           "code": 30000,
-          "description": "",
+          "description": "Register a new tenant app with its Telegram bot token. The caller becomes the app Owner and the bot is registered and started.",
+          "errors": [],
           "json_schema": null,
           "name": "CreateApp",
           "parameters": [
@@ -431,7 +642,8 @@
         },
         {
           "code": 30001,
-          "description": "",
+          "description": "Update an app's name, Telegram bot token, active flag, or message persistence. Changing the token or active flag restarts or stops the app's bot.",
+          "errors": [],
           "json_schema": null,
           "name": "EditApp",
           "parameters": [
@@ -477,7 +689,8 @@
         },
         {
           "code": 30002,
-          "description": "",
+          "description": "List apps the caller is a member of. The response includes each app's Telegram bot token — treat it as a secret.",
+          "errors": [],
           "json_schema": null,
           "name": "ListApps",
           "parameters": [],
@@ -499,7 +712,8 @@
         },
         {
           "code": 30003,
-          "description": "",
+          "description": "Enable an app member to receive support messages in Telegram.",
+          "errors": [],
           "json_schema": null,
           "name": "EnableSupportUser",
           "parameters": [
@@ -529,7 +743,8 @@
         },
         {
           "code": 30005,
-          "description": "",
+          "description": "Stop an app member from receiving support messages in Telegram.",
+          "errors": [],
           "json_schema": null,
           "name": "DisableSupportUser",
           "parameters": [
@@ -559,7 +774,8 @@
         },
         {
           "code": 30006,
-          "description": "",
+          "description": "Add a user to an app as a Support member. Use SetAppMemberRole to change their role afterwards.",
+          "errors": [],
           "json_schema": null,
           "name": "AddAppMember",
           "parameters": [
@@ -589,7 +805,8 @@
         },
         {
           "code": 30007,
-          "description": "",
+          "description": "Change an app member's role (Owner, Admin, or Support). Only the app Owner may call this.",
+          "errors": [],
           "json_schema": null,
           "name": "SetAppMemberRole",
           "parameters": [
@@ -627,7 +844,8 @@
         },
         {
           "code": 30008,
-          "description": "",
+          "description": "List members of an app with their roles and support-enabled status.",
+          "errors": [],
           "json_schema": null,
           "name": "ListAppMembers",
           "parameters": [
@@ -659,7 +877,8 @@
         },
         {
           "code": 30009,
-          "description": "",
+          "description": "Enable disk persistence for the app's chat messages; existing in-memory messages are migrated to disk.",
+          "errors": [],
           "json_schema": null,
           "name": "EnableMessagePersistence",
           "parameters": [
@@ -681,7 +900,8 @@
         },
         {
           "code": 30010,
-          "description": "",
+          "description": "Disable disk persistence for the app's chat messages; existing messages are migrated to the in-memory store (purged after 24h).",
+          "errors": [],
           "json_schema": null,
           "name": "DisableMessagePersistence",
           "parameters": [
@@ -709,7 +929,8 @@
       "endpoints": [
         {
           "code": 40000,
-          "description": "",
+          "description": "Delete an app, its memberships, and stop its Telegram bot. Only the app Owner may call this. Existing sessions and messages are not cascaded.",
+          "errors": [],
           "json_schema": null,
           "name": "DeleteApp",
           "parameters": [
@@ -731,7 +952,8 @@
         },
         {
           "code": 40001,
-          "description": "",
+          "description": "Change the server's log level at runtime (platform admin only).",
+          "errors": [],
           "json_schema": null,
           "name": "SetLogLevel",
           "parameters": [
@@ -752,7 +974,8 @@
         },
         {
           "code": 40002,
-          "description": "",
+          "description": "List all registered users with their platform roles (platform admin only).",
+          "errors": [],
           "json_schema": null,
           "name": "GetUsers",
           "parameters": [],
@@ -773,7 +996,8 @@
         },
         {
           "code": 40003,
-          "description": "",
+          "description": "Override a user's platform role (platform admin only).",
+          "errors": [],
           "json_schema": null,
           "name": "SetRole",
           "parameters": [
@@ -802,7 +1026,8 @@
         },
         {
           "code": 40004,
-          "description": "",
+          "description": "List all apps on the platform (platform admin only).",
+          "errors": [],
           "json_schema": null,
           "name": "GetAllApps",
           "parameters": [],
@@ -829,7 +1054,8 @@
       "endpoints": [
         {
           "code": 20007,
-          "description": "",
+          "description": "Set the caller's Telegram handle, used to route support replies. The handle is bound to a Telegram chat when the member sends /start to the app's bot.",
+          "errors": [],
           "json_schema": null,
           "name": "SetMyTgHandle",
           "parameters": [
@@ -848,7 +1074,8 @@
         },
         {
           "code": 20008,
-          "description": "",
+          "description": "Get the caller's currently configured Telegram handle, if any.",
+          "errors": [],
           "json_schema": null,
           "name": "GetMyTgHandle",
           "parameters": [],
@@ -875,7 +1102,8 @@
       "endpoints": [
         {
           "code": 60000,
-          "description": "",
+          "description": "Return the caller's public id, username, and platform role.",
+          "errors": [],
           "json_schema": null,
           "name": "GetMyInfo",
           "parameters": [],

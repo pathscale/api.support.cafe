@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 use worktable::prelude::SelectQueryExecutor;
 
 use crate::codegen::model::{GetUsersRequest, GetUsersResponse, UserInfo};
@@ -16,6 +16,7 @@ pub struct MethodGetUsers {
 #[async_trait(?Send)]
 impl RequestHandler for MethodGetUsers {
     type Request = GetUsersRequest;
+    type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, _req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
@@ -23,7 +24,7 @@ impl RequestHandler for MethodGetUsers {
             "MethodGetUsers: received request"
         );
 
-        let rows = self.user_table.select_all().execute()?;
+        let rows = self.user_table.select_all().execute().internal()?;
 
         tracing::debug!(
             connection_id = ctx.connection_id,
