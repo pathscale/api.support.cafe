@@ -4,13 +4,14 @@ use std::time::Duration;
 use crate::service::log::LogService;
 use endpoint_libs::libs::signal::wait_for_signals;
 use endpoint_libs::libs::ws::WebsocketServer;
+use endpoint_libs::libs::ws::mcp::McpServerInfo;
 use eyre::Result;
 use honey_id_types::HoneyIdClient;
 use honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage;
 use honey_id_types::id_entities::UserPublicId;
 use tracing::{info, warn};
 
-use crate::codegen::model::UserRole;
+use crate::codegen::model::{UserRole, type_registry};
 use crate::config::Config;
 use crate::db::tables::Tables;
 use crate::handlers;
@@ -132,6 +133,18 @@ impl App {
 
         let mut server = WebsocketServer::new(self.ctx.config.server.clone().into());
         self.register_handlers(&mut server).await;
+
+        // Expose every registered endpoint as an MCP tool (JSON-RPC 2.0 frames
+        // share the WebSocket with the legacy protocol; legacy clients are
+        // unaffected). Fails at startup on unresolved type refs so schema
+        // problems never reach a live connection.
+        server.enable_mcp(
+            &type_registry(),
+            McpServerInfo {
+                name: "support-cafe".into(),
+                version: env!("CARGO_PKG_VERSION").into(),
+            },
+        )?;
 
         let mut sigterm = signal(SignalKind::terminate())?;
         let mut sigint = signal(SignalKind::interrupt())?;

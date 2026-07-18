@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
-use crate::codegen::model::{ListMessagesRequest, ListMessagesResponse};
+use crate::codegen::model::{EnumErrorCode, ListMessagesRequest, ListMessagesResponse};
 use crate::id_types::SessionId;
 use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::session::ChatSessionService;
@@ -20,6 +20,7 @@ pub struct MethodListMessages {
 #[async_trait(?Send)]
 impl RequestHandler for MethodListMessages {
     type Request = ListMessagesRequest;
+    type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
@@ -34,20 +35,30 @@ impl RequestHandler for MethodListMessages {
             .user_connection_registry
             .get(ctx.connection_id)
             .await
-            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
+            .ok_or_else(|| {
+                CustomError::new(EnumErrorCode::Unauthorized)
+                    .with_message("Connection not authenticated")
+            })?;
 
         let row = self
             .session_service
-            .verify_session_access(session_id, user_pub_id)?;
+            .verify_session_access(session_id, user_pub_id)
+            .internal()?;
 
         // If connected via app, verify session belongs to that app
         if let Some(app_public_id) = self.app_connection_registry.get(ctx.connection_id).await {
-            if row.app_public_id != app_public_id.pack()? {
-                eyre::bail!("Session does not belong to this app");
+            if row.app_public_id != app_public_id.pack().internal()? {
+                return Err(CustomError::new(EnumErrorCode::Forbidden)
+                    .with_message("Session does not belong to this app")
+                    .into());
             }
         }
 
-        let messages = self.session_service.list_messages(session_id).await?;
+        let messages = self
+            .session_service
+            .list_messages(session_id)
+            .await
+            .internal()?;
 
         tracing::debug!(
             connection_id = ctx.connection_id,

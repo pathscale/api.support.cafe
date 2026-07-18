@@ -1,0 +1,297 @@
+{
+  "tools": [
+    {
+      "code": 40000,
+      "description": "Delete an app, its memberships, and stop its Telegram bot. Only the app Owner may call this. Existing sessions and messages are not cascaded.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "appPublicId"
+        ],
+        "type": "object"
+      },
+      "name": "delete_app"
+    },
+    {
+      "code": 40001,
+      "description": "Change the server's log level at runtime (platform admin only).",
+      "frontendFacing": true,
+      "inputSchema": {
+        "$defs": {
+          "LogLevel": {
+            "oneOf": [
+              {
+                "const": 0,
+                "description": "Trace-level logging",
+                "title": "Trace"
+              },
+              {
+                "const": 1,
+                "description": "Debug-level logging",
+                "title": "Debug"
+              },
+              {
+                "const": 2,
+                "description": "Info-level logging",
+                "title": "Info"
+              },
+              {
+                "const": 3,
+                "description": "Warn-level logging",
+                "title": "Warn"
+              },
+              {
+                "const": 4,
+                "description": "Error-level logging",
+                "title": "Error"
+              }
+            ],
+            "title": "LogLevel",
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "$ref": "#/$defs/LogLevel"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "type": "object"
+      },
+      "name": "set_log_level"
+    },
+    {
+      "code": 40002,
+      "description": "List all registered users with their platform roles (platform admin only).",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "name": "get_users",
+      "outputSchema": {
+        "$defs": {
+          "UserInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "pubId": {
+                "maxLength": 16,
+                "minLength": 16,
+                "pattern": "^[0-9A-Za-z]+$",
+                "type": "string"
+              },
+              "role": {
+                "$ref": "#/$defs/UserRole"
+              },
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "pubId",
+              "username",
+              "role"
+            ],
+            "type": "object"
+          },
+          "UserRole": {
+            "oneOf": [
+              {
+                "const": 0,
+                "description": "Unauthenticated",
+                "title": "Public"
+              },
+              {
+                "const": 1,
+                "description": "Platform admin",
+                "title": "Admin"
+              },
+              {
+                "const": 2,
+                "description": "App frontend connection",
+                "title": "App"
+              },
+              {
+                "const": 3,
+                "description": "User authenticated via honey.id token",
+                "title": "User"
+              },
+              {
+                "const": 4,
+                "description": "App admin authenticated via honey.id Init",
+                "title": "AppAdmin"
+              },
+              {
+                "const": 5,
+                "description": "Support user authenticated via honey.id Init",
+                "title": "Support"
+              },
+              {
+                "const": 6,
+                "description": "honey.id callback endpoints",
+                "title": "HoneyAuth"
+              }
+            ],
+            "title": "UserRole",
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/$defs/UserInfo"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "code": 40003,
+      "description": "Override a user's platform role (platform admin only).",
+      "frontendFacing": true,
+      "inputSchema": {
+        "$defs": {
+          "UserRole": {
+            "oneOf": [
+              {
+                "const": 0,
+                "description": "Unauthenticated",
+                "title": "Public"
+              },
+              {
+                "const": 1,
+                "description": "Platform admin",
+                "title": "Admin"
+              },
+              {
+                "const": 2,
+                "description": "App frontend connection",
+                "title": "App"
+              },
+              {
+                "const": 3,
+                "description": "User authenticated via honey.id token",
+                "title": "User"
+              },
+              {
+                "const": 4,
+                "description": "App admin authenticated via honey.id Init",
+                "title": "AppAdmin"
+              },
+              {
+                "const": 5,
+                "description": "Support user authenticated via honey.id Init",
+                "title": "Support"
+              },
+              {
+                "const": 6,
+                "description": "honey.id callback endpoints",
+                "title": "HoneyAuth"
+              }
+            ],
+            "title": "UserRole",
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "$ref": "#/$defs/UserRole"
+          },
+          "userPubId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userPubId",
+          "role"
+        ],
+        "type": "object"
+      },
+      "name": "set_role"
+    },
+    {
+      "code": 40004,
+      "description": "List all apps on the platform (platform admin only).",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "name": "get_all_apps",
+      "outputSchema": {
+        "$defs": {
+          "AppInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "active": {
+                "type": "boolean"
+              },
+              "appName": {
+                "type": "string"
+              },
+              "createdAt": {
+                "description": "Unix timestamp in milliseconds",
+                "type": "integer"
+              },
+              "publicId": {
+                "maxLength": 16,
+                "minLength": 16,
+                "pattern": "^[0-9A-Za-z]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "publicId",
+              "active",
+              "createdAt"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/$defs/AppInfo"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      }
+    }
+  ]
+}

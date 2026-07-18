@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
-use crate::codegen::model::{SendMessageRequest, SendMessageResponse};
+use crate::codegen::model::{EnumErrorCode, SendMessageRequest, SendMessageResponse};
 use crate::id_types::SessionId;
 use crate::service::session::ChatSessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
@@ -18,6 +18,7 @@ pub struct MethodSendMessage {
 #[async_trait(?Send)]
 impl RequestHandler for MethodSendMessage {
     type Request = SendMessageRequest;
+    type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
@@ -33,12 +34,16 @@ impl RequestHandler for MethodSendMessage {
             .user_connection_registry
             .get(ctx.connection_id)
             .await
-            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
+            .ok_or_else(|| {
+                CustomError::new(EnumErrorCode::Unauthorized)
+                    .with_message("Connection not authenticated")
+            })?;
 
         let sent_at = self
             .session_service
             .send_message(session_id, req.content, user_pub_id)
-            .await?;
+            .await
+            .internal()?;
 
         tracing::debug!(
             connection_id = ctx.connection_id,

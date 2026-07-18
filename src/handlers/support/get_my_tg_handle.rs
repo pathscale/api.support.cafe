@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
-use crate::codegen::model::{GetMyTgHandleRequest, GetMyTgHandleResponse};
+use crate::codegen::model::{EnumErrorCode, GetMyTgHandleRequest, GetMyTgHandleResponse};
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
 #[derive(Clone)]
@@ -16,6 +16,7 @@ pub struct MethodGetMyTgHandle {
 #[async_trait(?Send)]
 impl RequestHandler for MethodGetMyTgHandle {
     type Request = GetMyTgHandleRequest;
+    type Error = CustomError;
 
     async fn handle(
         &self,
@@ -31,11 +32,15 @@ impl RequestHandler for MethodGetMyTgHandle {
             .user_connection_registry
             .get(ctx.connection_id)
             .await
-            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
+            .ok_or_else(|| {
+                CustomError::new(EnumErrorCode::Unauthorized)
+                    .with_message("Connection not authenticated")
+            })?;
 
         let packed_id = user_pub_id
             .pack()
-            .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))?;
+            .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))
+            .internal()?;
 
         let tg_handle = self
             .support_info_table
