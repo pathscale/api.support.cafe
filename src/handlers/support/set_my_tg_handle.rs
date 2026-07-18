@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
-use crate::codegen::model::{SetMyTgHandleRequest, SetMyTgHandleResponse};
+use crate::codegen::model::{EnumErrorCode, SetMyTgHandleRequest, SetMyTgHandleResponse};
 use crate::db::schema::support_info::{
     ChatIdByUserPubIdQuery, SupportInfoRow, TgHandleByUserPubIdQuery,
 };
@@ -19,6 +19,7 @@ pub struct MethodSetMyTgHandle {
 #[async_trait(?Send)]
 impl RequestHandler for MethodSetMyTgHandle {
     type Request = SetMyTgHandleRequest;
+    type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
@@ -30,11 +31,15 @@ impl RequestHandler for MethodSetMyTgHandle {
             .user_connection_registry
             .get(ctx.connection_id)
             .await
-            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
+            .ok_or_else(|| {
+                CustomError::new(EnumErrorCode::Unauthorized)
+                    .with_message("Connection not authenticated")
+            })?;
 
         let packed_id = user_pub_id
             .pack()
-            .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))?;
+            .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))
+            .internal()?;
 
         if let Some(row) = self.support_info_table.select(packed_id) {
             if row.tg_handle != req.tg_handle {
@@ -43,7 +48,8 @@ impl RequestHandler for MethodSetMyTgHandle {
                         ChatIdByUserPubIdQuery { chat_id: None },
                         packed_id,
                     )
-                    .await?;
+                    .await
+                    .internal()?;
                 self.support_info_table
                     .update_tg_handle_by_user_pub_id(
                         TgHandleByUserPubIdQuery {
@@ -51,14 +57,17 @@ impl RequestHandler for MethodSetMyTgHandle {
                         },
                         packed_id,
                     )
-                    .await?;
+                    .await
+                    .internal()?;
             }
         } else {
-            self.support_info_table.insert(SupportInfoRow {
-                user_pub_id: packed_id,
-                tg_handle: req.tg_handle,
-                chat_id: None,
-            })?;
+            self.support_info_table
+                .insert(SupportInfoRow {
+                    user_pub_id: packed_id,
+                    tg_handle: req.tg_handle,
+                    chat_id: None,
+                })
+                .internal()?;
         }
 
         tracing::debug!(

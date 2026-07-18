@@ -1,0 +1,315 @@
+{
+  "tools": [
+    {
+      "code": 20001,
+      "description": "Create a new support chat session for the given end-user of this app. Returns the 16-character session_id used by all subsequent message operations. Caller must be an App connection.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "userPubId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userPubId"
+        ],
+        "type": "object"
+      },
+      "name": "create_chat_session",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "createdAt": {
+            "description": "Unix timestamp in milliseconds",
+            "type": "integer"
+          },
+          "sessionId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "createdAt"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "code": 20002,
+      "description": "Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, not via this endpoint.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "sessionId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "content"
+        ],
+        "type": "object"
+      },
+      "name": "send_message",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "sentAt": {
+            "description": "Unix timestamp in milliseconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sentAt"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "code": 20003,
+      "description": "List all messages of a chat session, oldest first.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "type": "object"
+      },
+      "name": "list_messages",
+      "outputSchema": {
+        "$defs": {
+          "ChatMessage": {
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "incoming": {
+                "type": "boolean"
+              },
+              "sentAt": {
+                "description": "Unix timestamp in milliseconds",
+                "type": "integer"
+              },
+              "sentBy": {
+                "type": "string"
+              },
+              "sessionId": {
+                "maxLength": 16,
+                "minLength": 16,
+                "pattern": "^[0-9A-Za-z]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionId",
+              "incoming",
+              "sentBy",
+              "sentAt",
+              "content"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/$defs/ChatMessage"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "code": 20004,
+      "description": "Subscribe to live chat events (new messages) for a session; pass unsub: true to unsubscribe. Events are delivered as stream frames over the legacy protocol only.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
+          "unsub": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "type": "object"
+      },
+      "name": "subscribe_events",
+      "outputSchema": {
+        "$defs": {
+          "ChatMessage": {
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "incoming": {
+                "type": "boolean"
+              },
+              "sentAt": {
+                "description": "Unix timestamp in milliseconds",
+                "type": "integer"
+              },
+              "sentBy": {
+                "type": "string"
+              },
+              "sessionId": {
+                "maxLength": 16,
+                "minLength": 16,
+                "pattern": "^[0-9A-Za-z]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionId",
+              "incoming",
+              "sentBy",
+              "sentAt",
+              "content"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/$defs/ChatMessage"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "streaming": true
+    },
+    {
+      "code": 20005,
+      "description": "Close a chat session; no further messages can be sent to it.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "type": "object"
+      },
+      "name": "close_chat_session"
+    },
+    {
+      "code": 20006,
+      "description": "List chat sessions visible to the caller (the app's sessions for App connections, the user's own sessions otherwise).",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "name": "list_chat_sessions",
+      "outputSchema": {
+        "$defs": {
+          "ChatSession": {
+            "additionalProperties": false,
+            "properties": {
+              "appPublicId": {
+                "maxLength": 16,
+                "minLength": 16,
+                "pattern": "^[0-9A-Za-z]+$",
+                "type": "string"
+              },
+              "closedAt": {
+                "description": "Unix timestamp in milliseconds",
+                "type": "integer"
+              },
+              "createdAt": {
+                "description": "Unix timestamp in milliseconds",
+                "type": "integer"
+              },
+              "sessionId": {
+                "maxLength": 16,
+                "minLength": 16,
+                "pattern": "^[0-9A-Za-z]+$",
+                "type": "string"
+              },
+              "userPubId": {
+                "maxLength": 16,
+                "minLength": 16,
+                "pattern": "^[0-9A-Za-z]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sessionId",
+              "appPublicId",
+              "userPubId",
+              "createdAt"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/$defs/ChatSession"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      }
+    }
+  ]
+}

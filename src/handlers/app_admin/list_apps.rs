@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
-use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
+use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
-use crate::codegen::model::{AppConfig, ListAppsRequest, ListAppsResponse};
+use crate::codegen::model::{AppConfig, EnumErrorCode, ListAppsRequest, ListAppsResponse};
 use crate::service::app::AppService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
@@ -17,6 +17,7 @@ pub struct MethodListApps {
 #[async_trait(?Send)]
 impl RequestHandler for MethodListApps {
     type Request = ListAppsRequest;
+    type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, _req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
@@ -28,13 +29,16 @@ impl RequestHandler for MethodListApps {
             .user_connection_registry
             .get(ctx.connection_id)
             .await
-            .ok_or_else(|| eyre::eyre!("Connection not authenticated"))?;
+            .ok_or_else(|| {
+                CustomError::new(EnumErrorCode::Unauthorized)
+                    .with_message("Connection not authenticated")
+            })?;
 
         // TODO: Split this into separate endpoints for platform admin and regular users
-        let rows = if self.app_service.is_platform_admin(user_pub_id)? {
-            self.app_service.list_apps()?
+        let rows = if self.app_service.is_platform_admin(user_pub_id).internal()? {
+            self.app_service.list_apps().internal()?
         } else {
-            self.app_service.list_apps_for_user(user_pub_id)?
+            self.app_service.list_apps_for_user(user_pub_id).internal()?
         };
 
         tracing::debug!(

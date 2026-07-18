@@ -12,6 +12,7 @@ Config(
                 schema: (
                     name: "CreateApp",
                     code: 30000,
+                    description: "Register a new tenant app with its Telegram bot token. The caller becomes the app Owner and the bot is registered and started.",
                     parameters: [
                         Field(name: "tg_bot_token", ty: String),
                         Field(name: "app_name", ty: Optional(String)),
@@ -29,6 +30,7 @@ Config(
                 schema: (
                     name: "EditApp",
                     code: 30001,
+                    description: "Update an app's name, Telegram bot token, active flag, or message persistence. Changing the token or active flag restarts or stops the app's bot.",
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "tg_bot_token", ty: Optional(String)),
@@ -45,6 +47,7 @@ Config(
                 schema: (
                     name: "ListApps",
                     code: 30002,
+                    description: "List apps the caller is a member of. The response includes each app's Telegram bot token — treat it as a secret.",
                     parameters: [],
                     returns: [
                         Field(
@@ -60,6 +63,7 @@ Config(
                 schema: (
                     name: "EnableSupportUser",
                     code: 30003,
+                    description: "Enable an app member to receive support messages in Telegram.",
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "user_pub_id", ty: NanoId(len: 16)),
@@ -73,6 +77,7 @@ Config(
                 schema: (
                     name: "DisableSupportUser",
                     code: 30005,
+                    description: "Stop an app member from receiving support messages in Telegram.",
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "user_pub_id", ty: NanoId(len: 16)),
@@ -86,6 +91,7 @@ Config(
                 schema: (
                     name: "AddAppMember",
                     code: 30006,
+                    description: "Add a user to an app as a Support member. Use SetAppMemberRole to change their role afterwards.",
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "user_pub_id", ty: NanoId(len: 16)),
@@ -99,6 +105,7 @@ Config(
                 schema: (
                     name: "SetAppMemberRole",
                     code: 30007,
+                    description: "Change an app member's role (Owner, Admin, or Support). Only the app Owner may call this.",
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "user_pub_id", ty: NanoId(len: 16)),
@@ -113,6 +120,7 @@ Config(
                 schema: (
                     name: "ListAppMembers",
                     code: 30008,
+                    description: "List members of an app with their roles and support-enabled status.",
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                     ],
@@ -130,6 +138,7 @@ Config(
                 schema: (
                     name: "EnableMessagePersistence",
                     code: 30009,
+                    description: "Enable disk persistence for the app's chat messages; existing in-memory messages are migrated to disk.",
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                     ],
@@ -142,6 +151,7 @@ Config(
                 schema: (
                     name: "DisableMessagePersistence",
                     code: 30010,
+                    description: "Disable disk persistence for the app's chat messages; existing messages are migrated to the in-memory store (purged after 24h).",
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                     ],

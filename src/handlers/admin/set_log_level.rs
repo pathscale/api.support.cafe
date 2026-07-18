@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::RequestContext;
+use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
 use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
 use crate::codegen::model::{SetLogLevelRequest, SetLogLevelResponse};
@@ -14,6 +14,7 @@ pub struct MethodSetLogLevel {
 #[async_trait(?Send)]
 impl RequestHandler for MethodSetLogLevel {
     type Request = SetLogLevelRequest;
+    type Error = CustomError;
 
     async fn handle(&self, _ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
         self.log_service.set_level(req.level)?;

@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use endpoint_libs::libs::toolbox::{ArcToolbox, RequestContext};
-use endpoint_libs::libs::ws::{SubAuthController, WsConnection};
+use endpoint_libs::libs::toolbox::{ArcToolbox, CustomError, RequestContext};
+use endpoint_libs::libs::ws::{AuthResponse, SubAuthController, WsConnection};
 use futures::FutureExt;
 use futures::future::LocalBoxFuture;
-use serde_json::Value;
 
 use crate::codegen::model::{AppConnectRequest, AppConnectResponse, UserRole};
 use crate::id_types::AppPublicId;
@@ -17,22 +15,21 @@ pub struct MethodAppConnect {
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
-#[async_trait(?Send)]
 impl SubAuthController for MethodAppConnect {
+    type Request = AppConnectRequest;
+    type Error = CustomError;
+
     fn auth(
         self: Arc<Self>,
         _toolbox: &ArcToolbox,
-        param: Value,
+        req: AppConnectRequest,
         _ctx: RequestContext,
         conn: Arc<WsConnection>,
-    ) -> LocalBoxFuture<'static, eyre::Result<Value>> {
+    ) -> LocalBoxFuture<'static, AuthResponse<Self::Request, Self::Error>> {
         let registry = self.app_connection_registry.clone();
         let user_registry = self.user_connection_registry.clone();
         let conn_id = conn.connection_id;
         async move {
-            let req: AppConnectRequest = serde_json::from_value(param)
-                .map_err(|e| eyre::eyre!("Invalid request: {e}"))?;
-
             let app_public_id_nanoid = req.app_public_id;
             let app_public_id: AppPublicId = app_public_id_nanoid.into();
             let user_public_id = req.user_public_id.into();
@@ -42,10 +39,10 @@ impl SubAuthController for MethodAppConnect {
 
             conn.set_roles(Arc::new(vec![UserRole::App as u32]));
 
-            Ok(serde_json::to_value(AppConnectResponse {
+            Ok(AppConnectResponse {
                 app_public_id: app_public_id_nanoid,
                 app_name: None,
-            })?)
+            })
         }
         .boxed_local()
     }

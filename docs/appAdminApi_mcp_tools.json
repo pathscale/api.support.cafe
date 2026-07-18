@@ -1,0 +1,427 @@
+{
+  "tools": [
+    {
+      "code": 30000,
+      "description": "Register a new tenant app with its Telegram bot token. The caller becomes the app Owner and the bot is registered and started.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "appName": {
+            "type": "string"
+          },
+          "messagePersistenceEnabled": {
+            "type": "boolean"
+          },
+          "tgBotToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tgBotToken"
+        ],
+        "type": "object"
+      },
+      "name": "create_app",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
+          "createdAt": {
+            "description": "Unix timestamp in milliseconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "appPublicId",
+          "createdAt"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "code": 30001,
+      "description": "Update an app's name, Telegram bot token, active flag, or message persistence. Changing the token or active flag restarts or stops the app's bot.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "appName": {
+            "type": "string"
+          },
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
+          "messagePersistenceEnabled": {
+            "type": "boolean"
+          },
+          "tgBotToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "appPublicId"
+        ],
+        "type": "object"
+      },
+      "name": "edit_app"
+    },
+    {
+      "code": 30002,
+      "description": "List apps the caller is a member of. The response includes each app's Telegram bot token — treat it as a secret.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "name": "list_apps",
+      "outputSchema": {
+        "$defs": {
+          "AppConfig": {
+            "additionalProperties": false,
+            "properties": {
+              "active": {
+                "type": "boolean"
+              },
+              "appName": {
+                "type": "string"
+              },
+              "appPublicId": {
+                "maxLength": 16,
+                "minLength": 16,
+                "pattern": "^[0-9A-Za-z]+$",
+                "type": "string"
+              },
+              "createdAt": {
+                "description": "Unix timestamp in milliseconds",
+                "type": "integer"
+              },
+              "messagePersistenceEnabled": {
+                "type": "boolean"
+              },
+              "tgBotToken": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "appPublicId",
+              "tgBotToken",
+              "active",
+              "messagePersistenceEnabled",
+              "createdAt"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/$defs/AppConfig"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "code": 30003,
+      "description": "Enable an app member to receive support messages in Telegram.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
+          "userPubId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "appPublicId",
+          "userPubId"
+        ],
+        "type": "object"
+      },
+      "name": "enable_support_user"
+    },
+    {
+      "code": 30005,
+      "description": "Stop an app member from receiving support messages in Telegram.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
+          "userPubId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "appPublicId",
+          "userPubId"
+        ],
+        "type": "object"
+      },
+      "name": "disable_support_user"
+    },
+    {
+      "code": 30006,
+      "description": "Add a user to an app as a Support member. Use SetAppMemberRole to change their role afterwards.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
+          "userPubId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "appPublicId",
+          "userPubId"
+        ],
+        "type": "object"
+      },
+      "name": "add_app_member"
+    },
+    {
+      "code": 30007,
+      "description": "Change an app member's role (Owner, Admin, or Support). Only the app Owner may call this.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "$defs": {
+          "AppMemberRole": {
+            "oneOf": [
+              {
+                "const": 0,
+                "description": "App owner",
+                "title": "Owner"
+              },
+              {
+                "const": 1,
+                "description": "App admin",
+                "title": "Admin"
+              },
+              {
+                "const": 2,
+                "description": "App support member",
+                "title": "Support"
+              }
+            ],
+            "title": "AppMemberRole",
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/AppMemberRole"
+          },
+          "userPubId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "appPublicId",
+          "userPubId",
+          "role"
+        ],
+        "type": "object"
+      },
+      "name": "set_app_member_role"
+    },
+    {
+      "code": 30008,
+      "description": "List members of an app with their roles and support-enabled status.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "appPublicId"
+        ],
+        "type": "object"
+      },
+      "name": "list_app_members",
+      "outputSchema": {
+        "$defs": {
+          "AppMember": {
+            "additionalProperties": false,
+            "properties": {
+              "appPublicId": {
+                "maxLength": 16,
+                "minLength": 16,
+                "pattern": "^[0-9A-Za-z]+$",
+                "type": "string"
+              },
+              "createdAt": {
+                "description": "Unix timestamp in milliseconds",
+                "type": "integer"
+              },
+              "isSupportEnabled": {
+                "type": "boolean"
+              },
+              "role": {
+                "$ref": "#/$defs/AppMemberRole"
+              },
+              "tgHandle": {
+                "type": "string"
+              },
+              "userPubId": {
+                "maxLength": 16,
+                "minLength": 16,
+                "pattern": "^[0-9A-Za-z]+$",
+                "type": "string"
+              },
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "appPublicId",
+              "userPubId",
+              "username",
+              "role",
+              "createdAt",
+              "isSupportEnabled"
+            ],
+            "type": "object"
+          },
+          "AppMemberRole": {
+            "oneOf": [
+              {
+                "const": 0,
+                "description": "App owner",
+                "title": "Owner"
+              },
+              {
+                "const": 1,
+                "description": "App admin",
+                "title": "Admin"
+              },
+              {
+                "const": 2,
+                "description": "App support member",
+                "title": "Support"
+              }
+            ],
+            "title": "AppMemberRole",
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/$defs/AppMember"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "code": 30009,
+      "description": "Enable disk persistence for the app's chat messages; existing in-memory messages are migrated to disk.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "appPublicId"
+        ],
+        "type": "object"
+      },
+      "name": "enable_message_persistence"
+    },
+    {
+      "code": 30010,
+      "description": "Disable disk persistence for the app's chat messages; existing messages are migrated to the in-memory store (purged after 24h).",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "appPublicId"
+        ],
+        "type": "object"
+      },
+      "name": "disable_message_persistence"
+    }
+  ]
+}
