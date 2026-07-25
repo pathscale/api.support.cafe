@@ -19,7 +19,8 @@ Backend for **support.cafe** — a support-desk service. WebSocket RPC (not REST
 - **`endpoint-libs` and `honey_id-types` move in lockstep.** `honey_id-types` re-exports
   endpoint-libs' `WsRequest`/`WsResponse` traits, so bumping one alone puts two incompatible
   copies of endpoint-libs in the graph and the traits stop matching. Bump both, and check
-  `grep -c 'name = "endpoint-libs"' Cargo.lock` is `1`.
+  `grep -c 'name = "endpoint-libs"' Cargo.lock` is `1`. Release order and the
+  full explanation: [endpoint-libs `docs/release-order.md`](https://github.com/pathscale/endpoint-libs/blob/main/docs/release-order.md).
 - **Don't enable an `endpoint-libs` feature this service doesn't use.** A new feature upstream
   is not a reason to turn it on here; keep the feature list minimal.
 
