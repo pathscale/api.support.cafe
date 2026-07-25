@@ -42,7 +42,3 @@ cert-provider = { git = "https://github.com/dVeon-loch/cert-provider.git", rev =
 s3-sync = ["worktable/s3-support"]
 acme = ["dep:cert-provider"]
 cert-s3-sync = ["acme", "cert-provider/s3-sync"]
-
-# TEMPORARY: verifying the 2.0 port before honey_id-types 2.0.0 is published.
-[patch.crates-io]
-honey_id-types = { path = "../honey_id-types" }

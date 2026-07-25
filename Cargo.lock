@@ -1888,6 +1888,8 @@ dependencies = [
 [[package]]
 name = "honey_id-types"
 version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9e17f9b40edb4baa762f0342ec5441381e24441fbeedcc304c3261d8690d7d1"
 dependencies = [
  "async-trait",
  "derive_more 2.1.1",
