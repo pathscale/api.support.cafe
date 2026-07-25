@@ -19,7 +19,6 @@ docs/dev-docs
 /.serena
 /.kiro
 /.zed
-CLAUDE.md
 AGENTS.md
 
 .vscode/settings.json
