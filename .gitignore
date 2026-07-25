@@ -12,13 +12,12 @@ docs/dev-docs
 .idea
 
 # We will not be tracking any AI tool related metadata
-/.claude
+/.claude/settings.local.json
 /.gemini
 /.qwen
 /.opencode
 /.serena
 /.kiro
 /.zed
-AGENTS.md
 
 .vscode/settings.json
