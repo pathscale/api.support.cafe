@@ -21,3 +21,4 @@ docs/dev-docs
 /.zed
 
 .vscode/settings.json
+verify_out/
