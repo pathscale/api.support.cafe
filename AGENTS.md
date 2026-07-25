@@ -57,17 +57,28 @@ success.
 - `cargo build` finishing in under a second means it was cached, not that it rebuilt. Touch
   the sources when a rebuild is the thing you're verifying.
 
-## PR / CI discipline
+## PR discipline
 
-After any push or PR, **check CI and don't call it done until it's green**:
-
-```bash
-gh pr view <number> --repo pathscale/api.support.cafe --json statusCheckRollup
-```
-
-CI running → wait and recheck. CI failed → read the logs, fix, push, wait for green.
 **Always paste the full PR URL** (`https://github.com/pathscale/api.support.cafe/pull/<n>`), not just
 the number, so it's clickable.
+
+<!-- DORMANT — CI-green gating. Do not follow this rule yet; re-enable it as its own project.
+
+Why it's off: the workflows in .github/workflows/ trigger on `push` to the default branch,
+not on `pull_request`. So a PR has no checks attached, `statusCheckRollup` comes back empty,
+and "wait for green" is unactionable — it would just teach an agent to wait on nothing.
+
+To enable: add `pull_request:` triggers to the CI workflow(s), confirm checks actually attach
+to a PR, then uncomment the rule below.
+
+    After any push or PR, **check CI and don't call it done until it's green**:
+
+    ```bash
+    gh pr view <number> --repo pathscale/api.support.cafe --json statusCheckRollup
+    ```
+
+    CI running → wait and recheck. CI failed → read the logs, fix, push, wait for green.
+-->
 
 ## Keeping docs honest
 
