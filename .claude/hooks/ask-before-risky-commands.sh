@@ -52,7 +52,7 @@ re="$re|${b}rm([[:space:]]+[^[:space:]]+)*[[:space:]]+(-[A-Za-z]*[rR]|--recursiv
 # find … -delete — irreversible bulk delete.
 re="$re|${b}find([[:space:]]+[^[:space:]]+)*[[:space:]]+-delete${e}"
 # package publishing — ships artifacts to a registry.
-re="$re|${b}(npm|pnpm|yarn|cargo|gem)([[:space:]]+[^[:space:]]+)*[[:space:]]+publish${e}"
+re="$re|${b}(npm|pnpm|yarn|bun|cargo|gem)([[:space:]]+[^[:space:]]+)*[[:space:]]+publish${e}"
 re="$re|${b}twine([[:space:]]+[^[:space:]]+)*[[:space:]]+upload${e}"
 # gh mutations that merge, ship, or destroy.
 re="$re|${b}gh[[:space:]]+(pr[[:space:]]+merge|repo[[:space:]]+delete|release[[:space:]]+(create|delete))${e}"
