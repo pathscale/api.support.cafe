@@ -9,7 +9,7 @@ use eyre::Result;
 use honey_id_types::HoneyIdClient;
 use honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage;
 use honey_id_types::id_entities::UserPublicId;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::codegen::model::{UserRole, type_registry};
 use crate::config::Config;
@@ -158,8 +158,11 @@ impl App {
         self.ctx.bot_service.shutdown().await;
         message_purge_task.abort();
         tokio::select! {
-            _ = self.ctx.db.wait_for_ops() =>{
-                warn!("Gracefully terminated all threads");
+            result = self.ctx.db.wait_for_ops() =>{
+                match result {
+                    Ok(()) => warn!("Gracefully terminated all threads"),
+                    Err(error) => error!(%error, "Failed to flush all WorkTable persistence operations"),
+                }
             },
             _ = tokio::time::sleep(Duration::from_secs(15)) => {
                 std::process::exit(20);
