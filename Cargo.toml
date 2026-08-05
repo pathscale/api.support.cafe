@@ -12,8 +12,8 @@ chrono = { version = "0.4", default-features = false, features = ["oldtime", "st
 clap = { version = "4.5", features = ["derive"] }
 config = { version = "0.15", default-features = false, features = ["toml"] }
 crossfire = { version = "3.1.10", features = ["tokio"] }
-derive_more = { version = "2.1", features = ["full"] }
-endpoint-libs = { version = "2.0", features = ["ws", "ws-http1"] }
+derive_more = { version = "2.1.1", features = ["full"] }
+endpoint-libs = { version = "=2.0.0", features = ["ws", "ws-http1"] }
 eyre = "0.6"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots", "json"] }
 rustls = { version = "0.23.39", default-features = false, features = ["ring", "logging", "std", "tls12"] }
@@ -34,8 +34,8 @@ tokio = { version = "1.48", features = ["full", "rt-multi-thread"] }
 tracing = "0.1"
 url = "2.5.7"
 uuid = { version = "1.18", features = ["v4", "serde"] }
-worktable = { version = "0.9.2" }
-honey_id-types = "2.0"
+worktable = { version = "=1.0.0-beta.5" }
+honey_id-types = "=2.0.2"
 cert-provider = { git = "https://github.com/dVeon-loch/cert-provider.git", rev = "eb2387f28daf09539504c5b65766e656b7ec2c93", features = ["dns01"], optional = true }
 
 [features]
