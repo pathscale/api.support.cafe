@@ -188,12 +188,20 @@ impl Tables {
     }
 
     pub async fn wait_for_ops(&self) -> worktable::persistence::PersistenceResult {
-        self.app_config_table.wait_for_ops().await?;
-        self.app_member_table.wait_for_ops().await?;
-        self.chat_session_table.wait_for_ops().await?;
-        self.support_message_table.wait_for_ops().await?;
-        self.support_info_table.wait_for_ops().await?;
-        self.user_table.wait_for_ops().await?;
+        let (app_config, app_member, chat_session, support_message, support_info, user) = tokio::join!(
+            self.app_config_table.wait_for_ops(),
+            self.app_member_table.wait_for_ops(),
+            self.chat_session_table.wait_for_ops(),
+            self.support_message_table.wait_for_ops(),
+            self.support_info_table.wait_for_ops(),
+            self.user_table.wait_for_ops(),
+        );
+        app_config?;
+        app_member?;
+        chat_session?;
+        support_message?;
+        support_info?;
+        user?;
         Ok(())
     }
 }
