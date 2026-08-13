@@ -36,7 +36,7 @@ url = "2.5.7"
 uuid = { version = "1.18", features = ["v4", "serde"] }
 worktable = { version = "0.9.2" }
 honey_id-types = "2.0"
-cert-provider = { git = "https://github.com/dVeon-loch/cert-provider.git", rev = "eb2387f28daf09539504c5b65766e656b7ec2c93", features = ["dns01"], optional = true }
+cert-provider = { package = "ps-cert-provider", version = "=0.1.0", features = ["dns01"], optional = true }
 
 [features]
 s3-sync = ["worktable/s3-support"]
