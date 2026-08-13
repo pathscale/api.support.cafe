@@ -735,31 +735,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cert-provider"
-version = "0.1.0"
-source = "git+https://github.com/dVeon-loch/cert-provider.git?rev=eb2387f28daf09539504c5b65766e656b7ec2c93#eb2387f28daf09539504c5b65766e656b7ec2c93"
-dependencies = [
- "async-trait",
- "aws-creds",
- "aws-region",
- "bytes",
- "hyper-rustls",
- "hyper-util",
- "instant-acme",
- "rcgen",
- "reqwest 0.12.28",
- "rust-s3",
- "rustls",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tokio-util",
- "tracing",
- "x509-parser 0.17.0",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3113,6 +3088,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "ps-cert-provider"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f256d9cd2a1fc558a7f6895e7d32b7d929aa2d7e63b1120d949b86d8606f7d28"
+dependencies = [
+ "async-trait",
+ "aws-creds",
+ "aws-region",
+ "bytes",
+ "hyper-rustls",
+ "hyper-util",
+ "instant-acme",
+ "rcgen",
+ "reqwest 0.12.28",
+ "rust-s3",
+ "rustls",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "x509-parser 0.17.0",
+]
+
+[[package]]
 name = "psc-nanoid"
 version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4340,7 +4341,6 @@ name = "support_cafe"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "cert-provider",
  "chrono",
  "clap",
  "config",
@@ -4353,6 +4353,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "parking_lot",
+ "ps-cert-provider",
  "psc-nanoid",
  "reqwest 0.12.28",
  "rkyv 0.8.16",
