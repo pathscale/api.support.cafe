@@ -217,7 +217,7 @@ impl BotRouter {
 
     pub async fn shutdown(&self) {
         let mut bots = self.bots.write().await;
-        for (_, instance) in bots.iter_mut() {
+        for instance in bots.values_mut() {
             instance.stop().await;
         }
         bots.clear();
@@ -235,7 +235,7 @@ impl BotInstance {
     fn new(client: Arc<Client>, handler: BotUpdateHandler) -> Self {
         let status = Arc::new(RwLock::new(BotStatus::Running));
         let status_clone = status.clone();
-        let app_id_clone = handler.app_public_id.clone();
+        let app_id_clone = handler.app_public_id;
         let client_for_poll = client.clone();
 
         let handle = tokio::spawn(async move {

@@ -36,7 +36,10 @@ impl RequestHandler for MethodDeleteApp {
             .ensure_app_owner(app_public_id, actor_pub_id)
             .internal()?;
         self.bot_service.unregister_bot(app_public_id).await;
-        self.app_service.delete_app(app_public_id).await.internal()?;
+        self.app_service
+            .delete_app(app_public_id)
+            .await
+            .internal()?;
         Ok(DeleteAppResponse {})
     }
 }

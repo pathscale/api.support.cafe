@@ -28,9 +28,12 @@ impl DopplerSource {
         let config_name = std::env::var("CAFE_SECRETS_DOPPLER_CONFIG")
             .map_err(|e| ConfigError::Message(e.to_string()))?;
 
-        let secrets =
-            Self::fetch_secrets_blocking(SecretString::new(service_token.into()), project, config_name)
-                .map_err(|e| ConfigError::Message(e.to_string()))?;
+        let secrets = Self::fetch_secrets_blocking(
+            SecretString::new(service_token.into()),
+            project,
+            config_name,
+        )
+        .map_err(|e| ConfigError::Message(e.to_string()))?;
 
         Ok(Some(Self { secrets }))
     }

@@ -81,12 +81,14 @@ impl UserStorage for UserService {
             user.username = user_info_request.username;
             self.user_table.update(user).await?;
         } else {
-            self.user_table.insert(UserRow {
-                id: self.user_table.get_next_pk().into(),
-                pub_id: packed_id,
-                username: user_info_request.username,
-                role: UserRole::User,
-            })?;
+            self.user_table
+                .insert(UserRow {
+                    id: self.user_table.get_next_pk().into(),
+                    pub_id: packed_id,
+                    username: user_info_request.username,
+                    role: UserRole::User,
+                })
+                .await?;
         }
 
         Ok(())

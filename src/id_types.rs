@@ -19,7 +19,8 @@ macro_rules! define_id_type {
             }
 
             pub fn from_packed(packed: PackedNanoId) -> eyre::Result<Self> {
-                packed.unpack()
+                packed
+                    .unpack()
                     .map($name)
                     .map_err(|e| eyre::eyre!("Failed to unpack {}: {}", stringify!($name), e))
             }

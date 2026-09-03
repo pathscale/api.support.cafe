@@ -26,7 +26,7 @@ impl RequestHandler for MethodSetRole {
             "MethodSetRole: received request"
         );
 
-        let packed_pub_id = PackedUserPubId::pack(&req.user_pub_id.into())
+        let packed_pub_id = PackedUserPubId::pack(&req.user_pub_id)
             .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))
             .internal()?;
 
