@@ -34,8 +34,8 @@ tokio = { version = "1.48", features = ["full", "rt-multi-thread"] }
 tracing = "0.1"
 url = "2.5.7"
 uuid = { version = "1.18", features = ["v4", "serde"] }
-worktable = { version = "=1.0.0-beta.5" }
-honey_id-types = "=2.0.2"
+worktable = { version = "=1.0.0-beta.17" }
+honey_id-types = "=2.0.3"
 cert-provider = { package = "ps-cert-provider", version = "=0.1.0", features = ["dns01"], optional = true }
 
 [features]

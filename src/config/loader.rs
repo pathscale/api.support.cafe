@@ -4,8 +4,8 @@ use clap::Parser;
 use config::{Config as CfgBuilder, Environment, File};
 use eyre::Result;
 
-use super::doppler_source::DopplerSource;
 use super::Config;
+use super::doppler_source::DopplerSource;
 
 #[derive(Parser)]
 struct CliArgs {

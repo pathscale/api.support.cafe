@@ -67,6 +67,7 @@ impl RequestHandler for MethodSetMyTgHandle {
                     tg_handle: req.tg_handle,
                     chat_id: None,
                 })
+                .await
                 .internal()?;
         }
 

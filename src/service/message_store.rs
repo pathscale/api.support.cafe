@@ -47,11 +47,11 @@ impl MessageStore {
 
         if self.persistence_enabled(msg.app_public_id)? {
             msg.id = self.persisted_table.get_next_pk().into();
-            self.persisted_table.insert(msg)?;
+            self.persisted_table.insert(msg).await?;
         } else {
             let mut memory_row: SupportMemoryMessageRow = msg.into();
             memory_row.id = self.memory_table.get_next_pk().into();
-            self.memory_table.insert(memory_row)?;
+            self.memory_table.insert(memory_row).await?;
         }
 
         Ok(())
@@ -179,7 +179,7 @@ impl MessageStore {
             {
                 let mut memory_row: SupportMemoryMessageRow = row.clone().into();
                 memory_row.id = self.memory_table.get_next_pk().into();
-                self.memory_table.insert(memory_row)?;
+                self.memory_table.insert(memory_row).await?;
             }
         }
 
@@ -223,7 +223,7 @@ impl MessageStore {
             {
                 let mut persisted_row: SupportMessageRow = row.clone().into();
                 persisted_row.id = self.persisted_table.get_next_pk().into();
-                self.persisted_table.insert(persisted_row)?;
+                self.persisted_table.insert(persisted_row).await?;
             }
         }
 
