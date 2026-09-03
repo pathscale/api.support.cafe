@@ -40,6 +40,7 @@ impl RequestHandler for MethodCreateChatSession {
         let row = self
             .session_service
             .create_session(UserPublicId::from(req.user_pub_id), app_public_id)
+            .await
             .internal()?;
 
         tracing::debug!(

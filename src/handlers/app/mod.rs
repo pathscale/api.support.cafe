@@ -20,8 +20,16 @@ use crate::handlers::app::subscribe_events::MethodSubscribeEvents;
 use crate::handlers::utils::subscription_router::SubscriptionRouter;
 
 pub async fn register_handlers(server: &mut WebsocketServer, ctx: &AppCtx) {
-    let event_stream = ctx.bot_service.take_event_stream().await.expect("event stream already taken");
-    let event_router = Arc::new(SubscriptionRouter::new(1, event_stream, server.toolbox.clone()));
+    let event_stream = ctx
+        .bot_service
+        .take_event_stream()
+        .await
+        .expect("event stream already taken");
+    let event_router = Arc::new(SubscriptionRouter::new(
+        1,
+        event_stream,
+        server.toolbox.clone(),
+    ));
 
     server.add_handler(MethodCreateChatSession {
         session_service: ctx.session_service.clone(),

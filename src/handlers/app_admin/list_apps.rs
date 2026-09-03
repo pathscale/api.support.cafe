@@ -38,7 +38,9 @@ impl RequestHandler for MethodListApps {
         let rows = if self.app_service.is_platform_admin(user_pub_id).internal()? {
             self.app_service.list_apps().internal()?
         } else {
-            self.app_service.list_apps_for_user(user_pub_id).internal()?
+            self.app_service
+                .list_apps_for_user(user_pub_id)
+                .internal()?
         };
 
         tracing::debug!(

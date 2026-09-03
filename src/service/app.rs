@@ -92,7 +92,7 @@ impl AppService {
             created_at,
         };
 
-        self.app_config_table.insert(row).inspect_err(|e| {
+        self.app_config_table.insert(row).await.inspect_err(|e| {
             tracing::error!(
                 app_public_id = %app_public_id,
                 error = %e,
@@ -109,14 +109,17 @@ impl AppService {
             created_at,
             is_support_enabled: false,
         };
-        self.app_member_table.insert(owner_row).inspect_err(|e| {
-            tracing::error!(
-                app_public_id = %app_public_id,
-                user_pub_id = %owner_pub_id,
-                error = %e,
-                "AppService::create_app: owner insert failed"
-            );
-        })?;
+        self.app_member_table
+            .insert(owner_row)
+            .await
+            .inspect_err(|e| {
+                tracing::error!(
+                    app_public_id = %app_public_id,
+                    user_pub_id = %owner_pub_id,
+                    error = %e,
+                    "AppService::create_app: owner insert failed"
+                );
+            })?;
         self.recompute_user_role_from_memberships(owner_pub_id)
             .await?;
 

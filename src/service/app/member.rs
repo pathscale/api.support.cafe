@@ -42,7 +42,7 @@ impl AppService {
             created_at: Utc::now().timestamp_millis(),
             is_support_enabled: false,
         };
-        self.app_member_table.insert(row.clone())?;
+        self.app_member_table.insert(row.clone()).await?;
         self.recompute_user_role_from_memberships(user_pub_id)
             .await?;
         Ok(row)
@@ -113,8 +113,7 @@ impl AppService {
         &self,
         app_public_id: AppPublicId,
     ) -> eyre::Result<Vec<AppMember>> {
-        Ok(self
-            .list_members(app_public_id)?
+        self.list_members(app_public_id)?
             .into_iter()
             .map(|row| {
                 let user = self
@@ -132,7 +131,7 @@ impl AppService {
                     tg_handle: support_info.map(|info| info.tg_handle),
                 })
             })
-            .collect::<eyre::Result<Vec<_>>>()?)
+            .collect::<eyre::Result<Vec<_>>>()
     }
 
     pub async fn enable_support_user(

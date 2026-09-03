@@ -46,12 +46,12 @@ impl RequestHandler for MethodListMessages {
             .internal()?;
 
         // If connected via app, verify session belongs to that app
-        if let Some(app_public_id) = self.app_connection_registry.get(ctx.connection_id).await {
-            if row.app_public_id != app_public_id.pack().internal()? {
-                return Err(CustomError::new(EnumErrorCode::Forbidden)
-                    .with_message("Session does not belong to this app")
-                    .into());
-            }
+        if let Some(app_public_id) = self.app_connection_registry.get(ctx.connection_id).await
+            && row.app_public_id != app_public_id.pack().internal()?
+        {
+            return Err(CustomError::new(EnumErrorCode::Forbidden)
+                .with_message("Session does not belong to this app")
+                .into());
         }
 
         let messages = self

@@ -35,10 +35,11 @@ where
             while let Some(msg) = stream.next().await {
                 match msg.receiver {
                     Receiver::Concrete(key) => {
-                        event_manager_clone
-                            .write()
-                            .await
-                            .publish_to_key(&toolbox_clone, &key, &msg.payload);
+                        event_manager_clone.write().await.publish_to_key(
+                            &toolbox_clone,
+                            &key,
+                            &msg.payload,
+                        );
                     }
                     Receiver::ConcreteMulti(keys) => {
                         let mut manager = event_manager_clone.write().await;

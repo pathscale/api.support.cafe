@@ -18,11 +18,7 @@ impl RequestHandler for MethodGetMyTgHandle {
     type Request = GetMyTgHandleRequest;
     type Error = CustomError;
 
-    async fn handle(
-        &self,
-        ctx: RequestContext,
-        _req: Self::Request,
-    ) -> Response<Self::Request> {
+    async fn handle(&self, ctx: RequestContext, _req: Self::Request) -> Response<Self::Request> {
         tracing::debug!(
             connection_id = ctx.connection_id,
             "GetMyTgHandle: received request"

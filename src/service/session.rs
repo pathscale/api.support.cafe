@@ -33,7 +33,7 @@ impl ChatSessionService {
     }
 
     /// Create a new chat session. Returns the created row.
-    pub fn create_session(
+    pub async fn create_session(
         &self,
         user_pub_id: UserPublicId,
         app_public_id: AppPublicId,
@@ -57,7 +57,7 @@ impl ChatSessionService {
             created_at,
             closed_at: None,
         };
-        self.chat_session_table.insert(row.clone())?;
+        self.chat_session_table.insert(row.clone()).await?;
 
         tracing::debug!(
             session_id = %session_id,
