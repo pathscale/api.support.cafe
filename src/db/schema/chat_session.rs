@@ -19,8 +19,8 @@ worktable!(
         closed_at: i64 optional,
     },
     indexes: {
-        app_pub_id_idx: app_public_id,
-        session_id_idx: session_id unique,
+        app_pub_id_idx: app_public_id using worktables_index,
+        session_id_idx: session_id unique using worktables_index,
     },
     queries: {
         update: {

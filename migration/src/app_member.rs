@@ -19,8 +19,8 @@ worktable!(
         is_support_enabled: bool,
     },
     indexes: {
-        app_public_id_idx: app_public_id,
-        user_pub_id_idx: user_pub_id,
+        app_public_id_idx: app_public_id using worktables_index,
+        user_pub_id_idx: user_pub_id using worktables_index,
         membership_key_idx: membership_key unique,
     },
 );
@@ -34,7 +34,7 @@ mod v1 {
         name: AppMember,
         version: 1,
         columns: {
-            id: u64 primary_key autoincrement,
+            id: u64 primary_key autoincrement using worktables_index,
             app_public_id: PackedNanoId,
             user_pub_id: PackedNanoId,
             membership_key: String,
@@ -42,9 +42,9 @@ mod v1 {
             created_at: i64,
         },
         indexes: {
-            app_public_id_idx: app_public_id,
-            user_pub_id_idx: user_pub_id,
-            membership_key_idx: membership_key unique,
+            app_public_id_idx: app_public_id using worktables_index,
+            user_pub_id_idx: user_pub_id using worktables_index,
+            membership_key_idx: membership_key unique using worktables_index,
         },
     );
 }

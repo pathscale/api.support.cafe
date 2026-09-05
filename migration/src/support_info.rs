@@ -9,7 +9,7 @@ worktable!(
     version: 2,
     persist: true,
     columns: {
-        user_pub_id: PackedUserPubId primary_key,
+        user_pub_id: PackedUserPubId primary_key using worktables_index,
         tg_handle: String,
         chat_id: i64 optional,
     },
@@ -27,7 +27,7 @@ mod v1 {
         name: SupportInfo,
         version: 1,
         columns: {
-            user_pub_id: PackedUserPubId primary_key,
+            user_pub_id: PackedUserPubId primary_key using worktables_index,
             tg_handle: String,
         },
     );
