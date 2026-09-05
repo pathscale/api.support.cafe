@@ -1,0 +1,78 @@
+name: WorkTable rebuild
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_prefix:
+        description: New S3 prefix to rebuild into
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    runs-on: ubicloud-standard-4
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate target prefix
+        env:
+          TARGET_PREFIX: ${{ inputs.target_prefix }}
+        run: |
+          case "$TARGET_PREFIX" in
+            ''|db) echo "target prefix must be new and non-empty" >&2; exit 1 ;;
+          esac
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y musl-dev musl-tools
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Cache cargo registry
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: support-cafe-worktable-rebuild
+          cache-targets: true
+
+      - name: Build recovery binary
+        run: cargo build --release --locked --target x86_64-unknown-linux-musl --features s3-sync --bin worktable_rebuild
+
+      - name: Stage recovery binary
+        run: cp target/x86_64-unknown-linux-musl/release/worktable_rebuild ./worktable_rebuild
+
+      - name: Build recovery image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: registry.fly.io/support-cafe-master-fly
+          tags: worktable-rebuild-${{ github.sha }}
+          base-image: scratch
+          content: ./worktable_rebuild
+          entrypoint: /worktable_rebuild
+
+      - name: Login to Fly registry
+        run: buildah login -u x -p "${{ secrets.FLY_API_TOKEN }}" registry.fly.io
+
+      - name: Push recovery image
+        run: buildah push --compression-format gzip --remove-signatures registry.fly.io/support-cafe-master-fly:worktable-rebuild-${{ github.sha }}
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@v1
+
+      - name: Rebuild into the new prefix
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          TARGET_PREFIX: ${{ inputs.target_prefix }}
+        run: |
+          flyctl machine run registry.fly.io/support-cafe-master-fly:worktable-rebuild-${{ github.sha }} \
+            --app support-cafe-master-fly \
+            --region sin \
+            --rm \
+            --restart no \
+            --vm-cpus 2 \
+            --vm-memory 1024 \
+            --env "WORKTABLE_REBUILD_TARGET_PREFIX=$TARGET_PREFIX"
