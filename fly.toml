@@ -17,6 +17,9 @@ kill_timeout = "30s"
 
 [build]
 
+[env]
+  CAFE__S3__PREFIX = "db-beta17-20260904-0216"
+
 [[services]]
   internal_port = 443
   protocol = "tcp"
