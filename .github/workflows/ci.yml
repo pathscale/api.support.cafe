@@ -135,6 +135,6 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@v1
 
       - name: Deploy to Fly
-        run: flyctl deploy --config fly.dev.toml --detach --ha=false --image ${{ env.FLY_REGISTRY }}/${{ env.FLY_APP }}:${{ env.VERSION }}
+        run: flyctl deploy --config fly.toml --detach --ha=false --image ${{ env.FLY_REGISTRY }}/${{ env.FLY_APP }}:${{ env.VERSION }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
