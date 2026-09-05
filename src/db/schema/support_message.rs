@@ -22,9 +22,9 @@ worktable!(
         tg_chat_id: i64 optional,
     },
     indexes: {
-        message_id_idx: message_id unique,
-        session_id_idx: session_id,
-        app_public_id_idx: app_public_id,
+        message_id_idx: message_id unique using worktables_index,
+        session_id_idx: session_id using worktables_index,
+        app_public_id_idx: app_public_id using worktables_index,
         sent_at_idx: sent_at,
     }
 );

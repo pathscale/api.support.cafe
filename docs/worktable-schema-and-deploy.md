@@ -58,3 +58,30 @@ dependency upgrade leaves WorkTable alone because it looks unrelated** — a
 transitive bump of the `worktable` crate is exactly the kind of thing that
 slips through, and it changes on-disk format without touching a single line of
 this repo's source.
+
+## Precedent — WorkTable beta17 to beta18, 2026-09-05
+
+WorkTable moved from `1.0.0-beta.17` to `1.0.0-beta.18`. The generated tables
+now use Arctic for directly supported primitive and `String` keys. Indexes over
+application-specific packed ID types explicitly select `worktables_index`.
+The versioned migration schemas explicitly retain `worktables_index` for every
+historical primary and secondary index, so they continue to describe the
+backend used to write the old snapshots rather than silently adopting the new
+default.
+
+The beta18 cold-load compatibility path was validated separately against
+AgencyZero's real beta17 `qa-profile` database (248 projects, 155 items and 179
+sessions loaded). For this service, the existing rollback-safe rebuild tool
+covers all six persisted tables and must be run against a distinct prefix
+before switching production data:
+
+```bash
+WORKTABLE_REBUILD_TARGET_PREFIX=db-beta18 \
+  cargo run --release --locked --features s3-sync \
+  --bin worktable_rebuild
+```
+
+Keep the old prefix unchanged until the beta18 service has cold-started from
+the rebuilt prefix and the six reported row counts have been compared with the
+source. Rollback is selecting the old prefix and redeploying the previous
+image.

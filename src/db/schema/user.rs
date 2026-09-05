@@ -18,7 +18,7 @@ worktable!(
         role: UserRole,
     },
     indexes: {
-        pub_id_idx: pub_id unique,
+        pub_id_idx: pub_id unique using worktables_index,
     },
     queries: {
         update: {

@@ -21,7 +21,7 @@ worktable!(
         created_at: i64,
     },
     indexes: {
-        public_id_idx: public_id unique,
+        public_id_idx: public_id unique using worktables_index,
     },
     queries: {
         update: {

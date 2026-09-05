@@ -18,7 +18,7 @@ worktable!(
         created_at: i64,
     },
     indexes: {
-        public_id_idx: public_id unique,
+        public_id_idx: public_id unique using worktables_index,
     },
 );
 
@@ -31,7 +31,7 @@ mod v1 {
         name: AppConfig,
         version: 1,
         columns: {
-            id: u64 primary_key autoincrement,
+            id: u64 primary_key autoincrement using worktables_index,
             public_id: PackedNanoId,
             tg_bot_token: String,
             app_name: String optional,
@@ -39,7 +39,7 @@ mod v1 {
             created_at: i64,
         },
         indexes: {
-            public_id_idx: public_id unique,
+            public_id_idx: public_id unique using worktables_index,
         },
     );
 }

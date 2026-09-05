@@ -21,8 +21,8 @@ worktable!(
         is_support_enabled: bool,
     },
     indexes: {
-        app_public_id_idx: app_public_id,
-        user_pub_id_idx: user_pub_id,
+        app_public_id_idx: app_public_id using worktables_index,
+        user_pub_id_idx: user_pub_id using worktables_index,
         membership_key_idx: membership_key unique,
     },
     queries: {
