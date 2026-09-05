@@ -28,7 +28,7 @@ jobs:
             echo "deploy-needed=true" >> $GITHUB_OUTPUT
           else
             CHANGED=$(git diff --name-only HEAD~1 HEAD)
-            if echo "$CHANGED" | grep -qE '^(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|src/|fly.toml|Dockerfile\.ci|\.github/workflows/ci\.yml|\.github/workflows/prod\.yml)'; then
+            if echo "$CHANGED" | grep -qE '^(Cargo\.toml|rust-toolchain\.toml|src/|fly.toml|Dockerfile\.ci|\.github/workflows/ci\.yml|\.github/workflows/prod\.yml)'; then
               echo "deploy-needed=true" >> $GITHUB_OUTPUT
             else
               echo "deploy-needed=false" >> $GITHUB_OUTPUT
@@ -97,7 +97,7 @@ jobs:
             /home/runner/target/x86_64-unknown-linux-musl/release/deps
             /home/runner/target/x86_64-unknown-linux-musl/release/.fingerprint
             /home/runner/target/x86_64-unknown-linux-musl/release/build
-          key: nf-target-muls-deps2-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/rust-toolchain.toml') }}
+          key: nf-target-muls-deps2-${{ runner.os }}-${{ hashFiles('**/Cargo.toml') }}-${{ hashFiles('**/rust-toolchain.toml') }}
           restore-keys: |
             nf-target-muls-deps2-${{ runner.os }}
 
@@ -108,7 +108,7 @@ jobs:
           WS_SERVER_NAME: SupportCafeServer/${{ github.run_number }}-${{ env.VERSION }}
         run: |
           cargo sweep --stamp
-          cargo build --release --locked --target x86_64-unknown-linux-musl --features s3-sync,acme,cert-s3-sync
+          cargo build --release --target x86_64-unknown-linux-musl --features s3-sync,acme,cert-s3-sync
           cargo sweep --file
 
       - name: Copy binary into build context
