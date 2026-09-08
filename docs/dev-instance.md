@@ -33,9 +33,19 @@ endpoint-libs, and all but one terminates its own TLS.
 | `nofilter.io-backend` | `api-nofilter-io-master-fly` (suspended) | `api-nofilter-io-prod-fly` | `api-dev.nofilter.io` | `NF__` | the app |
 | `api.support.cafe` | `support-cafe-master-fly` | none | `api.support.cafe` | `CAFE__` | the app |
 | `crates.vip-backend` | `api-crates-vip-master-fly` | none | `api.crates.vip` | `CRATES_VIP__` | **Fly** (the template) |
+| `pays.online-backend` | not on Fly yet | none | none yet | | **start on Fly** |
 
 `api-pathscale-master-fly` also exists on Fly, suspended since April 2026,
 with no repository in `~/code` that deploys it.
+
+`pays.online-backend` is the next one in. It is an endpoint-libs WebSocket
+server like the rest, built with `["ws"]`, and it has no Fly config yet.
+**Give it `[http_service]` from the start.** Copying an existing
+`fly.dev.toml` from honey or nofilter would inherit `handlers = []`, and with
+it a dedicated IPv4, an in-process ACME client, a Bunny DNS-01 challenge and a
+TLS 1.3 floor that no client of ours needs. `pays.online-watcher` is not
+affected either way: it consumes a stream, has no inbound traffic, and
+declares no service at all.
 
 The `*-master-fly` apps are the dev instances. They sleep
 (`min_machines_running = 0`) and wake on connect in about three seconds.
