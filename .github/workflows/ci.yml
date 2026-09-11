@@ -19,20 +19,50 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 2
+          # The whole history, because the range below spans a push rather than
+          # a single commit. `fetch-depth: 2` is only enough to see HEAD~1,
+          # which is what this step used to compare against and why it was wrong.
+          fetch-depth: 0
 
       - name: Check which paths changed
         id: check
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "deploy-needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # The range is the push, not the last commit of it.
+          #
+          # This compared HEAD~1 against HEAD. A rebase merge lands every commit
+          # of the branch at once and only the last of them was examined, so a
+          # push whose final commit touched nothing deployable skipped the
+          # deploy even when an earlier commit of the same push changed `src/`.
+          # The job went green and nothing shipped, which is the same failure
+          # the `HEAD^` publish gate had in ps-st3 and nagoya.
+          #
+          # Landing here is rebase-then-fast-forward by house rule, so this was
+          # live rather than theoretical. A squash merge would have been fine.
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] \
+            || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            # A first push to a branch, a force push, or a baseline this clone
+            # does not have. There is no range to read, so deploy rather than
+            # skip: an extra deploy is visible and cheap, a skipped one is
+            # silent, and silent is the bug being fixed here.
+            echo "no usable baseline ($BEFORE), deploying"
+            echo "deploy-needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BEFORE" "${{ github.sha }}")
+          echo "changed in this push:"
+          echo "$CHANGED"
+          if echo "$CHANGED" | grep -qE '^(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|src/|fly.toml|Dockerfile\.ci|\.github/workflows/ci\.yml|\.github/workflows/prod\.yml)'; then
+            echo "deploy-needed=true" >> $GITHUB_OUTPUT
           else
-            CHANGED=$(git diff --name-only HEAD~1 HEAD)
-            if echo "$CHANGED" | grep -qE '^(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|src/|fly.toml|Dockerfile\.ci|\.github/workflows/ci\.yml|\.github/workflows/prod\.yml)'; then
-              echo "deploy-needed=true" >> $GITHUB_OUTPUT
-            else
-              echo "deploy-needed=false" >> $GITHUB_OUTPUT
-            fi
+            echo "deploy-needed=false" >> $GITHUB_OUTPUT
           fi
 
   fly-deploy:
