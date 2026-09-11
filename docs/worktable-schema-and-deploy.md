@@ -1,5 +1,7 @@
 # WorkTable schema changes and deployment
 
+> Current release: follow [the v3 cutover](worktable-v3-cutover.md). Old stores are deliberately refused; recreate regenerable data explicitly or convert it with the old reader.
+
 > **A WorkTable schema change is a deployment event, not just a code change.**
 > If the schema moves, upgrading versions and deploying becomes significantly
 > more complicated, and the change **must** ship with a WT data migration script.
