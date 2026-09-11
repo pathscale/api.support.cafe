@@ -27,7 +27,7 @@ Backend for **support.cafe** — a support-desk service. WebSocket RPC (not REST
 - **`endpoint-libs` and `honey_id-types` move in lockstep.** `honey_id-types` re-exports
   endpoint-libs' `WsRequest`/`WsResponse` traits, so bumping one alone puts two incompatible
   copies of endpoint-libs in the graph and the traits stop matching. Bump both, and check
-  `grep -c 'name = "endpoint-libs"' Cargo.lock` is `1`. Release order and the
+  `cargo tree -d` reports no duplicate `endpoint-libs`. Release order and the
   full explanation: [endpoint-libs `docs/release-order.md`](https://github.com/pathscale/endpoint-libs/blob/main/docs/release-order.md).
 - **Don't enable an `endpoint-libs` feature this service doesn't use.** A new feature upstream
   is not a reason to turn it on here; keep the feature list minimal.
@@ -154,3 +154,73 @@ Claude Code" / robot-emoji footers, no `Co-Authored-By: Claude` (or any AI) trai
 and no AI credit in commit messages, PR or issue titles/bodies, changelogs, release
 notes, or code comments. Applies to every agent and every vendor. Work product should
 be indistinguishable from a human teammate's.
+
+## Fly and Bunny
+
+Deployment is Fly, DNS is Bunny. Both have a house shape, and neither is
+recoverable from the config alone.
+
+This repo deploys `support-cafe-master-fly`, serving `api.support.cafe`. The app
+name is missing the `api-` prefix the rest of the account uses; it is the known
+outlier, not a different convention.
+
+`-master-` is the GitHub `master` deployment and serves the dev hostname;
+`-prod-` serves production. Region is `sin` for every app in the account. No Fly
+volumes: a volume pins the app to one host and makes snapshots the backup story.
+
+As it stands this app is the passthrough shape, `[[services]]` with
+`internal_port = 443`, and holds a dedicated IPv4 it does not need.
+
+### Always take a shared IPv4. Never allocate a dedicated one
+
+A dedicated v4 costs $2/mo and buys nothing. Fly routes a shared address by
+reading the TLS ClientHello SNI, so it never has to decrypt: a raw TCP
+passthrough service (`handlers = []`, app owns the certificate) routes on a
+shared address exactly as an `[http_service]` one does. Measured on
+`api-honey-id-master-fly`, which is passthrough: through its shared address it
+answered 200, served its own certificate, and negotiated ALPN `h2` identically
+to its dedicated one.
+
+```
+fly ips allocate-v4 --shared -a <app>
+```
+
+Allocating is additive and free, so hold both while you check, then release the
+dedicated one. A dedicated IPv6 is free and fine to keep.
+
+Verify through the app's **own** shared address before moving DNS. Pointing a
+host at some other app's shared address reaches that other app and fails TLS,
+which is not evidence about yours:
+
+```
+curl --resolve <host>:443:<shared-ip> https://<host>/
+openssl s_client -connect <shared-ip>:443 -servername <host> -alpn h2,http/1.1
+```
+
+### WSS through Fly is HTTP/1.1 `Upgrade` only
+
+Fly's proxy does not implement RFC 8441 (extended CONNECT, WSS over HTTP/2).
+ALPN negotiating `h2` proves the handshake, not a working WSS-over-h2 stream, so
+do not read one as the other. Raw TCP passthrough is the only arrangement in
+which the app could own h2 end to end, and whether that is worth its certificate
+machinery is a per-service call. It is never a reason for a dedicated IP.
+
+### DNS is Bunny, and `hoppy` changes it
+
+Not the dashboard, and not curl against the API.
+
+```
+hoppy dns zone list
+hoppy dns record list --id <zone-id>
+hoppy dns record add --id <zone-id> --type CNAME --name <sub> --value <app>.fly.dev
+```
+
+`hoppy` reads `BUNNY_API_KEY` from the environment and does nothing without it.
+`--dry-run` previews any mutating call and implies `--yes`.
+
+### CNAME the host at `<app>.fly.dev`, do not A-record an address
+
+The `.fly.dev` name follows the app's addresses, so the record survives an IP
+change and never has to be edited again. That is the whole reason to prefer it.
+Releasing a dedicated IP is therefore: set the CNAME, confirm the hostname still
+answers, and only then `fly ips release`. In that order, or the host goes dark.

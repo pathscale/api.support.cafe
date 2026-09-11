@@ -1,3 +1,8 @@
+> Historical review recovered from local work during the September 2026 release review.
+> Findings below describe the July snapshot and are not blanket assertions about the current branch.
+> Credential-shaped values are redacted. The current AppConnect identity gap was separately reconfirmed;
+> its protocol decision remains a production gate. WorkTable v3 cutover policy is in ../worktable-v3-cutover.md.
+
 # api.support.cafe Review: Full
 
 **Date:** 2026-07-27
@@ -23,7 +28,7 @@
 - **Category:** Security
 - **Confidence:** High (the values are in the tree; whether they are still *valid* needs a human to check Tigris)
 - **Location:** `migration/config.migrate.toml:7-8`; introduced in `a9475fb`, still present at `feef288`
-- **What:** The migration config carries a real-shaped Tigris access key (`tid_bwKSOzpIY…`) and secret key (`tsec_9mk_7Npd2QN7…`) for bucket `support-cafe-master-tigris`, prefix `db`. `git log -- migration/config.migrate.toml` shows two commits; the file has never been redacted. `.gitignore:9` ignores `.env` but nothing ignores this path.
+- **What:** The migration config carries a real-shaped Tigris access key (`[REDACTED]…`) and secret key (`[REDACTED]…`) for bucket `support-cafe-master-tigris`, prefix `db`. `git log -- migration/config.migrate.toml` shows two commits; the file has never been redacted. `.gitignore:9` ignores `.env` but nothing ignores this path.
 - **Why it matters:** That bucket is the durable store for every persisted WorkTable (`src/db/tables.rs:84-137`): all apps, all Telegram bot tokens (`AppConfig.tg_bot_token`), all memberships, all support messages, all users. Anyone with the repo gets read *and write* on production data. Write access is worse than read here: the server loads tables from S3 at boot (`Tables::new` → `<$Table>::load(engine)`), so a poisoned snapshot is loaded and trusted on the next machine restart. Rotating the keys alone does not close the history.
 - **Fix:** (1) Rotate the Tigris key pair now. (2) Replace lines 7-8 with empty values and rely on the existing `SUPPORT_CAFE_MIGRATE__S3__ACCESS_KEY` env override (`migration/src/config.rs:36-41`): the loader already supports it, the file only needs to stop carrying secrets. (3) Scrub from history (`git filter-repo --path migration/config.migrate.toml`) and force-push, coordinating with everyone who has a clone; note `AGENTS.md:104-105` forbids force-pushing the default branch, so this needs a human decision. (4) Add `*.migrate.toml` or a `config.migrate.example.toml` convention. Also rotate every Telegram bot token that was in the bucket, since they were readable.
 - **Effort:** M (rotation is S; history scrub plus coordination is M)
