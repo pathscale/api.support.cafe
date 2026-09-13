@@ -156,7 +156,7 @@ impl App {
 
         // no matter if it was server issue or thread return signal, go with graceful termination procedure
         self.ctx.bot_service.shutdown().await;
-        message_purge_task.abort();
+        message_purge_task.cancel();
         tokio::select! {
             result = self.ctx.db.wait_for_ops() =>{
                 match result {

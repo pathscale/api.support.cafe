@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tokio::time::{Duration, sleep};
+use std::time::Duration;
 use tracing::info;
 
 use crate::db::schema::app_config::AppConfigRow;
@@ -61,7 +61,7 @@ impl BotService {
             self.register_bot(app_public_id, app.tg_bot_token.clone())
                 .await?;
             info!(?app_public_id, "Bot restored from persisted config");
-            sleep(Duration::from_millis(500)).await;
+            nagoya::sleep(Duration::from_millis(500)).await;
         }
         Ok(())
     }
