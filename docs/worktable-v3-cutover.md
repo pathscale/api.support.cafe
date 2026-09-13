@@ -1,6 +1,6 @@
 # WorkTable v3 deployment cutover
 
-This branch adopts WorkTable 1.9.0-alpha1 and DataBucket 0.7. The physical
+This branch adopts WorkTable 1.9.0-beta1 and DataBucket 0.7. The physical
 page format changes from v2 to v3 even when an application row schema is
 unchanged. The new reader refuses old files; changing a schema version or
 renaming a file does not convert its contents.

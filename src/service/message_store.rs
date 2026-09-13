@@ -136,16 +136,14 @@ impl MessageStore {
         self: Arc<Self>,
         interval: Duration,
         retention: Duration,
-    ) -> tokio::task::JoinHandle<()> {
-        tokio::spawn(async move {
-            let mut ticker = tokio::time::interval(interval);
-
+    ) -> nagoya::JoinHandle<()> {
+        crate::work_runtime().spawn(async move {
             loop {
-                ticker.tick().await;
                 let cutoff = Utc::now().timestamp_millis() - retention.as_millis() as i64;
                 if let Err(e) = self.purge_memory_before(cutoff).await {
                     warn!(error = %e, "failed to purge memory support messages");
                 }
+                nagoya::sleep(interval).await;
             }
         })
     }

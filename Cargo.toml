@@ -13,7 +13,7 @@ clap = { version = "4.5", features = ["derive"] }
 config = { version = "0.15", default-features = false, features = ["toml"] }
 crossfire = { version = "3.1.10", features = ["tokio"] }
 derive_more = { version = "2.1.1", features = ["full"] }
-endpoint-libs = { version = "=2.0.0", features = ["ws", "ws-http1"] }
+endpoint-libs = { version = "^2.0", features = ["ws", "ws-http1"] }
 eyre = "0.6"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots", "json"] }
 rustls = { version = "0.23.39", default-features = false, features = ["ring", "logging", "std", "tls12"] }
@@ -21,7 +21,7 @@ futures = "0.3"
 num-derive = "0.4"
 num-traits = "0.2"
 parking_lot = "0.12"
-psc-nanoid = { version = "3.1.0", features = ["serde", "packed", "rkyv"] }
+psc-nanoid = { version = "^3.2", features = ["serde", "packed", "rkyv"] }
 rkyv = "0.8.12"
 secrecy = "0.10.3"
 serde = { version = "1.0", features = ["derive"] }
@@ -30,13 +30,14 @@ smart-default = "0.7"
 strum = "0.26"
 strum_macros = "0.26"
 tgbot = { version = "0.45.0", features = ["webpki-roots"] }
+nagoya = "^0.1"
 tokio = { version = "1.48", features = ["full", "rt-multi-thread"] }
 tracing = "0.1"
 url = "2.5.7"
 uuid = { version = "1.18", features = ["v4", "serde"] }
-worktable = { version = "^1.9.0-alpha1" }
+worktable = { version = "^1.9.0-beta1" }
 honey_id-types = "^2.1"
-cert-provider = { package = "ps-cert-provider", version = "=0.1.0", features = ["dns01"], optional = true }
+cert-provider = { package = "ps-cert-provider", version = "^0.1", features = ["dns01"], optional = true }
 
 [features]
 s3-sync = ["worktable/s3-support"]
