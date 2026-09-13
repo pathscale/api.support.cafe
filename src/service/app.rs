@@ -10,10 +10,7 @@ mod member;
 use honey_id_types::id_entities::UserPublicId;
 
 use crate::codegen::model::AppMemberRole;
-use crate::db::schema::app_config::{
-    ActiveByPubIdQuery, AppConfigRow, AppConfigWorkTable, AppNameByPubIdQuery,
-    TgBotTokenByPubIdQuery,
-};
+use crate::db::schema::app_config::{AppConfigColumns, AppConfigRow, AppConfigWorkTable};
 use crate::db::schema::app_member::AppMemberWorkTable;
 use crate::db::schema::app_member::{AppMemberRow, membership_key};
 use crate::db::schema::support_info::SupportInfoWorkTable;
@@ -143,12 +140,7 @@ impl AppService {
 
         if let Some(token) = &update.tg_bot_token {
             self.app_config_table
-                .update_tg_bot_token_by_pub_id(
-                    TgBotTokenByPubIdQuery {
-                        tg_bot_token: token.clone(),
-                    },
-                    packed_pub_id,
-                )
+                .update_by_public_id(packed_pub_id, AppConfigColumns::TG_BOT_TOKEN, token.clone())
                 .await
                 .inspect_err(|e| {
                     tracing::error!(
@@ -161,11 +153,10 @@ impl AppService {
 
         if let Some(name) = &update.app_name {
             self.app_config_table
-                .update_app_name_by_pub_id(
-                    AppNameByPubIdQuery {
-                        app_name: Some(name.clone()),
-                    },
+                .update_by_public_id(
                     packed_pub_id,
+                    AppConfigColumns::APP_NAME,
+                    Some(name.clone()),
                 )
                 .await
                 .inspect_err(|e| {
@@ -179,7 +170,7 @@ impl AppService {
 
         if let Some(active) = update.active {
             self.app_config_table
-                .update_active_by_pub_id(ActiveByPubIdQuery { active }, packed_pub_id)
+                .update_by_public_id(packed_pub_id, AppConfigColumns::ACTIVE, active)
                 .await
                 .inspect_err(|e| {
                     tracing::error!(

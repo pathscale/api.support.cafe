@@ -4,10 +4,8 @@ use honey_id_types::id_entities::UserPublicId;
 use worktable::prelude::SelectQueryExecutor;
 
 use crate::codegen::model::{AppMember, AppMemberRole, UserRole};
-use crate::db::schema::app_member::{
-    AppMemberRow, IsSupportEnabledByMembershipKeyQuery, RoleByMembershipKeyQuery, membership_key,
-};
-use crate::db::schema::user::RoleByPubIdQuery;
+use crate::db::schema::app_member::{AppMemberColumns, AppMemberRow, membership_key};
+use crate::db::schema::user::UserColumns;
 use crate::id_types::AppPublicId;
 use crate::service::app::AppService;
 
@@ -94,7 +92,7 @@ impl AppService {
         let key = membership_key(packed_app, packed_user);
 
         self.app_member_table
-            .update_role_by_membership_key(RoleByMembershipKeyQuery { role }, key)
+            .update_by_membership_key(key, AppMemberColumns::ROLE, role)
             .await?;
         self.recompute_user_role_from_memberships(user_pub_id)
             .await?;
@@ -154,11 +152,10 @@ impl AppService {
         }
 
         self.app_member_table
-            .update_is_support_enabled_by_membership_key(
-                IsSupportEnabledByMembershipKeyQuery {
-                    is_support_enabled: true,
-                },
+            .update_by_membership_key(
                 member.membership_key,
+                AppMemberColumns::IS_SUPPORT_ENABLED,
+                true,
             )
             .await?;
 
@@ -175,11 +172,10 @@ impl AppService {
             .ok_or_else(|| eyre::eyre!("User is not a member of this app"))?;
 
         self.app_member_table
-            .update_is_support_enabled_by_membership_key(
-                IsSupportEnabledByMembershipKeyQuery {
-                    is_support_enabled: false,
-                },
+            .update_by_membership_key(
                 member.membership_key,
+                AppMemberColumns::IS_SUPPORT_ENABLED,
+                false,
             )
             .await?;
 
@@ -324,7 +320,7 @@ impl AppService {
 
         if user.role != target_role {
             self.user_table
-                .update_role_by_pub_id(RoleByPubIdQuery { role: target_role }, packed_user)
+                .update_by_pub_id(packed_user, UserColumns::ROLE, target_role)
                 .await?;
         }
 

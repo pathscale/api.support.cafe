@@ -9,7 +9,7 @@ use tracing::warn;
 use worktable::prelude::SelectQueryExecutor;
 
 use crate::codegen::model::ChatMessage;
-use crate::db::schema::app_config::{AppConfigWorkTable, MessagePersistenceEnabledByPubIdQuery};
+use crate::db::schema::app_config::{AppConfigColumns, AppConfigWorkTable};
 use crate::db::schema::chat_session::ChatSessionWorkTable;
 use crate::db::schema::support_memory_message::{
     SupportMemoryMessageRow, SupportMemoryMessageWorkTable,
@@ -190,11 +190,10 @@ impl MessageStore {
         }
 
         self.app_config_table
-            .update_message_persistence_enabled_by_pub_id(
-                MessagePersistenceEnabledByPubIdQuery {
-                    message_persistence_enabled: false,
-                },
+            .update_by_public_id(
                 app_public_id,
+                AppConfigColumns::MESSAGE_PERSISTENCE_ENABLED,
+                false,
             )
             .await?;
 
@@ -234,11 +233,10 @@ impl MessageStore {
         }
 
         self.app_config_table
-            .update_message_persistence_enabled_by_pub_id(
-                MessagePersistenceEnabledByPubIdQuery {
-                    message_persistence_enabled: true,
-                },
+            .update_by_public_id(
                 app_public_id,
+                AppConfigColumns::MESSAGE_PERSISTENCE_ENABLED,
+                true,
             )
             .await?;
 

@@ -193,7 +193,7 @@ async fn bootstrap_admin_user(
 
     if let Some(mut user) = tables.user_table.select_by_pub_id(packed_id) {
         user.role = UserRole::Admin;
-        tables.user_table.update(user).await?;
+        tables.user_table.replace(user).await?;
         info!("Assigned Admin role for user {user_pub_id}");
         Ok(())
     } else {

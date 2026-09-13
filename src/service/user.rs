@@ -79,7 +79,7 @@ impl UserStorage for UserService {
 
         if let Some(mut user) = self.user_table.select_by_pub_id(packed_id) {
             user.username = user_info_request.username;
-            self.user_table.update(user).await?;
+            self.user_table.replace(user).await?;
         } else {
             self.user_table
                 .insert(UserRow {
