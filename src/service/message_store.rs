@@ -9,7 +9,7 @@ use tracing::warn;
 use worktable::prelude::SelectQueryExecutor;
 
 use crate::codegen::model::ChatMessage;
-use crate::db::schema::app_config::{AppConfigWorkTable, MessagePersistenceEnabledByPubIdQuery};
+use crate::db::schema::app_config::{AppConfigColumns, AppConfigWorkTable};
 use crate::db::schema::chat_session::ChatSessionWorkTable;
 use crate::db::schema::support_memory_message::{
     SupportMemoryMessageRow, SupportMemoryMessageWorkTable,
@@ -136,16 +136,14 @@ impl MessageStore {
         self: Arc<Self>,
         interval: Duration,
         retention: Duration,
-    ) -> tokio::task::JoinHandle<()> {
-        tokio::spawn(async move {
-            let mut ticker = tokio::time::interval(interval);
-
+    ) -> nagoya::JoinHandle<()> {
+        crate::work_runtime().spawn(async move {
             loop {
-                ticker.tick().await;
                 let cutoff = Utc::now().timestamp_millis() - retention.as_millis() as i64;
                 if let Err(e) = self.purge_memory_before(cutoff).await {
                     warn!(error = %e, "failed to purge memory support messages");
                 }
+                nagoya::sleep(interval).await;
             }
         })
     }
@@ -192,11 +190,10 @@ impl MessageStore {
         }
 
         self.app_config_table
-            .update_message_persistence_enabled_by_pub_id(
-                MessagePersistenceEnabledByPubIdQuery {
-                    message_persistence_enabled: false,
-                },
+            .update_by_public_id(
                 app_public_id,
+                AppConfigColumns::MESSAGE_PERSISTENCE_ENABLED,
+                false,
             )
             .await?;
 
@@ -236,11 +233,10 @@ impl MessageStore {
         }
 
         self.app_config_table
-            .update_message_persistence_enabled_by_pub_id(
-                MessagePersistenceEnabledByPubIdQuery {
-                    message_persistence_enabled: true,
-                },
+            .update_by_public_id(
                 app_public_id,
+                AppConfigColumns::MESSAGE_PERSISTENCE_ENABLED,
+                true,
             )
             .await?;
 

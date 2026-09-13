@@ -5,9 +5,7 @@ use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
 use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
 use crate::codegen::model::{EnumErrorCode, SetMyTgHandleRequest, SetMyTgHandleResponse};
-use crate::db::schema::support_info::{
-    ChatIdByUserPubIdQuery, SupportInfoRow, TgHandleByUserPubIdQuery,
-};
+use crate::db::schema::support_info::{SupportInfoColumns, SupportInfoRow};
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
 #[derive(Clone)]
@@ -44,19 +42,11 @@ impl RequestHandler for MethodSetMyTgHandle {
         if let Some(row) = self.support_info_table.select(packed_id) {
             if row.tg_handle != req.tg_handle {
                 self.support_info_table
-                    .update_chat_id_by_user_pub_id(
-                        ChatIdByUserPubIdQuery { chat_id: None },
-                        packed_id,
-                    )
+                    .update_by_user_pub_id(packed_id, SupportInfoColumns::CHAT_ID, None)
                     .await
                     .internal()?;
                 self.support_info_table
-                    .update_tg_handle_by_user_pub_id(
-                        TgHandleByUserPubIdQuery {
-                            tg_handle: req.tg_handle,
-                        },
-                        packed_id,
-                    )
+                    .update_by_user_pub_id(packed_id, SupportInfoColumns::TG_HANDLE, req.tg_handle)
                     .await
                     .internal()?;
             }

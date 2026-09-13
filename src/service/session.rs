@@ -6,7 +6,7 @@ use honey_id_types::id_entities::UserPublicId;
 use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
 
 use crate::codegen::model::ChatMessage;
-use crate::db::schema::chat_session::{ChatSessionRow, ChatSessionWorkTable, ClosedAtByIdQuery};
+use crate::db::schema::chat_session::{ChatSessionColumns, ChatSessionRow, ChatSessionWorkTable};
 use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
 use crate::service::bot::BotService;
 use crate::service::message_store::MessageStore;
@@ -85,12 +85,7 @@ impl ChatSessionService {
 
         let closed_at = Utc::now().timestamp_millis();
         self.chat_session_table
-            .update_closed_at_by_id(
-                ClosedAtByIdQuery {
-                    closed_at: Some(closed_at),
-                },
-                row.id,
-            )
+            .update_by_id(row.id, ChatSessionColumns::CLOSED_AT, Some(closed_at))
             .await?;
 
         tracing::debug!(

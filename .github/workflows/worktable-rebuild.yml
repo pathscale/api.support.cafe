@@ -40,7 +40,7 @@ jobs:
           cache-targets: true
 
       - name: Build recovery binary
-        run: cargo build --release --locked --target x86_64-unknown-linux-musl --features s3-sync --bin worktable_rebuild
+        run: cargo build --release --target x86_64-unknown-linux-musl --features s3-sync --bin worktable_rebuild
 
       - name: Stage recovery binary
         run: cp target/x86_64-unknown-linux-musl/release/worktable_rebuild ./worktable_rebuild
