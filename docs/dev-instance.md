@@ -195,7 +195,9 @@ the certificate can be ready **before** anything is deployed.
    hostname the fleet uses.
 
        curl -o /dev/null -w '%{http_code}' https://<hostname>/
-       bun wstest.ts wss://<hostname>          # expect OPEN protocol=0init
+       cargo run --manifest-path ../EndpointValidator/ws-load-test/Cargo.toml \
+         --bin ws-simple -- --server-url wss://<hostname> --type connection \
+         --num-parallel 1 --num-requests 1 --protocol-header-file <header-file>
 
 6. Swap the A record to Fly's shared IPv4 and release the dedicated one. Only
    now, and only once steps 4 and 5 pass. Prove it works first; save the $2
@@ -270,5 +272,6 @@ Bunny DNS is driven with `hoppy`, and the key is at `~/.config/hoppy/env`:
 fleet zone is on Bunny **except pathscale.com**. `honey.id` is zone `648843`,
 `crates.vip` is `857590`.
 
-There is no Doppler CLI on this machine, and Fly secret values cannot be read
-back, so anything living in Doppler has to be changed there.
+The Doppler CLI is available and authenticated on the development machine.
+Fly secret values cannot be read back, so update shared secrets in Doppler and
+sync them into Fly rather than treating a Fly app as the source of truth.

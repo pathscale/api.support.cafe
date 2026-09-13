@@ -23,11 +23,10 @@ Do not use it as proof of old-format compatibility. Existing beta-upgrade notes
 and rebuild instructions do not override this v3 cutover policy.
 
 Release order: publish the reviewed core dependencies, then WorkTable and its
-matching codegen, then honey_id-types 2.1.0-alpha1 for consumers that use it,
+matching codegen, then honey_id-types 2.1.0 for consumers that use it,
 then this application. Keep endpoint-libs at the matching 2.0.0 API generation.
-Local PR checks use explicit temporary path patches for unpublished releases;
-the committed manifests use registry requirements. Registry-only builds must
-be repeated after publication.
+The committed manifests use registry requirements. Registry-only builds must
+resolve these released versions before this branch lands.
 
 Code review and unit tests do not authorize a live data reset or establish
 production-data validation. The selected destination and bootstrap outcome
