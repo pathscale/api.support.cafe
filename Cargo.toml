@@ -6,6 +6,11 @@ name = "support_cafe"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "worktable_rebuild"
+path = "src/bin/worktable_rebuild.rs"
+required-features = ["s3-sync"]
+
 [dependencies]
 async-trait = "0.1"
 chrono = { version = "0.4", default-features = false, features = ["oldtime", "std", "now"] }
@@ -35,7 +40,7 @@ tokio = { version = "1.48", features = ["full", "rt-multi-thread"] }
 tracing = "0.1"
 url = "2.5.7"
 uuid = { version = "1.18", features = ["v4", "serde"] }
-worktable = { version = "^1.9.0-beta1" }
+worktable = { version = "^1.10.0-beta1" }
 honey_id-types = "^2.1"
 cert-provider = { package = "ps-cert-provider", version = "^0.1", features = ["dns01"], optional = true }
 

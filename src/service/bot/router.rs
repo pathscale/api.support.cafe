@@ -18,7 +18,7 @@ use worktable::prelude::SelectQueryExecutor;
 
 use crate::db::schema::app_member::AppMemberWorkTable;
 use crate::db::schema::chat_session::ChatSessionWorkTable;
-use crate::db::schema::support_info::{ChatIdByTgHandleQuery, SupportInfoWorkTable};
+use crate::db::schema::support_info::{SupportInfoColumns, SupportInfoWorkTable};
 use crate::db::schema::support_message::SupportMessageRow;
 use crate::handlers::utils::routing_message::RoutingMessage;
 use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
@@ -437,12 +437,7 @@ impl UpdateHandler for BotUpdateHandler {
             {
                 if let Err(e) = self
                     .support_info_table
-                    .update_chat_id_by_tg_handle(
-                        ChatIdByTgHandleQuery {
-                            chat_id: Some(chat_id),
-                        },
-                        handle_str,
-                    )
+                    .update_by_tg_handle(handle_str, SupportInfoColumns::CHAT_ID, Some(chat_id))
                     .await
                 {
                     warn!("Error updating support chat_id: {e:?}");

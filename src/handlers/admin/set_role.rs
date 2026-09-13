@@ -5,7 +5,7 @@ use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
 use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
 use crate::codegen::model::{SetRoleRequest, SetRoleResponse};
-use crate::db::schema::user::{RoleByPubIdQuery, UserWorkTable};
+use crate::db::schema::user::{UserColumns, UserWorkTable};
 use crate::db::util::PackedUserPubId;
 
 #[derive(Clone)]
@@ -31,7 +31,7 @@ impl RequestHandler for MethodSetRole {
             .internal()?;
 
         self.user_table
-            .update_role_by_pub_id(RoleByPubIdQuery { role: req.role }, packed_pub_id)
+            .update_by_pub_id(packed_pub_id, UserColumns::ROLE, req.role)
             .await
             .map_err(|e| eyre::eyre!("Failed to update role: {}", e))
             .internal()?;
