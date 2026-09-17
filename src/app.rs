@@ -164,7 +164,7 @@ impl App {
                     Err(error) => error!(%error, "Failed to flush all WorkTable persistence operations"),
                 }
             },
-            _ = tokio::time::sleep(Duration::from_secs(15)) => {
+            _ = nagoya::sleep(Duration::from_secs(15)) => {
                 std::process::exit(20);
             }
         };

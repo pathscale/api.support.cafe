@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tokio::sync::RwLock;
+use nagoya::sync::RwLock;
 
 use crate::id_types::AppPublicId;
 

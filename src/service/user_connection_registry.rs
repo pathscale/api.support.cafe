@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use honey_id_types::id_entities::UserPublicId;
-use tokio::sync::RwLock;
+use nagoya::sync::RwLock;
 
 pub type ConnectionId = u32;
 

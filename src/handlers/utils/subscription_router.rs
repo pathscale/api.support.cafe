@@ -6,7 +6,7 @@ use endpoint_libs::libs::toolbox::{RequestContext, Toolbox};
 use endpoint_libs::libs::ws::SubscriptionManager;
 use futures::{Stream, StreamExt};
 use serde::Serialize;
-use tokio::sync::RwLock;
+use nagoya::sync::RwLock;
 
 use super::receiver::Receiver;
 use super::routing_message::RoutingMessage;
