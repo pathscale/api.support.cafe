@@ -10,42 +10,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-paths:
+  # Deploy when the version changes, not when a file changes.
+  #
+  # A refactor moves plenty under `src/` and ships nothing anyone asked for.
+  # Bumping `version` is an explicit "ship this", so that is the trigger.
+  version-check:
     runs-on: ubicloud-standard-2
-    permissions:
-      contents: read
     outputs:
-      deploy-needed: ${{ steps.check.outputs.deploy-needed }}
+      changed: ${{ steps.check.outputs.changed }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 2
-
-      - name: Check which paths changed
-        id: check
+      - id: check
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "deploy-needed=true" >> $GITHUB_OUTPUT
+          OLD=$(git diff HEAD^ HEAD Cargo.toml | sed -n 's/^-version = "\(.*\)"/\1/p')
+          NEW=$(git diff HEAD^ HEAD Cargo.toml | sed -n 's/^+version = "\(.*\)"/\1/p')
+          if [ -n "$NEW" ]; then
+            echo "$OLD -> $NEW"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           else
-            CHANGED=$(git diff --name-only HEAD~1 HEAD)
-            if echo "$CHANGED" | grep -qE '^(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|src/|fly.toml|Dockerfile\.ci|\.github/workflows/ci\.yml|\.github/workflows/prod\.yml)'; then
-              echo "deploy-needed=true" >> $GITHUB_OUTPUT
-            else
-              echo "deploy-needed=false" >> $GITHUB_OUTPUT
-            fi
+            echo "version unchanged, nothing to deploy"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
   fly-deploy:
-    needs: check-paths
-    if: |
-      !cancelled() &&
-      needs.check-paths.outputs.deploy-needed == 'true'
+    needs: version-check
+    if: needs.version-check.outputs.changed == 'true'
     runs-on: ubicloud-standard-4
     permissions:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set version and image
         run: |
@@ -97,7 +94,7 @@ jobs:
             /home/runner/target/x86_64-unknown-linux-musl/release/deps
             /home/runner/target/x86_64-unknown-linux-musl/release/.fingerprint
             /home/runner/target/x86_64-unknown-linux-musl/release/build
-          key: nf-target-muls-deps2-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/rust-toolchain.toml') }}
+          key: nf-target-muls-deps2-${{ runner.os }}-${{ hashFiles('**/Cargo.toml') }}-${{ hashFiles('**/rust-toolchain.toml') }}
           restore-keys: |
             nf-target-muls-deps2-${{ runner.os }}
 
@@ -108,7 +105,7 @@ jobs:
           WS_SERVER_NAME: SupportCafeServer/${{ github.run_number }}-${{ env.VERSION }}
         run: |
           cargo sweep --stamp
-          cargo build --release --locked --target x86_64-unknown-linux-musl --features s3-sync,acme,cert-s3-sync
+          cargo build --release --target x86_64-unknown-linux-musl --features s3-sync,acme,cert-s3-sync
           cargo sweep --file
 
       - name: Copy binary into build context

@@ -4,7 +4,7 @@
 #   a caret range, so any 1.x >= 1.10.1 satisfies it.
 # libs:   the concrete endpoint-libs version this repo builds against. It must
 #   satisfy the requirement the binary was compiled with (endpoint-gen 1.10.1+
-#   requires ^2.0). Keep it in sync with Cargo.lock.
+#   requires ^2.0). Keep it in sync with the resolved Cargo graph.
 
 [binary]
 version = "1.10.1"
