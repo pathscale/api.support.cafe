@@ -156,7 +156,7 @@ impl App {
 
         // no matter if it was server issue or thread return signal, go with graceful termination procedure
         self.ctx.bot_service.shutdown().await;
-        message_purge_task.abort();
+        message_purge_task.cancel();
         tokio::select! {
             result = self.ctx.db.wait_for_ops() =>{
                 match result {
@@ -193,7 +193,7 @@ async fn bootstrap_admin_user(
 
     if let Some(mut user) = tables.user_table.select_by_pub_id(packed_id) {
         user.role = UserRole::Admin;
-        tables.user_table.update(user).await?;
+        tables.user_table.replace(user).await?;
         info!("Assigned Admin role for user {user_pub_id}");
         Ok(())
     } else {

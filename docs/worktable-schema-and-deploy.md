@@ -1,5 +1,7 @@
 # WorkTable schema changes and deployment
 
+> Current release: follow [the v3 cutover](worktable-v3-cutover.md). Old stores are deliberately refused; recreate regenerable data explicitly or convert it with the old reader.
+
 > **A WorkTable schema change is a deployment event, not just a code change.**
 > If the schema moves, upgrading versions and deploying becomes significantly
 > more complicated, and the change **must** ship with a WT data migration script.
@@ -38,7 +40,7 @@ Run these against the branch you are about to merge:
 git diff <base>..HEAD -- 'src/db/**'
 
 # 2. Did the worktable crate version move? (source-free schema change)
-git diff <base>..HEAD -- Cargo.toml Cargo.lock | grep -i worktable
+git diff <base>..HEAD -- Cargo.toml | grep -i worktable
 
 # 3. Which tables actually persist? Only these need a migration.
 grep -rn "persist: *true" src/
@@ -51,7 +53,7 @@ migration script is required.
 
 Checked, and clean: no migration was needed. That port changed only the
 `endpoint-libs` and `honey_id-types` versions. `worktable` was verified
-untouched in `Cargo.toml`, `Cargo.lock` and all of `src/`.
+untouched in `Cargo.toml` and all of `src/`.
 
 The point of recording this is not the result but the check. **Do not assume a
 dependency upgrade leaves WorkTable alone because it looks unrelated** — a
@@ -77,7 +79,7 @@ before switching production data:
 
 ```bash
 WORKTABLE_REBUILD_TARGET_PREFIX=db-beta18 \
-  cargo run --release --locked --features s3-sync \
+  cargo run --release --features s3-sync \
   --bin worktable_rebuild
 ```
 
@@ -85,3 +87,24 @@ Keep the old prefix unchanged until the beta18 service has cold-started from
 the rebuilt prefix and the six reported row counts have been compared with the
 source. Rollback is selecting the old prefix and redeploying the previous
 image.
+
+## Precedent — WorkTable beta18 to beta19, 2026-09-05
+
+WorkTable moved from `1.0.0-beta.18` to `1.0.0-beta.19`; the seven local
+`worktable!` definitions did not change. Beta19 keeps the same persisted WTI
+index format while changing the in-memory backend and reclamation plumbing.
+The release compatibility path was exercised against AgencyZero's real beta18
+QA database: first launch and reopen both succeeded without a manual rewrite.
+
+This service still uses the rollback-safe rebuild runner because its source of
+truth is an S3 prefix. Rebuild into a distinct prefix, compare the six reported
+row counts, then switch the service only after a cold start from that prefix:
+
+```bash
+WORKTABLE_REBUILD_TARGET_PREFIX=db-beta19 \
+  cargo run --release --features s3-sync \
+  --bin worktable_rebuild
+```
+
+Keep the beta18 prefix unchanged for rollback until beta19 has been validated
+in production.

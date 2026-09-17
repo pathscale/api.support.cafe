@@ -13,7 +13,7 @@ use super::routing_message::RoutingMessage;
 
 pub struct SubscriptionRouter<K, M> {
     event_manager: Arc<RwLock<SubscriptionManager<(), K>>>,
-    _task_handle: tokio::task::JoinHandle<()>,
+    _task_handle: nagoya::JoinHandle<()>,
     _marker: PhantomData<M>,
 }
 
@@ -30,7 +30,7 @@ where
         let event_manager_clone = event_manager.clone();
         let toolbox_clone = toolbox.clone();
 
-        let task_handle = tokio::spawn(async move {
+        let task_handle = crate::work_runtime().spawn(async move {
             let mut stream = stream;
             while let Some(msg) = stream.next().await {
                 match msg.receiver {
