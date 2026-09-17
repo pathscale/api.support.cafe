@@ -36,8 +36,8 @@ impl BotService {
         }
     }
 
-    pub async fn take_event_stream(&self) -> eyre::Result<SupportEventStream> {
-        self.bot_router.take_event_stream().await
+    pub fn take_event_stream(&self) -> eyre::Result<SupportEventStream> {
+        self.bot_router.take_event_stream()
     }
 
     pub async fn register_bot(
