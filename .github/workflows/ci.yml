@@ -24,14 +24,10 @@ jobs:
           fetch-depth: 2
       - id: check
         run: |
-          NEW=$(grep -m1 -E '^version *=' Cargo.toml)
-          OLD=$(git show HEAD^:Cargo.toml 2>/dev/null | grep -m1 -E '^version *=')
-          echo "was: $OLD"
-          echo "now: $NEW"
-          if [ "$NEW" = "$OLD" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
+          if git diff HEAD^ HEAD -- Cargo.toml | grep -qE '^\+version *='; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
   fly-deploy:
