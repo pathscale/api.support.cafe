@@ -180,10 +180,10 @@ As it stands this app is the passthrough shape, `[[services]]` with
 A dedicated v4 costs $2/mo and buys nothing. Fly routes a shared address by
 reading the TLS ClientHello SNI, so it never has to decrypt: a raw TCP
 passthrough service (`handlers = []`, app owns the certificate) routes on a
-shared address exactly as an `[http_service]` one does. Measured on
-`api-honey-id-master-fly`, which is passthrough: through its shared address it
-answered 200, served its own certificate, and negotiated ALPN `h2` identically
-to its dedicated one.
+shared address exactly as an `[http_service]` one does. Measured on another
+passthrough app in the fleet: through its shared address it answered 200,
+served its own certificate, and negotiated ALPN `h2` identically to its
+dedicated one.
 
 ```
 fly ips allocate-v4 --shared -a <app>
