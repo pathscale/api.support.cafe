@@ -5,8 +5,8 @@ use std::sync::Arc;
 use endpoint_libs::libs::toolbox::{RequestContext, Toolbox};
 use endpoint_libs::libs::ws::SubscriptionManager;
 use futures::{Stream, StreamExt};
-use serde::Serialize;
 use nagoya::sync::RwLock;
+use serde::Serialize;
 
 use super::receiver::Receiver;
 use super::routing_message::RoutingMessage;

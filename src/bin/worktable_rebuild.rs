@@ -2,9 +2,11 @@ use std::path::Path;
 
 use eyre::{Result, WrapErr};
 use support_cafe::config;
+use support_cafe::db::message_partitions::partition_table_name;
 use support_cafe::db::schema::{
     app_config::{AppConfigS3SyncPersistenceEngine, AppConfigWorkTable},
     app_member::{AppMemberS3SyncPersistenceEngine, AppMemberWorkTable},
+    app_slot::{AppSlotS3SyncPersistenceEngine, AppSlotWorkTable},
     chat_session::{ChatSessionS3SyncPersistenceEngine, ChatSessionWorkTable},
     support_info::{SupportInfoS3SyncPersistenceEngine, SupportInfoWorkTable},
     support_message::{SupportMessageS3SyncPersistenceEngine, SupportMessageWorkTable},
@@ -62,12 +64,17 @@ async fn rebuild(config: config::Config, target_prefix: String) -> Result<()> {
 
     println!("rebuilding persisted tables into S3 prefix {target_prefix}");
 
-    macro_rules! rebuild_table {
-        ($label:literal, $engine:ty, $table:ty) => {{
+    // Rebuild the table stored under an explicit directory name, and hand back
+    // its rows. The name is a parameter rather than `name_snake_case()` because
+    // `support_message` is no longer one directory: it is partitioned, one
+    // directory per app, named by slot.
+    macro_rules! rebuild_named {
+        ($label:expr, $engine:ty, $table:ty, $name:expr) => {{
+            let table_name: String = $name;
             let source_config = S3DiskConfig {
                 disk: DiskConfig::new_with_table_name(
                     source_root.clone(),
-                    <$table>::name_snake_case(),
+                    &table_name,
                     <$table>::version(),
                 ),
                 s3: source_s3.clone(),
@@ -80,7 +87,7 @@ async fn rebuild(config: config::Config, target_prefix: String) -> Result<()> {
             let target_config = S3DiskConfig {
                 disk: DiskConfig::new_with_table_name(
                     target_root.clone(),
-                    <$table>::name_snake_case(),
+                    &table_name,
                     <$table>::version(),
                 ),
                 s3: target_s3.clone(),
@@ -89,11 +96,23 @@ async fn rebuild(config: config::Config, target_prefix: String) -> Result<()> {
             let mut target = <$table>::new(target_engine).await?;
             target.0.pk_gen = PrimaryKeyGeneratorState::from_state(pk_state);
             let row_count = rows.len();
-            for row in rows {
-                target.insert(row).await?;
+            for row in &rows {
+                target.insert(row.clone()).await?;
             }
             target.wait_for_ops().await?;
             println!("rebuilt {} rows={row_count}", $label);
+            rows
+        }};
+    }
+
+    macro_rules! rebuild_table {
+        ($label:literal, $engine:ty, $table:ty) => {{
+            rebuild_named!(
+                $label,
+                $engine,
+                $table,
+                <$table>::name_snake_case().to_string()
+            )
         }};
     }
 
@@ -112,11 +131,18 @@ async fn rebuild(config: config::Config, target_prefix: String) -> Result<()> {
         ChatSessionS3SyncPersistenceEngine,
         ChatSessionWorkTable
     );
-    rebuild_table!(
-        "support_message",
-        SupportMessageS3SyncPersistenceEngine,
-        SupportMessageWorkTable
-    );
+    // The slot registry first: it is the list of message partitions that exist,
+    // and without it the rebuilt prefix would have message directories no
+    // process could route to.
+    let app_slots = rebuild_table!("app_slot", AppSlotS3SyncPersistenceEngine, AppSlotWorkTable);
+    for row in &app_slots {
+        rebuild_named!(
+            format!("support_message_p{}", row.slot),
+            SupportMessageS3SyncPersistenceEngine,
+            SupportMessageWorkTable,
+            partition_table_name(row.slot)
+        );
+    }
     rebuild_table!(
         "support_info",
         SupportInfoS3SyncPersistenceEngine,
