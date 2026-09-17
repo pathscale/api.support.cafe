@@ -23,7 +23,6 @@ pub async fn register_handlers(server: &mut WebsocketServer, ctx: &AppCtx) {
     let event_stream = ctx
         .bot_service
         .take_event_stream()
-        .await
         .expect("event stream already taken");
     let event_router = Arc::new(SubscriptionRouter::new(
         1,

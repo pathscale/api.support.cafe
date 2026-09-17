@@ -4,15 +4,16 @@ use std::sync::Arc;
 use crate::codegen::model::AppMemberRole;
 use crate::codegen::model::ChatMessage;
 use chrono::Utc;
-use crossfire::spsc::{One, new};
+use crossfire::mpsc::{One, new};
 use crossfire::stream::AsyncStream;
-use crossfire::{AsyncRx, AsyncTx};
+use crossfire::{AsyncRx, MAsyncTx};
 use eyre::Result;
+use nagoya::sync::RwLock;
+use parking_lot::Mutex as StdMutex;
 use serde::Serialize;
 use tgbot::api::Client;
 use tgbot::handler::{LongPoll, UpdateHandler};
 use tgbot::types::{ChatPeerId, Command, ReplyTo, SendMessage, Update, UpdateType};
-use tokio::sync::{Mutex, RwLock};
 use tracing::{info, warn};
 use worktable::prelude::SelectQueryExecutor;
 
@@ -26,10 +27,18 @@ use crate::service::message_store::MessageStore;
 
 pub type SessionKey = (AppPublicId, SessionId);
 
-pub type SupportEventTx = AsyncTx<One<RoutingMessage<SessionKey, ChatMessage>>>;
+pub type SupportEventTx = MAsyncTx<One<RoutingMessage<SessionKey, ChatMessage>>>;
 pub type SupportEventRx = AsyncRx<One<RoutingMessage<SessionKey, ChatMessage>>>;
 pub type SupportEventStream = AsyncStream<One<RoutingMessage<SessionKey, ChatMessage>>>;
-pub type SupportEventProducer = Arc<Mutex<SupportEventTx>>;
+
+/// The sender, shared as itself.
+///
+/// It used to be an `Arc<Mutex<_>>` over a single-producer sender, which is
+/// what a single-producer channel costs when every bot is a producer: one
+/// global lock, held across the send, serialising every app's events behind
+/// every other app's. An mpsc sender is `Clone` and `Sync`, so there is nothing
+/// left to serialise and nothing left to lock.
+pub type SupportEventProducer = SupportEventTx;
 
 #[derive(Clone, Debug, Serialize)]
 pub enum BotStatus {
@@ -42,7 +51,10 @@ pub enum BotStatus {
 pub struct BotRouter {
     bots: RwLock<HashMap<AppPublicId, BotInstance>>,
     event_tx: SupportEventProducer,
-    event_rx: Mutex<Option<SupportEventRx>>,
+    /// A plain mutex, and not an async one: the receiver is taken exactly once
+    /// and `take` does not await. An async lock here would also not compile,
+    /// because an `AsyncRx` is deliberately not `Sync`.
+    event_rx: StdMutex<Option<SupportEventRx>>,
     app_member_table: Arc<AppMemberWorkTable>,
     chat_session_table: Arc<ChatSessionWorkTable>,
     support_info_table: Arc<SupportInfoWorkTable>,
@@ -57,11 +69,11 @@ impl BotRouter {
         message_store: Arc<MessageStore>,
     ) -> Self {
         let (tx, rx) =
-            new::<One<RoutingMessage<SessionKey, ChatMessage>>, AsyncTx<_>, AsyncRx<_>>();
+            new::<One<RoutingMessage<SessionKey, ChatMessage>>, MAsyncTx<_>, AsyncRx<_>>();
         Self {
             bots: RwLock::new(HashMap::new()),
-            event_tx: Arc::new(Mutex::new(tx)),
-            event_rx: Mutex::new(Some(rx)),
+            event_tx: tx,
+            event_rx: StdMutex::new(Some(rx)),
             app_member_table,
             chat_session_table,
             support_info_table,
@@ -69,10 +81,9 @@ impl BotRouter {
         }
     }
 
-    pub async fn take_event_stream(&self) -> eyre::Result<SupportEventStream> {
+    pub fn take_event_stream(&self) -> eyre::Result<SupportEventStream> {
         self.event_rx
             .lock()
-            .await
             .take()
             .map(|rx| rx.into_stream())
             .ok_or_else(|| eyre::eyre!("event stream already taken"))
@@ -165,8 +176,6 @@ impl BotRouter {
         let key = (app_public_id, session_id);
         let _ = self
             .event_tx
-            .lock()
-            .await
             .send(RoutingMessage::for_concrete(key, event))
             .await;
 
@@ -238,6 +247,10 @@ impl BotInstance {
         let app_id_clone = handler.app_public_id;
         let client_for_poll = client.clone();
 
+        // Stays on tokio, and not by omission. This task is Telegram long
+        // polling: it is sockets end to end, and nagoya has no I/O driver and
+        // is not getting one. tokio is the reactor; nagoya took the parts of
+        // this file that are scheduling rather than I/O.
         let handle = tokio::spawn(async move {
             let client_inner = Arc::unwrap_or_clone(client_for_poll);
             LongPoll::new(client_inner, handler.clone()).run().await;
@@ -411,8 +424,6 @@ impl UpdateHandler for BotUpdateHandler {
                     let key = (self.app_public_id, session_id);
                     let _ = self
                         .event_tx
-                        .lock()
-                        .await
                         .send(RoutingMessage::for_concrete(key, event))
                         .await;
                 } else {
