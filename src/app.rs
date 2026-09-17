@@ -57,6 +57,7 @@ impl App {
             db.chat_session_table.clone(),
             db.support_message_table.clone(),
             db.support_memory_message_table.clone(),
+            db.app_slot_table.clone(),
         ));
         let user_service = Arc::new(UserService::new(
             db.user_table.clone(),

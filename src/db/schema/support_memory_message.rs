@@ -1,14 +1,14 @@
-use async_trait::async_trait;
 use worktable::prelude::*;
 use worktable::worktable;
 
 use crate::db::schema::support_message::SupportMessageRow;
-use crate::db::util::PurgeableTable;
 use crate::id_types::PackedNanoId;
 
 worktable!(
     name: SupportMemoryMessage,
     persist: false,
+    partition_by: app_slot: u32,
+    partition_max_size: u64,
     columns: {
         id: i64 primary_key autoincrement,
         message_id: PackedNanoId,
@@ -23,7 +23,10 @@ worktable!(
     indexes: {
         message_id_idx: message_id unique using worktables_index,
         session_id_idx: session_id using worktables_index,
-        app_public_id_idx: app_public_id using worktables_index,
+        // No `app_public_id` index. A partition holds exactly one app, so an
+        // index on it would be an index over a column that never varies: every
+        // lookup returns the whole partition and every insert pays to maintain
+        // it. `select_all` on the partition is the same answer for no upkeep.
         sent_at_idx: sent_at,
     }
 );
@@ -57,20 +60,5 @@ impl From<SupportMemoryMessageRow> for SupportMessageRow {
             content: row.content,
             tg_chat_id: row.tg_chat_id,
         }
-    }
-}
-
-#[async_trait]
-impl PurgeableTable for SupportMemoryMessageWorkTable {
-    async fn purge(&self, purge_all_before_ms: i64) -> eyre::Result<()> {
-        let rows = self
-            .select_by_sent_at_range(..purge_all_before_ms)
-            .execute()?;
-
-        for row in rows {
-            self.delete(row.id).await?;
-        }
-
-        Ok(())
     }
 }

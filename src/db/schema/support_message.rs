@@ -10,6 +10,8 @@ worktable!(
     name: SupportMessage,
     version: 2,
     persist: true,
+    partition_by: app_slot: u32,
+    partition_max_size: u64,
     columns: {
         id: i64 primary_key autoincrement,
         message_id: PackedNanoId,
@@ -24,7 +26,10 @@ worktable!(
     indexes: {
         message_id_idx: message_id unique using worktables_index,
         session_id_idx: session_id using worktables_index,
-        app_public_id_idx: app_public_id using worktables_index,
+        // No `app_public_id` index. A partition holds exactly one app, so an
+        // index on it would be an index over a column that never varies: every
+        // lookup returns the whole partition and every insert pays to maintain
+        // it. `select_all` on the partition is the same answer for no upkeep.
         sent_at_idx: sent_at,
     }
 );
