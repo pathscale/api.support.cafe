@@ -3,21 +3,6 @@ name: CI
 on:
   push:
     branches: [master]
-    # GitHub already answers "did anything deployable change" from the push
-    # itself. A job that clones the whole history onto its own runner to work
-    # the same thing out is slower, costs a second runner, and had two ways to
-    # get it wrong: it compared HEAD~1 against HEAD, so a rebase merge landing
-    # several commits at once only examined the last of them and silently
-    # skipped the deploy. `workflow_dispatch` has no paths filter and still
-    # deploys unconditionally, which is what it is for.
-    paths:
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'rust-toolchain.toml'
-      - 'src/**'
-      - 'fly.toml'
-      - 'Dockerfile.ci'
-      - '.github/workflows/ci.yml'
   workflow_dispatch:
 
 concurrency:
@@ -25,7 +10,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Deploy when the version changes, not when a file changes.
+  #
+  # A refactor moves plenty under `src/` and ships nothing anyone asked for.
+  # Bumping `version` is an explicit "ship this", so that is the trigger.
+  version-check:
+    runs-on: ubicloud-standard-2
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: check
+        run: |
+          NEW=$(grep -m1 -E '^version *=' Cargo.toml)
+          OLD=$(git show HEAD^:Cargo.toml 2>/dev/null | grep -m1 -E '^version *=')
+          echo "was: $OLD"
+          echo "now: $NEW"
+          if [ "$NEW" = "$OLD" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
   fly-deploy:
+    needs: version-check
+    if: needs.version-check.outputs.changed == 'true'
     runs-on: ubicloud-standard-4
     permissions:
       contents: read
