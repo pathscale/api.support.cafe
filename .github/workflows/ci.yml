@@ -24,9 +24,13 @@ jobs:
           fetch-depth: 2
       - id: check
         run: |
-          if git diff HEAD^ HEAD -- Cargo.toml | grep -qE '^\+version *='; then
+          OLD=$(git diff HEAD^ HEAD Cargo.toml | sed -n 's/^-version = "\(.*\)"/\1/p')
+          NEW=$(git diff HEAD^ HEAD Cargo.toml | sed -n 's/^+version = "\(.*\)"/\1/p')
+          if [ -n "$NEW" ]; then
+            echo "$OLD -> $NEW"
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
+            echo "version unchanged, nothing to deploy"
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
