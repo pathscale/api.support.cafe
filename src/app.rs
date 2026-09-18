@@ -195,10 +195,24 @@ async fn bootstrap_admin_user(
         user.role = UserRole::Admin;
         tables.user_table.replace(user).await?;
         info!("Assigned Admin role for user {user_pub_id}");
-        Ok(())
     } else {
-        eyre::bail!(
-            "Configured admin user does not exist in database. Sign up first, then restart the server"
-        )
+        // Not fatal, because it cannot be satisfied on a store that has no
+        // users yet. The old behaviour was to bail with "Sign up first, then
+        // restart the server", which asks for something impossible: signing up
+        // goes through this server, and this server refuses to start until
+        // somebody has signed up. Any empty store was therefore unbootable,
+        // which is how a fresh S3 prefix turned into a crash loop.
+        //
+        // Skipping leaves the account unpromoted rather than absent, and the
+        // next start picks it up once the user exists. That matches what the
+        // id means to honey.id, whose own documentation calls it "the Public
+        // ID of the user that will be the first Admin within the app": a
+        // statement about who becomes admin, not a precondition for running.
+        warn!(
+            %user_pub_id,
+            "Configured admin is not in the database yet, so no role was assigned. \
+             Sign up with this account and restart to promote it."
+        );
     }
+    Ok(())
 }
