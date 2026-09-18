@@ -18,18 +18,30 @@ kill_timeout = "30s"
 [build]
 
 [env]
-  CAFE__S3__PREFIX = "db-beta17-20260904-0216"
+  # Rolled deliberately. The store under the previous prefix is page format v2
+  # and worktable 1.10.0-beta1 reads only v3, with no v2 path in any mode, so
+  # the service crash looped on every boot. This abandons that data and starts
+  # an empty v3 store. The old prefix is left in the bucket rather than deleted
+  # object by object, so it remains recoverable if anyone wants it later.
+  CAFE__S3__PREFIX = "db-v3-20260918-0400"
+  # Plain HTTP behind Fly's TLS.
+  CAFE__SERVER__ADDRESS = "0.0.0.0:8080"
+  CAFE__SERVER__INSECURE = "true"
 
-[[services]]
-  internal_port = 443
-  protocol = "tcp"
+# TLS is Fly's now, not this app's. It used to terminate its own on 443 with
+# handlers = [], which is what made a failed start look like a network fault:
+# the proxy accepts the connection and there is nothing behind it to answer a
+# ClientHello, so the client sees a silent close rather than an error.
+#
+# Following api-crates-vip-master-fly, which has always run this way. The point
+# is not only the operational one: terminating TLS here is what puts rustls and
+# the ACME client in the dependency graph, and neither of them can be no_std.
+[http_service]
+  internal_port = 8080
+  force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 1
-
-[[services.ports]]
-  port = 443
-  handlers = []
 
 [[vm]]
   memory = '512mb'
