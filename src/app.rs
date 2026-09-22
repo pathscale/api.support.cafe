@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::service::log::LogService;
-use endpoint_libs::libs::signal::wait_for_signals;
 use endpoint_libs::libs::ws::WebsocketServer;
 use endpoint_libs::libs::ws::mcp::McpServerInfo;
 use eyre::Result;
@@ -130,8 +129,6 @@ impl App {
             Duration::from_secs(24 * 60 * 60),
         );
 
-        use tokio::signal::unix::{SignalKind, signal};
-
         let mut server = WebsocketServer::new(self.ctx.config.server.clone().into());
         self.register_handlers(&mut server).await;
 
@@ -147,15 +144,19 @@ impl App {
             },
         )?;
 
-        let mut sigterm = signal(SignalKind::terminate())?;
-        let mut sigint = signal(SignalKind::interrupt())?;
+        // `listen` blocks until a signal arrives, and owns everything that used
+        // to be arranged out here. It builds its own reactor, registers SIGTERM
+        // and SIGINT *on that reactor* and returns when either fires.
+        //
+        // The signals have to be created inside it: a nagoya `Signal` only
+        // fires while its own reactor is polled, so one registered out here
+        // would be a wait that never ends. That is why there is no `select!`
+        // left, and why the app no longer touches `tokio::signal`.
+        server.listen()?;
 
-        tokio::select! {
-            _ = server.listen() => {},
-            _ = wait_for_signals(&mut sigterm, &mut sigint) => {}
-        };
-
-        // no matter if it was server issue or thread return signal, go with graceful termination procedure
+        // Reached only once the server has stopped accepting, so this is the
+        // graceful termination path for both causes, a signal and a server
+        // error alike.
         self.ctx.bot_service.shutdown().await;
         message_purge_task.cancel();
         tokio::select! {

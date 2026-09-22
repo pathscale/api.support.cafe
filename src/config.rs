@@ -23,8 +23,6 @@ pub struct Config {
     pub honey_id: HoneyIdConfig,
     #[cfg(feature = "s3-sync")]
     pub s3: S3Config,
-    #[cfg(feature = "acme")]
-    pub acme: AcmeConfig,
 }
 
 #[derive(Clone, Debug, SmartDefault, Deserialize)]
@@ -59,12 +57,28 @@ pub struct ServerConfig {
 
 impl From<ServerConfig> for WsServerConfig {
     fn from(c: ServerConfig) -> Self {
+        // The four certificate fields are accepted and dropped on the floor.
+        //
+        // This server does not terminate TLS any more; Fly does, and forwards
+        // plain HTTP to `internal_port`. endpoint-libs 3 enforces that: its
+        // `refuse_tls_config` makes a set `pub_certs` or `priv_key` a *startup
+        // error*, on the reasoning that silently serving plaintext to an
+        // operator who configured a key is the worse failure. Correct, and also
+        // a crash loop if any of these is still set in Doppler, which is not
+        // visible from here.
+        //
+        // `insecure` goes the same way. It used to pick between the TLS and
+        // plaintext listeners; there is only one listener now, so endpoint-libs
+        // deprecated the field and ignores it.
+        //
+        // So none of them are forwarded. They stay on the struct because
+        // `deny_unknown_fields` is on: deleting them would turn a stale
+        // `CAFE__SERVER__CERT` from a value nobody reads into a config parse
+        // failure, which is the same crash loop by another route. They can go
+        // once the deployed config is known to be clean.
         WsServerConfig {
             name: c.name,
             address: c.address,
-            pub_certs: c.cert.map(|p| vec![p]).or(c.pub_certs),
-            priv_key: c.key.or(c.priv_key),
-            insecure: c.insecure,
             ..Default::default()
         }
     }
@@ -171,60 +185,6 @@ pub struct S3Config {
 
 #[cfg(feature = "s3-sync")]
 impl S3Config {
-    pub fn is_configured(&self) -> bool {
-        self.access_key.is_some() && self.secret_key.is_some()
-    }
-}
-
-/// ACME certificate provisioning configuration.
-#[cfg(feature = "acme")]
-#[derive(Clone, Debug, SmartDefault, Deserialize)]
-#[serde(deny_unknown_fields, default)]
-pub struct AcmeConfig {
-    #[default("certs@pathscale.com".to_string())]
-    pub email: String,
-    #[default("api.support.cafe".to_string())]
-    pub domains: String,
-    #[default(true)]
-    pub production: bool,
-    pub bunny_api_key: Option<String>,
-    #[cfg(feature = "cert-s3-sync")]
-    pub cert_s3: CertS3Config,
-}
-
-#[cfg(feature = "acme")]
-impl AcmeConfig {
-    pub fn is_enabled(&self) -> bool {
-        self.bunny_api_key.is_some()
-    }
-
-    pub fn domains_vec(&self) -> Vec<String> {
-        self.domains
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect()
-    }
-}
-
-/// S3 cert sync configuration for ACME.
-#[cfg(feature = "cert-s3-sync")]
-#[derive(Clone, Debug, SmartDefault, Deserialize)]
-#[serde(deny_unknown_fields, default)]
-pub struct CertS3Config {
-    #[default("tg-support-db".to_string())]
-    pub bucket_name: String,
-    #[default("https://t3.storage.dev".to_string())]
-    pub endpoint: String,
-    pub access_key: Option<String>,
-    pub secret_key: Option<String>,
-    #[default("certs".to_string())]
-    pub prefix: String,
-    pub region: Option<String>,
-}
-
-#[cfg(feature = "cert-s3-sync")]
-impl CertS3Config {
     pub fn is_configured(&self) -> bool {
         self.access_key.is_some() && self.secret_key.is_some()
     }

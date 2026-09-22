@@ -9,8 +9,7 @@ fn main() -> Result<()> {
         .install_default()
         .map_err(|_| eyre::eyre!("Failed to install rustls crypto provider"))?;
 
-    #[allow(unused_mut)]
-    let mut config = config::load()?;
+    let config = config::load()?;
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(config.runtime.threads)
@@ -29,12 +28,13 @@ fn main() -> Result<()> {
         })?;
 
         let _log_guards = log_setup.log_guards;
-        let _otel_guards = log_setup.otel_guards;
+        // No OTel guard to hold: endpoint-libs 3 removed OTLP export, so
+        // `LogSetupReturn` no longer carries one. `otel_config.enabled` is still
+        // accepted and warns at startup, which is why the config below is left
+        // as it is rather than deleted; exporting again is a decision about
+        // where traces go, not about this binding.
         let log_service =
             std::sync::Arc::new(LogService::new(log_setup.reload_handle, config.log.level));
-
-        #[cfg(feature = "acme")]
-        let _acme_guard = support_cafe::acme::init_acme(&mut config).await?;
 
         let app = App::init(config, log_service).await?;
         app.run().await
