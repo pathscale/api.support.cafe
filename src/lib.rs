@@ -23,6 +23,3 @@ pub(crate) fn work_runtime() -> &'static nagoya::runtime::Runtime {
         )
     })
 }
-
-#[cfg(feature = "acme")]
-pub mod acme;
