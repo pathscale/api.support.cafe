@@ -23,3 +23,7 @@ docs/dev-docs
 
 .vscode/settings.json
 verify_out/
+
+# Not tracked: every crate here is a binary, but the fleet resolves fresh so a
+# stale lock cannot silently hold back a published dependency.
+Cargo.lock
