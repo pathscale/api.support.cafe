@@ -18,7 +18,7 @@ clap = { version = "4.5", features = ["derive"] }
 config = { version = "0.15", default-features = false, features = ["toml"] }
 crossfire = { version = "3.1.10", features = ["tokio"] }
 derive_more = { version = "2.1.1", features = ["full"] }
-endpoint-libs = { version = "^2.0", features = ["ws", "ws-http1"] }
+endpoint-libs = { version = "^3.2", features = ["ws", "ws-http1"] }
 eyre = "0.6"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots", "json"] }
 rustls = { version = "0.23.39", default-features = false, features = ["ring", "logging", "std", "tls12"] }
@@ -35,16 +35,18 @@ smart-default = "0.7"
 strum = "0.26"
 strum_macros = "0.26"
 tgbot = { version = "0.45.0", features = ["webpki-roots"] }
-nagoya = "^0.1"
+nagoya = "^0.1.11"
 tokio = { version = "1.48", features = ["full", "rt-multi-thread"] }
 tracing = "0.1"
 url = "2.5.7"
-uuid = { version = "1.18", features = ["v4", "serde"] }
 worktable = { version = "^1.10.0-beta1" }
-honey_id-types = "^2.1"
-cert-provider = { package = "ps-cert-provider", version = "^0.1", features = ["dns01"], optional = true }
+honey_id-types = "^3.0"
 
 [features]
 s3-sync = ["worktable/s3-support"]
-acme = ["dep:cert-provider"]
-cert-s3-sync = ["acme", "cert-provider/s3-sync"]
+
+# Temporary, until honey_id-types 3.0.0 is published. The crates.io 2.1.1 pins
+# endpoint-libs ^2, which puts a second endpoint-libs in the graph and makes
+# every generated model implement the 2.x traits instead of the 3.x ones.
+[patch.crates-io]
+honey_id-types = { path = "../honey_id-types" }
