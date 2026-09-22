@@ -3,7 +3,7 @@ members = [".", "migration"]
 
 [package]
 name = "support_cafe"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 
 [[bin]]
@@ -12,33 +12,33 @@ path = "src/bin/worktable_rebuild.rs"
 required-features = ["s3-sync"]
 
 [dependencies]
-async-trait = "0.1"
-chrono = { version = "0.4", default-features = false, features = ["oldtime", "std", "now"] }
-clap = { version = "4.5", features = ["derive"] }
-config = { version = "0.15", default-features = false, features = ["toml"] }
-crossfire = { version = "3.1.10", features = ["tokio"] }
-derive_more = { version = "2.1.1", features = ["full"] }
+async-trait = "^0.1"
+chrono = { version = "^0.4", default-features = false, features = ["oldtime", "std", "now"] }
+clap = { version = "^4.5", features = ["derive"] }
+config = { version = "^0.15", default-features = false, features = ["toml"] }
+crossfire = { version = "^3.1.10", features = ["tokio"] }
+derive_more = { version = "^2.1.1", features = ["full"] }
 endpoint-libs = { version = "^3.2", features = ["ws", "ws-http1"] }
-eyre = "0.6"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots", "json"] }
-rustls = { version = "0.23.39", default-features = false, features = ["ring", "logging", "std", "tls12"] }
-futures = "0.3"
-num-derive = "0.4"
-num-traits = "0.2"
-parking_lot = "0.12"
+eyre = "^0.6"
+reqwest = { version = "^0.12", default-features = false, features = ["rustls-tls-webpki-roots", "json"] }
+rustls = { version = "^0.23.39", default-features = false, features = ["ring", "logging", "std", "tls12"] }
+futures = "^0.3"
+num-derive = "^0.4"
+num-traits = "^0.2"
+parking_lot = "^0.12"
 psc-nanoid = { version = "^3.2", features = ["serde", "packed", "rkyv"] }
-rkyv = "0.8.12"
-secrecy = "0.10.3"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-smart-default = "0.7"
-strum = "0.26"
-strum_macros = "0.26"
-tgbot = { version = "0.45.0", features = ["webpki-roots"] }
+rkyv = "^0.8.12"
+secrecy = "^0.10.3"
+serde = { version = "^1.0", features = ["derive"] }
+serde_json = "^1.0"
+smart-default = "^0.7"
+strum = "^0.26"
+strum_macros = "^0.26"
+tgbot = { version = "^0.45.0", features = ["webpki-roots"] }
 nagoya = "^0.1.11"
-tokio = { version = "1.48", features = ["full", "rt-multi-thread"] }
-tracing = "0.1"
-url = "2.5.7"
+tokio = { version = "^1.48", features = ["full", "rt-multi-thread"] }
+tracing = "^0.1"
+url = "^2.5.7"
 worktable = { version = "^1.10.0-beta1" }
 honey_id-types = "^3.0"
 
