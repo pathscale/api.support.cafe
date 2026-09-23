@@ -27,11 +27,6 @@ kill_timeout = "30s"
   # Plain HTTP behind Fly's TLS.
   CAFE__SERVER__ADDRESS = "0.0.0.0:8080"
   CAFE__SERVER__INSECURE = "true"
-  # endpoint-libs 3 defaults this to the CPU count and then warns at every boot
-  # that it is serving on one thread anyway, because a nagoya listener cannot be
-  # shared between reactors yet. Asking for the one it can deliver keeps a real
-  # warning from being something operators learn to scroll past.
-  WS_SHARDS = "1"
 
 # TLS is Fly's now, not this app's. It used to terminate its own on 443 with
 # handlers = [], which is what made a failed start look like a network fault:
