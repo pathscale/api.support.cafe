@@ -6,7 +6,6 @@ use std::collections::HashMap;
 
 use nagoya::reactor::{Reactor, block_on_with};
 
-
 #[derive(Clone, Debug)]
 pub struct DopplerSource {
     secrets: HashMap<String, String>,

@@ -12,7 +12,6 @@ use nagoya::reactor::Handle;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-
 pub const HOST: &str = "api.telegram.org";
 
 /// How long Telegram may hold a `getUpdates` open before answering empty.
