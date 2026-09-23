@@ -19,7 +19,7 @@ use worktable::prelude::{
 };
 
 fn main() -> Result<()> {
-    rustls::crypto::ring::default_provider()
+    nago_rustls::rustls::crypto::ring::default_provider()
         .install_default()
         .map_err(|_| eyre::eyre!("Failed to install rustls crypto provider"))?;
 
@@ -35,11 +35,7 @@ fn main() -> Result<()> {
         "target S3 prefix must differ from the source prefix"
     );
 
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(2)
-        .enable_all()
-        .build()?;
-    runtime.block_on(rebuild(config, target_prefix))
+    nagoya::block_on(rebuild(config, target_prefix))
 }
 
 async fn rebuild(config: config::Config, target_prefix: String) -> Result<()> {

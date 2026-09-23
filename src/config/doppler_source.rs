@@ -1,9 +1,12 @@
 use config::{ConfigError, Map, Source, Value, ValueKind};
-use eyre::Result;
-use reqwest::Client;
+use eyre::{Result, bail, eyre};
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use std::collections::HashMap;
+
+use nagoya::reactor::{Reactor, block_on_with};
+
+use crate::https;
 
 #[derive(Clone, Debug)]
 pub struct DopplerSource {
@@ -43,16 +46,14 @@ impl DopplerSource {
         project: String,
         config: String,
     ) -> Result<HashMap<String, String>, ConfigError> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| ConfigError::Message(e.to_string()))?;
-
-        rt.block_on(async {
-            let provider = DopplerProvider::new(token, project, config);
-            provider.fetch_all_secrets().await
-        })
-        .map_err(|e: eyre::Report| ConfigError::Message(e.to_string()))
+        let provider = DopplerProvider {
+            service_token: token,
+            project,
+            config,
+        };
+        provider
+            .fetch_all_secrets()
+            .map_err(|e| ConfigError::Message(e.to_string()))
     }
 }
 
@@ -73,21 +74,9 @@ impl Source for DopplerSource {
 }
 
 struct DopplerProvider {
-    client: Client,
     service_token: SecretString,
     project: String,
     config: String,
-}
-
-impl DopplerProvider {
-    fn new(service_token: SecretString, project: String, config: String) -> Self {
-        Self {
-            client: Client::new(),
-            service_token,
-            project,
-            config,
-        }
-    }
 }
 
 #[derive(Deserialize)]
@@ -101,20 +90,39 @@ struct DopplerAllSecretsResponse {
 }
 
 impl DopplerProvider {
-    async fn fetch_all_secrets(&self) -> Result<HashMap<String, String>> {
-        let url = format!(
-            "https://api.doppler.com/v3/configs/config/secrets?project={}&config={}",
-            self.project, self.config
-        );
-        let body: DopplerAllSecretsResponse = self
-            .client
-            .get(url)
-            .bearer_auth(self.service_token.expose_secret())
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
+    /// Runs before any runtime exists, so it brings its own: a local reactor
+    /// driven on this thread for one request, and the lookup done first, while
+    /// no reactor is running for it to stall.
+    fn fetch_all_secrets(&self) -> Result<HashMap<String, String>> {
+        let query = url::form_urlencoded::Serializer::new(String::new())
+            .append_pair("project", &self.project)
+            .append_pair("config", &self.config)
+            .finish();
+        let path = format!("/v3/configs/config/secrets?{query}");
+        let authorization = format!("Bearer {}", self.service_token.expose_secret());
+
+        let target = https::Target::resolve("api.doppler.com")?;
+        let reactor = Reactor::local().map_err(|e| eyre!("reactor setup failed: {e:?}"))?;
+        let response = block_on_with(
+            &reactor,
+            https::send(
+                &target,
+                &reactor.handle(),
+                https::Request {
+                    method: "GET",
+                    path: &path,
+                    headers: &[
+                        ("Authorization", &authorization),
+                        ("Accept", "application/json"),
+                    ],
+                    body: None,
+                },
+            ),
+        )?;
+        if !response.is_success() {
+            bail!("Doppler answered HTTP {}", response.status);
+        }
+        let body: DopplerAllSecretsResponse = serde_json::from_slice(&response.body)?;
         Ok(body.secrets.into_iter().map(|(k, v)| (k, v.raw)).collect())
     }
 }

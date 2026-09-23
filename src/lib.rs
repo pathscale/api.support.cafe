@@ -5,10 +5,11 @@ pub mod codegen;
 pub mod config;
 pub mod db;
 pub mod handlers;
+pub mod https;
 pub mod id_types;
 pub mod service;
 
-/// Application-owned maintenance and routing work runs away from the Tokio
+/// Application-owned maintenance and routing work runs away from the reactor
 /// threads that drive sockets, signals, and the endpoint server.
 pub(crate) fn work_runtime() -> &'static nagoya::runtime::Runtime {
     static RUNTIME: OnceLock<nagoya::runtime::Runtime> = OnceLock::new();
