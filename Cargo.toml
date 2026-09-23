@@ -18,12 +18,12 @@ clap = { version = "^4.5", features = ["derive"] }
 config = { version = "^0.15", default-features = false, features = ["toml"] }
 crossfire = { version = "^3.1.10", features = ["tokio"] }
 derive_more = { version = "^2.1.1", features = ["full"] }
-endpoint-libs = { version = "^3.2", features = ["ws", "ws-http1"] }
+endpoint-libs = { version = "^3.3", features = ["ws", "ws-http1"] }
 eyre = "^0.6"
 reqwest = { version = "^0.13", default-features = false, features = ["rustls-no-provider", "webpki-roots", "json"] }
 rustls = { version = "^0.23.39", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 futures = "^0.3"
-num-derive = "^0.4"
+num-derive = "^0.5"
 num-traits = "^0.2"
 parking_lot = "^0.12"
 psc-nanoid = { version = "^3.2", features = ["serde", "packed", "rkyv"] }
@@ -35,12 +35,12 @@ smart-default = "^0.7"
 strum = "^0.28"
 strum_macros = "^0.28"
 tgbot = { version = "^0.48.0", features = ["webpki-roots"] }
-nagoya = "^0.1.11"
+nagoya = "^0.1.12"
 tokio = { version = "^1.48", features = ["full", "rt-multi-thread"] }
 tracing = "^0.1"
 url = "^2.5.7"
-worktable = { version = "^1.10.0-beta1" }
-honey_id-types = "^2.1"
+worktable = { version = "^1.10.0-beta2" }
+honey_id-types = "^2.2"
 
 [features]
 s3-sync = ["worktable/s3-support"]
