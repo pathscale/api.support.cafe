@@ -9,8 +9,8 @@ path = "src/main.rs"
 
 [dependencies]
 support_cafe = { path = "..", features = ["s3-sync"] }
-worktable = { version = "^1.10.0-beta2" }
-nagoya = "^0.1.12"
+worktable = { version = "^1.10.0-beta1" }
+nagoya = "^0.1"
 rkyv = "0.8.12"
 eyre = "0.6"
 clap = { version = "4.5", features = ["derive", "env"] }

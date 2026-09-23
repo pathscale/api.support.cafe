@@ -1,5 +1,7 @@
 use std::sync::OnceLock;
 
+#[cfg(feature = "acme")]
+pub mod acme;
 pub mod app;
 pub mod codegen;
 pub mod config;
@@ -9,8 +11,9 @@ pub mod https;
 pub mod id_types;
 pub mod service;
 
-/// Application-owned maintenance and routing work runs away from the reactor
-/// threads that drive sockets, signals, and the endpoint server.
+/// Application-owned maintenance and routing work runs on its own nagoya
+/// runtime, away from the threads that drive sockets, signals, and the
+/// endpoint server.
 pub(crate) fn work_runtime() -> &'static nagoya::runtime::Runtime {
     static RUNTIME: OnceLock<nagoya::runtime::Runtime> = OnceLock::new();
     RUNTIME.get_or_init(|| {
