@@ -9,7 +9,8 @@ fn main() -> Result<()> {
         .install_default()
         .map_err(|_| eyre::eyre!("Failed to install rustls crypto provider"))?;
 
-    let config = config::load()?;
+    #[allow(unused_mut)]
+    let mut config = config::load()?;
 
     // No runtime of its own to build. The server drives its own reactor inside
     // `listen`, the bots each drive one on their own thread, and everything
@@ -33,6 +34,9 @@ fn main() -> Result<()> {
         // where traces go, not about this binding.
         let log_service =
             std::sync::Arc::new(LogService::new(log_setup.reload_handle, config.log.level));
+
+        #[cfg(feature = "acme")]
+        let _acme_guard = support_cafe::acme::init_acme(&mut config).await?;
 
         let app = App::init(config, log_service).await?;
         app.run().await
