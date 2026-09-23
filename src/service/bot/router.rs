@@ -8,12 +8,15 @@ use crossfire::mpsc::{One, new};
 use crossfire::stream::AsyncStream;
 use crossfire::{AsyncRx, MAsyncTx};
 use eyre::Result;
+use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use futures::channel::oneshot;
+use futures::{StreamExt, future};
+use nagoya::reactor::{Reactor, block_on_with};
 use nagoya::sync::RwLock;
 use parking_lot::Mutex as StdMutex;
 use serde::Serialize;
-use tgbot::api::Client;
-use tgbot::handler::{LongPoll, UpdateHandler};
-use tgbot::types::{ChatPeerId, Command, ReplyTo, SendMessage, Update, UpdateType};
+use std::pin::pin;
+use std::time::Duration;
 use tracing::{info, warn};
 use worktable::prelude::SelectQueryExecutor;
 
@@ -24,6 +27,9 @@ use crate::db::schema::support_message::SupportMessageRow;
 use crate::handlers::utils::routing_message::RoutingMessage;
 use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
 use crate::service::message_store::MessageStore;
+
+use super::telegram;
+use crate::https;
 
 pub type SessionKey = (AppPublicId, SessionId);
 
@@ -90,11 +96,7 @@ impl BotRouter {
     }
 
     pub async fn register_bot(&self, app_public_id: AppPublicId, token: String) -> Result<()> {
-        let client =
-            Client::new(token).map_err(|e| eyre::eyre!("Failed to create TG client: {e}"))?;
-        let client_arc = Arc::new(client);
         let handler = BotUpdateHandler {
-            client: client_arc.clone(),
             app_public_id,
             app_member_table: self.app_member_table.clone(),
             chat_session_table: self.chat_session_table.clone(),
@@ -111,7 +113,7 @@ impl BotRouter {
             }
         }
 
-        let instance = BotInstance::new(client_arc, handler);
+        let instance = BotInstance::new(token, handler)?;
         bots.insert(app_public_id, instance);
         info!(?app_public_id, "bot registered");
         Ok(())
@@ -155,13 +157,12 @@ impl BotRouter {
             .await?;
 
         if !supports.is_empty() {
-            let client = self.get_bot_client(app_public_id).await?;
+            let bots = self.bots.read().await;
+            let instance = bots
+                .get(&app_public_id)
+                .ok_or_else(|| eyre::eyre!("bot not found for app"))?;
             for chat_id in supports {
-                let method =
-                    SendMessage::new(ChatPeerId::from(chat_id), format!("{msg_prefix}{content}"));
-                if let Err(e) = client.execute(method).await {
-                    warn!(?app_public_id, ?chat_id, "failed to send TG message: {e:?}");
-                }
+                instance.send(chat_id, format!("{msg_prefix}{content}"));
             }
         }
 
@@ -180,14 +181,6 @@ impl BotRouter {
             .await;
 
         Ok(sent_at)
-    }
-
-    async fn get_bot_client(&self, app_public_id: AppPublicId) -> Result<Arc<Client>> {
-        let bots = self.bots.read().await;
-        let instance = bots
-            .get(&app_public_id)
-            .ok_or_else(|| eyre::eyre!("bot not found for app"))?;
-        Ok(instance.client.clone())
     }
 
     fn enabled_support_chat_ids(&self, app_public_id: PackedNanoId) -> Result<Vec<i64>> {
@@ -235,47 +228,125 @@ impl BotRouter {
 }
 
 struct BotInstance {
-    client: Arc<Client>,
-    handle: Option<tokio::task::JoinHandle<()>>,
+    outbox: UnboundedSender<(i64, String)>,
+    stop: Option<oneshot::Sender<()>>,
     status: Arc<RwLock<BotStatus>>,
 }
 
 impl BotInstance {
-    fn new(client: Arc<Client>, handler: BotUpdateHandler) -> Self {
+    /// One thread per bot, driving its own local reactor.
+    ///
+    /// Telegram long polling is sockets end to end. It used to stay on tokio
+    /// because nagoya had no I/O; nagoya has TCP and DNS now, so the bot runs
+    /// on a reactor it owns. A thread rather than a task on a shared reactor,
+    /// because `getaddrinfo` blocks and this way a slow lookup stalls one bot,
+    /// not the server.
+    fn new(token: String, handler: BotUpdateHandler) -> Result<Self> {
         let status = Arc::new(RwLock::new(BotStatus::Running));
-        let status_clone = status.clone();
-        let app_id_clone = handler.app_public_id;
-        let client_for_poll = client.clone();
+        let (outbox, outbox_rx) = mpsc::unbounded();
+        let (stop, stop_rx) = oneshot::channel();
+        let thread_status = status.clone();
+        let app_public_id = handler.app_public_id;
 
-        // Stays on tokio, and not by omission. This task is Telegram long
-        // polling: it is sockets end to end, and nagoya has no I/O driver and
-        // is not getting one. tokio is the reactor; nagoya took the parts of
-        // this file that are scheduling rather than I/O.
-        let handle = tokio::spawn(async move {
-            let client_inner = Arc::unwrap_or_clone(client_for_poll);
-            LongPoll::new(client_inner, handler.clone()).run().await;
-            info!(?app_id_clone, "Bot stopped");
-            *status_clone.write().await = BotStatus::Stopped;
-        });
+        std::thread::Builder::new()
+            .name("tg-bot".to_string())
+            .spawn(move || {
+                let outcome = run_bot(token, &handler, &thread_status, outbox_rx, stop_rx);
+                let final_status = match outcome {
+                    Ok(()) => {
+                        info!(?app_public_id, "Bot stopped");
+                        BotStatus::Stopped
+                    }
+                    Err(e) => {
+                        warn!(?app_public_id, "Bot failed: {e:#}");
+                        BotStatus::Error(e.to_string())
+                    }
+                };
+                *nagoya::block_on(thread_status.write()) = final_status;
+            })
+            .map_err(|e| eyre::eyre!("Failed to start bot thread: {e}"))?;
 
-        Self {
-            client,
-            handle: Some(handle),
+        Ok(Self {
+            outbox,
+            stop: Some(stop),
             status,
+        })
+    }
+
+    fn send(&self, chat_id: i64, text: String) {
+        if self.outbox.unbounded_send((chat_id, text)).is_err() {
+            warn!(?chat_id, "bot is not running, TG message dropped");
         }
     }
 
     async fn stop(&mut self) {
-        if let Some(handle) = self.handle.take() {
-            handle.abort();
+        if let Some(stop) = self.stop.take() {
+            let _ = stop.send(());
             *self.status.write().await = BotStatus::Stopped;
+        }
+    }
+}
+
+fn run_bot(
+    token: String,
+    handler: &BotUpdateHandler,
+    status: &RwLock<BotStatus>,
+    outbox: UnboundedReceiver<(i64, String)>,
+    stop: oneshot::Receiver<()>,
+) -> Result<()> {
+    let target = https::Target::resolve(telegram::HOST)?;
+    let reactor = Reactor::local().map_err(|e| eyre::eyre!("reactor setup failed: {e:?}"))?;
+    let api = telegram::Api::new(token, target, reactor.handle());
+
+    block_on_with(&reactor, async {
+        let poll = poll_updates(&api, handler, status);
+        let send = outbox.for_each(|(chat_id, text)| {
+            let api = &api;
+            async move {
+                if let Err(e) = api.send_message(chat_id, &text).await {
+                    warn!(?chat_id, "failed to send TG message: {e:#}");
+                }
+            }
+        });
+        let work = pin!(future::join(poll, send));
+        // A dropped sender is a stop too: the instance is gone.
+        future::select(work, stop).await;
+    });
+    Ok(())
+}
+
+async fn poll_updates(api: &telegram::Api, handler: &BotUpdateHandler, status: &RwLock<BotStatus>) {
+    const MAX_BACKOFF: Duration = Duration::from_secs(60);
+    let mut offset = 0;
+    let mut backoff = Duration::from_secs(1);
+    loop {
+        match api.get_updates(offset).await {
+            Ok(updates) => {
+                backoff = Duration::from_secs(1);
+                if !matches!(*status.read().await, BotStatus::Running) {
+                    *status.write().await = BotStatus::Running;
+                }
+                for update in updates {
+                    offset = offset.max(update.update_id + 1);
+                    if let Some(message) = update.message {
+                        handler.handle(api, message).await;
+                    }
+                }
+            }
+            Err(e) => {
+                warn!(app_public_id = ?handler.app_public_id, "getUpdates failed, retrying in {backoff:?}: {e:#}");
+                *status.write().await = BotStatus::Restarting {
+                    next_attempt_ms: (Utc::now() + backoff).timestamp_millis() as u64,
+                };
+                nagoya::sleep(backoff).await;
+                backoff = (backoff * 2).min(MAX_BACKOFF);
+            }
         }
     }
 }
 
 #[derive(Clone)]
 struct BotUpdateHandler {
-    client: Arc<Client>,
     app_public_id: AppPublicId,
     app_member_table: Arc<AppMemberWorkTable>,
     chat_session_table: Arc<ChatSessionWorkTable>,
@@ -285,14 +356,6 @@ struct BotUpdateHandler {
 }
 
 impl BotUpdateHandler {
-    async fn try_send_msg(&self, chat_id: i64, msg: String) {
-        let _ = self
-            .client
-            .execute(SendMessage::new(ChatPeerId::from(chat_id), msg))
-            .await
-            .inspect_err(|e| warn!("Error sending message: {e:?}"));
-    }
-
     fn is_chat_enabled_for_app(&self, app_public_id: PackedNanoId, chat_id: i64) -> bool {
         let Ok(members) = self
             .app_member_table
@@ -314,21 +377,20 @@ impl BotUpdateHandler {
             .filter_map(|r| self.support_info_table.select(r.user_pub_id))
             .any(|info| info.chat_id == Some(chat_id))
     }
-}
 
-impl UpdateHandler for BotUpdateHandler {
-    async fn handle(&self, update: Update) {
-        let UpdateType::Message(message) = update.update_type else {
-            return;
+    async fn handle(&self, api: &telegram::Api, message: telegram::Message) {
+        let chat_id = message.chat.id;
+        let try_send_msg = |msg: &'static str| async move {
+            let _ = api
+                .send_message(chat_id, msg)
+                .await
+                .inspect_err(|e| warn!("Error sending message: {e:#}"));
         };
-        let chat_id: i64 = message.chat.get_id().into();
-
-        if let Some(ReplyTo::Message(ref origin_msg)) = message.reply_to {
-            if let Some(origin_txt) = origin_msg.get_text() {
-                let lines: Vec<&str> = origin_txt.data.lines().collect();
+        if let Some(origin_msg) = &message.reply_to_message {
+            if let Some(origin_txt) = origin_msg.text() {
+                let lines: Vec<&str> = origin_txt.lines().collect();
                 if lines.is_empty() {
-                    self.try_send_msg(chat_id, "Malformed reply".to_string())
-                        .await;
+                    try_send_msg("Malformed reply").await;
                     return;
                 }
                 let session_id_str = lines[0].trim();
@@ -336,16 +398,14 @@ impl UpdateHandler for BotUpdateHandler {
                 if session_id_str.len() == 16 {
                     let Ok(session_nanoid) = session_id_str.parse::<crate::id_types::NanoId>()
                     else {
-                        self.try_send_msg(chat_id, "Invalid session ID".to_string())
-                            .await;
+                        try_send_msg("Invalid session ID").await;
                         return;
                     };
 
                     let session_id: SessionId = session_nanoid.into();
                     let Ok(packed_session_id) = session_id.pack() else {
                         warn!("Failed to pack session_id");
-                        self.try_send_msg(chat_id, "Internal Server Error".to_string())
-                            .await;
+                        try_send_msg("Internal Server Error").await;
                         return;
                     };
 
@@ -353,42 +413,36 @@ impl UpdateHandler for BotUpdateHandler {
                         .chat_session_table
                         .select_by_session_id(packed_session_id)
                     else {
-                        self.try_send_msg(chat_id, "Session not found".to_string())
-                            .await;
+                        try_send_msg("Session not found").await;
                         return;
                     };
 
                     let Ok(packed_app_public_id) = self.app_public_id.pack() else {
                         warn!("Failed to pack app_public_id");
-                        self.try_send_msg(chat_id, "Internal Server Error".to_string())
-                            .await;
+                        try_send_msg("Internal Server Error").await;
                         return;
                     };
 
                     if session.app_public_id != packed_app_public_id {
-                        self.try_send_msg(chat_id, "Session not found".to_string())
-                            .await;
+                        try_send_msg("Session not found").await;
                         return;
                     }
 
-                    let Some(reply_txt) = message.get_text() else {
-                        self.try_send_msg(chat_id, "Error fetching reply text".to_string())
-                            .await;
+                    let Some(reply_txt) = message.text() else {
+                        try_send_msg("Error fetching reply text").await;
                         return;
                     };
 
                     let sent_at = Utc::now().timestamp_millis();
 
                     if !self.is_chat_enabled_for_app(packed_app_public_id, chat_id) {
-                        self.try_send_msg(chat_id, "Support access is disabled".to_string())
-                            .await;
+                        try_send_msg("Support access is disabled").await;
                         return;
                     }
 
                     let Ok(message_id) = new_message_id() else {
                         warn!("Failed to create message_id");
-                        self.try_send_msg(chat_id, "Internal Server Error".to_string())
-                            .await;
+                        try_send_msg("Internal Server Error").await;
                         return;
                     };
 
@@ -402,14 +456,13 @@ impl UpdateHandler for BotUpdateHandler {
                             incoming: true,
                             sent_by: "Support".to_string(),
                             sent_at,
-                            content: reply_txt.data.clone(),
+                            content: reply_txt.to_string(),
                             tg_chat_id: Some(chat_id),
                         })
                         .await
                     {
                         warn!("Error saving support msg: {e:?}");
-                        self.try_send_msg(chat_id, "Internal Server Error".to_string())
-                            .await;
+                        try_send_msg("Internal Server Error").await;
                         return;
                     }
 
@@ -419,7 +472,7 @@ impl UpdateHandler for BotUpdateHandler {
                         incoming: true,
                         sent_by: "Support".to_string(),
                         sent_at,
-                        content: reply_txt.data.clone(),
+                        content: reply_txt.to_string(),
                     };
                     let key = (self.app_public_id, session_id);
                     let _ = self
@@ -427,16 +480,12 @@ impl UpdateHandler for BotUpdateHandler {
                         .send(RoutingMessage::for_concrete(key, event))
                         .await;
                 } else {
-                    self.try_send_msg(chat_id, "Session ID not found in reply".to_string())
-                        .await;
+                    try_send_msg("Session ID not found in reply").await;
                 }
             }
-        } else if let Ok(cmd) = Command::try_from((*message).clone())
-            && cmd.get_name() == "/start"
-        {
-            let Some(user_handle) = message.chat.get_username() else {
-                self.try_send_msg(chat_id, "Couldn't fetch user handle".to_string())
-                    .await;
+        } else if message.command() == Some("/start") {
+            let Some(user_handle) = message.chat.username.as_deref() else {
+                try_send_msg("Couldn't fetch user handle").await;
                 return;
             };
             let handle_str = format!("@{user_handle}");
@@ -452,11 +501,9 @@ impl UpdateHandler for BotUpdateHandler {
                     .await
                 {
                     warn!("Error updating support chat_id: {e:?}");
-                    self.try_send_msg(chat_id, "Internal Server Error".to_string())
-                        .await;
+                    try_send_msg("Internal Server Error").await;
                 } else {
-                    self.try_send_msg(chat_id, "Your chat is saved for future use".to_string())
-                        .await;
+                    try_send_msg("Your chat is saved for future use").await;
                 }
             }
         }

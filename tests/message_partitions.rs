@@ -71,8 +71,12 @@ async fn mint_slot(tables: &Tables, app: PackedNanoId) -> u32 {
     slot
 }
 
-#[tokio::test]
-async fn partitions_survive_a_restart_under_the_same_app() {
+#[test]
+fn partitions_survive_a_restart_under_the_same_app() {
+    nagoya::block_on(partitions_survive_a_restart_under_the_same_app_body());
+}
+
+async fn partitions_survive_a_restart_under_the_same_app_body() {
     let path = scratch_dir("restart");
     let config = DatabaseConfig { path: path.clone() };
 
@@ -157,8 +161,12 @@ async fn partitions_survive_a_restart_under_the_same_app() {
     let _ = std::fs::remove_dir_all(&path);
 }
 
-#[tokio::test]
-async fn opening_a_partition_twice_yields_one_table() {
+#[test]
+fn opening_a_partition_twice_yields_one_table() {
+    nagoya::block_on(opening_a_partition_twice_yields_one_table_body());
+}
+
+async fn opening_a_partition_twice_yields_one_table_body() {
     let path = scratch_dir("race");
     let tables = Tables::new(DatabaseConfig { path: path.clone() })
         .await

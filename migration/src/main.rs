@@ -26,7 +26,7 @@ use config::MigrateConfig;
 async fn run(config: MigrateConfig) -> Result<()> {
     let target_dir = config.migration.output_path.clone();
 
-    tokio::fs::create_dir_all(&target_dir).await?;
+    std::fs::create_dir_all(&target_dir)?;
     info!(target = %target_dir.display(), "Using target directory");
 
     let staging = TempDir::new_in(&target_dir)
@@ -135,7 +135,7 @@ async fn migrate_app_config(source_dir: &Path, target_dir: &Path) -> Result<()> 
         Ok(report) => info!(source_version = report.source_version, "AppConfig migrated"),
         Err(e) if e.to_string().contains("Unsupported version: 2") => {
             info!("AppConfig already at v2, skipping");
-            copy_dir_recursive(&table_dir, &target_dir.join(table_name)).await?;
+            copy_dir_recursive(&table_dir, &target_dir.join(table_name))?;
         }
         Err(e) => return Err(e).wrap_err("AppConfig migration failed"),
     }
@@ -163,7 +163,7 @@ async fn migrate_app_member(source_dir: &Path, target_dir: &Path) -> Result<()> 
         Ok(report) => info!(source_version = report.source_version, "AppMember migrated"),
         Err(e) if e.to_string().contains("Unsupported version: 2") => {
             info!("AppMember already at v2, skipping");
-            copy_dir_recursive(&table_dir, &target_dir.join(table_name)).await?;
+            copy_dir_recursive(&table_dir, &target_dir.join(table_name))?;
         }
         Err(e) => return Err(e).wrap_err("AppMember migration failed"),
     }
@@ -194,7 +194,7 @@ async fn migrate_support_message(source_dir: &Path, target_dir: &Path) -> Result
         ),
         Err(e) if e.to_string().contains("Unsupported version: 2") => {
             info!("SupportMessage already at v2, skipping");
-            copy_dir_recursive(&table_dir, &target_dir.join(table_name)).await?;
+            copy_dir_recursive(&table_dir, &target_dir.join(table_name))?;
         }
         Err(e) => return Err(e).wrap_err("SupportMessage migration failed"),
     }
@@ -225,7 +225,7 @@ async fn migrate_support_info(source_dir: &Path, target_dir: &Path) -> Result<()
         ),
         Err(e) if e.to_string().contains("Unsupported version: 2") => {
             info!("SupportInfo already at v2, skipping");
-            copy_dir_recursive(&table_dir, &target_dir.join(table_name)).await?;
+            copy_dir_recursive(&table_dir, &target_dir.join(table_name))?;
         }
         Err(e) => return Err(e).wrap_err("SupportInfo migration failed"),
     }
@@ -233,18 +233,17 @@ async fn migrate_support_info(source_dir: &Path, target_dir: &Path) -> Result<()
     Ok(())
 }
 
-async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    tokio::fs::create_dir_all(dst).await?;
-    let mut entries = tokio::fs::read_dir(src).await?;
-
-    while let Some(entry) = entries.next_entry().await? {
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
         let src_path = entry.path();
         let dst_path = dst.join(entry.file_name());
 
-        if entry.file_type().await?.is_dir() {
-            Box::pin(copy_dir_recursive(&src_path, &dst_path)).await?;
+        if entry.file_type()?.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
         } else {
-            tokio::fs::copy(&src_path, &dst_path).await?;
+            std::fs::copy(&src_path, &dst_path)?;
         }
     }
 
@@ -265,11 +264,5 @@ fn main() -> Result<()> {
         )
         .init();
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(2)
-        .enable_io()
-        .enable_time()
-        .build()?;
-
-    rt.block_on(run(cfg))
+    nagoya::block_on(run(cfg))
 }

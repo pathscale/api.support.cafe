@@ -5,18 +5,16 @@ use support_cafe::config;
 use support_cafe::service::log::LogService;
 
 fn main() -> Result<()> {
-    rustls::crypto::ring::default_provider()
+    nago_rustls::rustls::crypto::ring::default_provider()
         .install_default()
         .map_err(|_| eyre::eyre!("Failed to install rustls crypto provider"))?;
 
     let config = config::load()?;
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(config.runtime.threads)
-        .enable_all()
-        .build()?;
-
-    rt.block_on(async {
+    // No runtime of its own to build. The server drives its own reactor inside
+    // `listen`, the bots each drive one on their own thread, and everything
+    // awaited out here is woken by those, so parking this thread is enough.
+    nagoya::block_on(async {
         let log_setup = setup_logging(LoggingConfig {
             level: config.log.level,
             file_config: Some(FileLoggingConfig {

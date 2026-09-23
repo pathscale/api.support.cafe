@@ -179,7 +179,7 @@ impl Tables {
     }
 
     pub async fn wait_for_ops(&self) -> worktable::persistence::PersistenceResult {
-        let (app_config, app_slot, app_member, chat_session, support_info, user) = tokio::join!(
+        let (app_config, app_slot, app_member, chat_session, support_info, user) = futures::join!(
             self.app_config_table.wait_for_ops(),
             self.app_slot_table.wait_for_ops(),
             self.app_member_table.wait_for_ops(),

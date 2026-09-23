@@ -159,17 +159,13 @@ impl App {
         // error alike.
         self.ctx.bot_service.shutdown().await;
         message_purge_task.cancel();
-        tokio::select! {
-            result = self.ctx.db.wait_for_ops() =>{
-                match result {
-                    Ok(()) => warn!("Gracefully terminated all threads"),
-                    Err(error) => error!(%error, "Failed to flush all WorkTable persistence operations"),
-                }
-            },
-            _ = nagoya::sleep(Duration::from_secs(15)) => {
-                std::process::exit(20);
+        match nagoya::timeout(Duration::from_secs(15), self.ctx.db.wait_for_ops()).await {
+            Ok(Ok(())) => warn!("Gracefully terminated all threads"),
+            Ok(Err(error)) => {
+                error!(%error, "Failed to flush all WorkTable persistence operations")
             }
-        };
+            Err(_) => std::process::exit(20),
+        }
 
         Ok(())
     }
