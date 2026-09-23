@@ -6,7 +6,6 @@ use std::collections::HashMap;
 
 use nagoya::reactor::{Reactor, block_on_with};
 
-use crate::https;
 
 #[derive(Clone, Debug)]
 pub struct DopplerSource {
@@ -101,22 +100,16 @@ impl DopplerProvider {
         let path = format!("/v3/configs/config/secrets?{query}");
         let authorization = format!("Bearer {}", self.service_token.expose_secret());
 
-        let target = https::Target::resolve("api.doppler.com")?;
+        let target = nago_http::Target::resolve("api.doppler.com", 443)?;
         let reactor = Reactor::local().map_err(|e| eyre!("reactor setup failed: {e:?}"))?;
         let response = block_on_with(
             &reactor,
-            https::send(
+            nago_http::send(
                 &target,
                 &reactor.handle(),
-                https::Request {
-                    method: "GET",
-                    path: &path,
-                    headers: &[
-                        ("Authorization", &authorization),
-                        ("Accept", "application/json"),
-                    ],
-                    body: None,
-                },
+                nago_http::Request::get(&path)
+                    .header("Authorization", &authorization)
+                    .header("Accept", "application/json"),
             ),
         )?;
         if !response.is_success() {

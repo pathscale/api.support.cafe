@@ -34,6 +34,7 @@ strum = "^0.28"
 strum_macros = "^0.28"
 nagoya = { version = "^0.1", features = ["reactor"] }
 nago-rustls = "^0.1"
+nago-http = "^0.1"
 tracing = "^0.1"
 url = "^2.5.7"
 worktable = { version = "^1.10.0-beta1" }

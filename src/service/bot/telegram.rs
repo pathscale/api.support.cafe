@@ -12,7 +12,6 @@ use nagoya::reactor::Handle;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::https;
 
 pub const HOST: &str = "api.telegram.org";
 
@@ -25,12 +24,12 @@ const REQUEST_GRACE: Duration = Duration::from_secs(15);
 
 pub struct Api {
     token: String,
-    target: https::Target,
+    target: nago_http::Target,
     handle: Handle,
 }
 
 impl Api {
-    pub fn new(token: String, target: https::Target, handle: Handle) -> Self {
+    pub fn new(token: String, target: nago_http::Target, handle: Handle) -> Self {
         Self {
             token,
             target,
@@ -77,15 +76,10 @@ impl Api {
     ) -> Result<T> {
         let body = serde_json::to_vec(params)?;
         let path = format!("/bot{}/{method}", self.token);
-        let request = https::send(
+        let request = nago_http::send(
             &self.target,
             &self.handle,
-            https::Request {
-                method: "POST",
-                path: &path,
-                headers: &[],
-                body: Some(("application/json", &body)),
-            },
+            nago_http::Request::post(&path).body("application/json", &body),
         );
         // The token is in the path, so no error below may carry the path.
         let response = nagoya::timeout(limit, request)
@@ -192,7 +186,7 @@ mod tests {
     #[test]
     #[ignore = "reaches api.telegram.org"]
     fn a_bad_token_is_refused_by_telegram() {
-        let target = https::Target::resolve(HOST).unwrap();
+        let target = nago_http::Target::resolve(HOST, 443).unwrap();
         let reactor = nagoya::reactor::Reactor::local().unwrap();
         let api = Api::new("0:bogus".to_string(), target, reactor.handle());
         let err = nagoya::reactor::block_on_with(&reactor, api.get_updates(0)).unwrap_err();

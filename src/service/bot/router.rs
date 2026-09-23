@@ -29,7 +29,6 @@ use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
 use crate::service::message_store::MessageStore;
 
 use super::telegram;
-use crate::https;
 
 pub type SessionKey = (AppPublicId, SessionId);
 
@@ -294,7 +293,7 @@ fn run_bot(
     outbox: UnboundedReceiver<(i64, String)>,
     stop: oneshot::Receiver<()>,
 ) -> Result<()> {
-    let target = https::Target::resolve(telegram::HOST)?;
+    let target = nago_http::Target::resolve(telegram::HOST, 443)?;
     let reactor = Reactor::local().map_err(|e| eyre::eyre!("reactor setup failed: {e:?}"))?;
     let api = telegram::Api::new(token, target, reactor.handle());
 
