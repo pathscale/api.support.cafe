@@ -28,7 +28,10 @@ use crate::handlers::utils::routing_message::RoutingMessage;
 use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
 use crate::service::message_store::MessageStore;
 
-use super::telegram;
+use nago_telegram::{Bot, Message, SendMessage};
+
+/// How long Telegram may hold a `getUpdates` open before answering empty.
+const LONG_POLL: Duration = Duration::from_secs(25);
 
 pub type SessionKey = (AppPublicId, SessionId);
 
@@ -352,14 +355,14 @@ fn run_bot(
     outbox: UnboundedReceiver<(i64, String)>,
     stop: oneshot::Receiver<()>,
 ) -> Result<()> {
-    let api = telegram::Api::new(token)?;
+    let api = Bot::new(token)?;
 
     nagoya::block_on(async {
         let poll = poll_updates(&api, handler, status);
         let send = outbox.for_each(|(chat_id, text)| {
             let api = &api;
             async move {
-                if let Err(e) = api.send_message(chat_id, &text).await {
+                if let Err(e) = api.send_message(&SendMessage::new(chat_id, text)).await {
                     warn!(?chat_id, "failed to send TG message: {e:#}");
                 }
             }
@@ -371,12 +374,12 @@ fn run_bot(
     Ok(())
 }
 
-async fn poll_updates(api: &telegram::Api, handler: &BotUpdateHandler, status: &RwLock<BotStatus>) {
+async fn poll_updates(api: &Bot, handler: &BotUpdateHandler, status: &RwLock<BotStatus>) {
     const MAX_BACKOFF: Duration = Duration::from_secs(60);
     let mut offset = 0;
     let mut backoff = Duration::from_secs(1);
     loop {
-        match api.get_updates(offset).await {
+        match api.get_updates(Some(offset), LONG_POLL, &["message"]).await {
             Ok(updates) => {
                 backoff = Duration::from_secs(1);
                 if !matches!(*status.read().await, BotStatus::Running) {
@@ -434,11 +437,11 @@ impl BotUpdateHandler {
             .any(|info| info.chat_id == Some(chat_id))
     }
 
-    async fn handle(&self, api: &telegram::Api, message: telegram::Message) {
+    async fn handle(&self, api: &Bot, message: Message) {
         let chat_id = message.chat.id;
         let try_send_msg = |msg: &'static str| async move {
             let _ = api
-                .send_message(chat_id, msg)
+                .send_message(&SendMessage::new(chat_id, msg))
                 .await
                 .inspect_err(|e| warn!("Error sending message: {e:#}"));
         };
@@ -539,7 +542,7 @@ impl BotUpdateHandler {
                     try_send_msg("Session ID not found in reply").await;
                 }
             }
-        } else if message.command() == Some("/start") {
+        } else if message.command().is_some_and(|c| c.name == "/start") {
             let Some(user_handle) = message.chat.username.as_deref() else {
                 try_send_msg("Couldn't fetch user handle").await;
                 return;
