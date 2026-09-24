@@ -9,11 +9,13 @@ use crate::codegen::model::{CreateChatSessionRequest, CreateChatSessionResponse,
 use crate::id_types::SessionId;
 use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::session::ChatSessionService;
+use crate::service::user_connection_registry::UserConnectionRegistry;
 
 #[derive(Clone)]
 pub struct MethodCreateChatSession {
     pub session_service: Arc<ChatSessionService>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
+    pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
 #[async_trait(?Send)]
@@ -36,6 +38,15 @@ impl RequestHandler for MethodCreateChatSession {
                 CustomError::new(EnumErrorCode::Unauthorized)
                     .with_message("Connection not authenticated as app")
             })?;
+
+        // An app connection speaks for one visitor, the one it connected as.
+        // It used to open sessions for whatever user id it named.
+        let user_pub_id = UserPublicId::from(req.user_pub_id);
+        if self.user_connection_registry.get(ctx.connection_id).await != Some(user_pub_id) {
+            return Err(CustomError::new(EnumErrorCode::Forbidden)
+                .with_message("An app connection opens sessions only for its own user")
+                .into());
+        }
 
         let row = self
             .session_service
