@@ -12,7 +12,6 @@ use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use futures::channel::oneshot;
 use futures::{StreamExt, future};
 use honey_id_types::id_entities::UserPublicId;
-use nagoya::reactor::{Reactor, block_on_with};
 use nagoya::sync::RwLock;
 use parking_lot::Mutex as StdMutex;
 use serde::Serialize;
@@ -293,13 +292,13 @@ struct BotInstance {
 }
 
 impl BotInstance {
-    /// One thread per bot, driving its own local reactor.
+    /// One thread per bot, blocking on its poll and send loops.
     ///
-    /// Telegram long polling is sockets end to end. It used to stay on tokio
-    /// because nagoya had no I/O; nagoya has TCP and DNS now, so the bot runs
-    /// on a reactor it owns. A thread rather than a task on a shared reactor,
-    /// because `getaddrinfo` blocks and this way a slow lookup stalls one bot,
-    /// not the server.
+    /// The sockets are driven by the [`nago_http::Client`]s' own reactor
+    /// threads, so this thread only waits. A thread rather than a task on a
+    /// shared pool, because a client resolves a host on first use and
+    /// `getaddrinfo` blocks: this way a slow lookup stalls one bot, not the
+    /// server.
     fn new(token: String, handler: BotUpdateHandler) -> Result<Self> {
         let status = Arc::new(RwLock::new(BotStatus::Running));
         let (outbox, outbox_rx) = mpsc::unbounded();
@@ -353,11 +352,9 @@ fn run_bot(
     outbox: UnboundedReceiver<(i64, String)>,
     stop: oneshot::Receiver<()>,
 ) -> Result<()> {
-    let target = nago_http::Target::resolve(telegram::HOST, 443)?;
-    let reactor = Reactor::local().map_err(|e| eyre::eyre!("reactor setup failed: {e:?}"))?;
-    let api = telegram::Api::new(token, target, reactor.handle());
+    let api = telegram::Api::new(token)?;
 
-    block_on_with(&reactor, async {
+    nagoya::block_on(async {
         let poll = poll_updates(&api, handler, status);
         let send = outbox.for_each(|(chat_id, text)| {
             let api = &api;

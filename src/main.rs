@@ -13,8 +13,9 @@ fn main() -> Result<()> {
     let mut config = config::load()?;
 
     // No runtime of its own to build. The server drives its own reactor inside
-    // `listen`, the bots each drive one on their own thread, and everything
-    // awaited out here is woken by those, so parking this thread is enough.
+    // `listen`, outbound HTTP goes through nago_http clients that run their own
+    // reactor threads, and everything awaited out here is woken by those, so
+    // parking this thread is enough.
     nagoya::block_on(async {
         let log_setup = setup_logging(LoggingConfig {
             level: config.log.level,

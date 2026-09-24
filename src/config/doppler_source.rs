@@ -1,10 +1,8 @@
 use config::{ConfigError, Map, Source, Value, ValueKind};
-use eyre::{Result, bail, eyre};
+use eyre::{Result, bail};
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use std::collections::HashMap;
-
-use nagoya::reactor::{Reactor, block_on_with};
 
 #[derive(Clone, Debug)]
 pub struct DopplerSource {
@@ -88,29 +86,25 @@ struct DopplerAllSecretsResponse {
 }
 
 impl DopplerProvider {
-    /// Runs before any runtime exists, so it brings its own: a local reactor
-    /// driven on this thread for one request, and the lookup done first, while
-    /// no reactor is running for it to stall.
+    /// Runs before any runtime exists, so it blocks this thread on the
+    /// request; the process's [`nago_http::Client`] drives the socket on its
+    /// own reactor thread.
     fn fetch_all_secrets(&self) -> Result<HashMap<String, String>> {
         let query = url::form_urlencoded::Serializer::new(String::new())
             .append_pair("project", &self.project)
             .append_pair("config", &self.config)
             .finish();
-        let path = format!("/v3/configs/config/secrets?{query}");
+        let url = format!("https://api.doppler.com/v3/configs/config/secrets?{query}");
         let authorization = format!("Bearer {}", self.service_token.expose_secret());
 
-        let target = nago_http::Target::resolve("api.doppler.com", 443)?;
-        let reactor = Reactor::local().map_err(|e| eyre!("reactor setup failed: {e:?}"))?;
-        let response = block_on_with(
-            &reactor,
-            nago_http::send(
-                &target,
-                &reactor.handle(),
-                nago_http::Request::get(&path)
-                    .header("Authorization", &authorization)
-                    .header("Accept", "application/json"),
-            ),
-        )?;
+        let client = nago_http::Client::global()?;
+        let response = nagoya::block_on(client.get(
+            &url,
+            &[
+                ("Authorization", authorization.as_str()),
+                ("Accept", "application/json"),
+            ],
+        ))?;
         if !response.is_success() {
             bail!("Doppler answered HTTP {}", response.status);
         }
