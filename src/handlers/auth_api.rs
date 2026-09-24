@@ -66,6 +66,7 @@ pub fn register_auth_api_handlers(
     auth_controller.add_auth_endpoint(
         EnumEndpoint::AppConnect.schema(),
         MethodAppConnect {
+            tables: tables.clone(),
             app_connection_registry,
             user_connection_registry,
         },

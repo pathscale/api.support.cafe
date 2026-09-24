@@ -33,6 +33,7 @@ pub async fn register_handlers(server: &mut WebsocketServer, ctx: &AppCtx) {
     server.add_handler(MethodCreateChatSession {
         session_service: ctx.session_service.clone(),
         app_connection_registry: ctx.app_connection_registry.clone(),
+        user_connection_registry: ctx.user_connection_registry.clone(),
     });
     server.add_handler(MethodSendMessage {
         session_service: ctx.session_service.clone(),
