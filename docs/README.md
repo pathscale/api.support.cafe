@@ -58,8 +58,8 @@ ID: 2
 ### Endpoints
 |Code|Name|Parameters|Response|Description|FE Facing|Errors|
 |-----------|-----------|----------|--------|-----------|-----------|-----------|
-|20001|CreateChatSession|`userPubId: Nanoid<16, Base62Alphabet>`|`sessionId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`|Create a new support chat session for the given end-user of this app. Returns the 16-character session_id used by all subsequent message operations. Caller must be an App connection.|true||
-|20002|SendMessage|`sessionId: Nanoid<16, Base62Alphabet>`, `content: String`|`sentAt: i64`|Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, not via this endpoint.|true||
+|20001|CreateChatSession|`userPubId: Nanoid<16, Base62Alphabet>`, `appPublicId: Option<Nanoid<16, Base62Alphabet>>`|`sessionId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`|Create a new support chat session for an end user, who must be the caller: an App connection for its own visitor, or a signed-in user for themselves, naming the desk in app_public_id. Returns the 16-character session_id used by all subsequent message operations.|true||
+|20002|SendMessage|`sessionId: Nanoid<16, Base62Alphabet>`, `content: String`|`sentAt: i64`|Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, or through this endpoint as the desk's owner or an admin, which the visitor sees as a support reply.|true||
 |20003|ListMessages|`sessionId: Nanoid<16, Base62Alphabet>`|`data: Vec<ChatMessage>`|List all messages of a chat session, oldest first.|true||
 |20004|SubscribeEvents|`sessionId: Nanoid<16, Base62Alphabet>`, `unsub: Option<bool>`|`data: Vec<ChatMessage>`|Subscribe to live chat events (new messages) for a session; pass unsub: true to unsubscribe. Events are delivered as stream frames over the legacy protocol only.|true||
 |20005|CloseChatSession|`sessionId: Nanoid<16, Base62Alphabet>`||Close a chat session; no further messages can be sent to it.|true||

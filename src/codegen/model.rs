@@ -3,12 +3,12 @@ use endpoint_libs::libs::types::*;
 use endpoint_libs::libs::ws::toolbox::CustomError;
 use endpoint_libs::libs::ws::*;
 use num_derive::FromPrimitive;
-use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
-use rkyv::Archive;
 use serde::*;
-use std::net::IpAddr;
 use strum_macros::{Display, EnumString};
 
+use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
+use rkyv::Archive;
+use std::net::IpAddr;
 use worktable::prelude::*;
 
 #[derive(
@@ -200,57 +200,31 @@ pub struct UserInfo {
     Hash,
 )]
 pub enum EnumEndpoint {
-    ///
     Init = 10000,
-    ///
     AppConnect = 20000,
-    ///
     CreateChatSession = 20001,
-    ///
     SendMessage = 20002,
-    ///
     ListMessages = 20003,
-    ///
     SubscribeEvents = 20004,
-    ///
     CloseChatSession = 20005,
-    ///
     ListChatSessions = 20006,
-    ///
     SetMyTgHandle = 20007,
-    ///
     GetMyTgHandle = 20008,
-    ///
     CreateApp = 30000,
-    ///
     EditApp = 30001,
-    ///
     ListApps = 30002,
-    ///
     EnableSupportUser = 30003,
-    ///
     DisableSupportUser = 30005,
-    ///
     AddAppMember = 30006,
-    ///
     SetAppMemberRole = 30007,
-    ///
     ListAppMembers = 30008,
-    ///
     EnableMessagePersistence = 30009,
-    ///
     DisableMessagePersistence = 30010,
-    ///
     DeleteApp = 40000,
-    ///
     SetLogLevel = 40001,
-    ///
     GetUsers = 40002,
-    ///
     SetRole = 40003,
-    ///
     GetAllApps = 40004,
-    ///
     GetMyInfo = 60000,
 }
 
@@ -994,6 +968,8 @@ pub struct CreateAppResponse {
 #[serde(rename_all = "camelCase")]
 pub struct CreateChatSessionRequest {
     pub user_pub_id: Nanoid<16, Base62Alphabet>,
+    #[serde(default)]
+    pub app_public_id: Option<Nanoid<16, Base62Alphabet>>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -1252,7 +1228,7 @@ impl WsResponse for InitResponse {
 impl WsRequest for CreateChatSessionRequest {
     type Response = CreateChatSessionResponse;
     const METHOD_ID: u32 = 20001;
-    const ROLES: &[u32] = &[2];
+    const ROLES: &[u32] = &[2, 3];
     const SCHEMA: &'static str = r#"{
   "name": "CreateChatSession",
   "code": 20001,
@@ -1262,6 +1238,16 @@ impl WsRequest for CreateChatSessionRequest {
       "ty": {
         "NanoId": {
           "len": 16
+        }
+      }
+    },
+    {
+      "name": "app_public_id",
+      "ty": {
+        "Optional": {
+          "NanoId": {
+            "len": 16
+          }
         }
       }
     }
@@ -1281,10 +1267,11 @@ impl WsRequest for CreateChatSessionRequest {
     }
   ],
   "stream_response": null,
-  "description": "Create a new support chat session for the given end-user of this app. Returns the 16-character session_id used by all subsequent message operations. Caller must be an App connection.",
+  "description": "Create a new support chat session for an end user, who must be the caller: an App connection for its own visitor, or a signed-in user for themselves, naming the desk in app_public_id. Returns the 16-character session_id used by all subsequent message operations.",
   "json_schema": null,
   "roles": [
-    "UserRole::App"
+    "UserRole::App",
+    "UserRole::User"
   ],
   "errors": []
 }"#;
@@ -1321,7 +1308,7 @@ impl WsRequest for SendMessageRequest {
     }
   ],
   "stream_response": null,
-  "description": "Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, not via this endpoint.",
+  "description": "Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, or through this endpoint as the desk's owner or an admin, which the visitor sees as a support reply.",
   "json_schema": null,
   "roles": [
     "UserRole::App",

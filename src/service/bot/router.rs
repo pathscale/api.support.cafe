@@ -11,6 +11,7 @@ use eyre::Result;
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use futures::channel::oneshot;
 use futures::{StreamExt, future};
+use honey_id_types::id_entities::UserPublicId;
 use nagoya::reactor::{Reactor, block_on_with};
 use nagoya::sync::RwLock;
 use parking_lot::Mutex as StdMutex;
@@ -177,6 +178,65 @@ impl BotRouter {
         let _ = self
             .event_tx
             .send(RoutingMessage::for_concrete(key, event))
+            .await;
+
+        Ok(sent_at)
+    }
+
+    /// A reply from the desk's staff through the API rather than Telegram. The
+    /// visitor sees it as support, exactly like a Telegram reply; the desk's
+    /// support chats get a copy naming who answered, so on-duty staff see it.
+    pub async fn send_support_reply(
+        &self,
+        app_public_id: AppPublicId,
+        session_id: SessionId,
+        content: String,
+        staff: UserPublicId,
+    ) -> Result<i64> {
+        let app_public_id_packed: PackedNanoId = app_public_id.pack()?;
+        let supports = self.enabled_support_chat_ids(app_public_id_packed)?;
+        let sent_at = Utc::now().timestamp_millis();
+
+        self.message_store
+            .store_message(SupportMessageRow {
+                id: 0,
+                message_id: new_message_id()?,
+                session_id: session_id.pack()?,
+                app_public_id: app_public_id_packed,
+                incoming: true,
+                sent_by: "Support".to_string(),
+                sent_at,
+                content: content.clone(),
+                tg_chat_id: None,
+            })
+            .await?;
+
+        if !supports.is_empty() {
+            let nanoid: crate::id_types::NanoId = session_id.into();
+            let bots = self.bots.read().await;
+            if let Some(instance) = bots.get(&app_public_id) {
+                for chat_id in supports {
+                    instance.send(
+                        chat_id,
+                        format!("{nanoid}\nanswered by {staff} from the dashboard:\n{content}"),
+                    );
+                }
+            }
+        }
+
+        let event = ChatMessage {
+            session_id: session_id.into(),
+            incoming: true,
+            sent_by: "Support".to_string(),
+            sent_at,
+            content,
+        };
+        let _ = self
+            .event_tx
+            .send(RoutingMessage::for_concrete(
+                (app_public_id, session_id),
+                event,
+            ))
             .await;
 
         Ok(sent_at)

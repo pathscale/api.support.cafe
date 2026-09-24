@@ -2,11 +2,17 @@
   "tools": [
     {
       "code": 20001,
-      "description": "Create a new support chat session for the given end-user of this app. Returns the 16-character session_id used by all subsequent message operations. Caller must be an App connection.",
+      "description": "Create a new support chat session for an end user, who must be the caller: an App connection for its own visitor, or a signed-in user for themselves, naming the desk in app_public_id. Returns the 16-character session_id used by all subsequent message operations.",
       "frontendFacing": true,
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
           "userPubId": {
             "maxLength": 16,
             "minLength": 16,
@@ -43,7 +49,7 @@
     },
     {
       "code": 20002,
-      "description": "Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, not via this endpoint.",
+      "description": "Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, or through this endpoint as the desk's owner or an admin, which the visitor sees as a support reply.",
       "frontendFacing": true,
       "inputSchema": {
         "additionalProperties": false,

@@ -45,10 +45,10 @@ impl RequestHandler for MethodSubscribeEvents {
                     .with_message("Connection not authenticated")
             })?;
 
-        let row = self
+        let (row, _) = self
             .session_service
             .verify_session_access(session_id, user_pub_id)
-            .internal()?;
+            .map_err(|e| CustomError::new(EnumErrorCode::Forbidden).with_message(e.to_string()))?;
         let app_public_id = AppPublicId::from_packed(row.app_public_id).internal()?;
 
         let key: SessionKey = (app_public_id, session_id);
