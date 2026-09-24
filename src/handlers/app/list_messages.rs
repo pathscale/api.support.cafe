@@ -40,10 +40,10 @@ impl RequestHandler for MethodListMessages {
                     .with_message("Connection not authenticated")
             })?;
 
-        let row = self
+        let (row, _) = self
             .session_service
             .verify_session_access(session_id, user_pub_id)
-            .internal()?;
+            .map_err(|e| CustomError::new(EnumErrorCode::Forbidden).with_message(e.to_string()))?;
 
         // If connected via app, verify session belongs to that app
         if let Some(app_public_id) = self.app_connection_registry.get(ctx.connection_id).await

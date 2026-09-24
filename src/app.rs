@@ -81,6 +81,7 @@ impl App {
             db.chat_session_table.clone(),
             bot_service.clone(),
             message_store.clone(),
+            app_service.clone(),
         ));
 
         let honey_id_client = Arc::new(HoneyIdClient::new(config.honey_id.clone()));

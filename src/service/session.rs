@@ -8,15 +8,26 @@ use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
 use crate::codegen::model::ChatMessage;
 use crate::db::schema::chat_session::{ChatSessionColumns, ChatSessionRow, ChatSessionWorkTable};
 use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
+use crate::service::app::AppService;
 use crate::service::bot::BotService;
 use crate::service::message_store::MessageStore;
 use worktable::prelude::SelectQueryExecutor;
 
 /// Service for session operations.
+/// Who is acting on a chat.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChatRole {
+    /// The visitor the chat belongs to.
+    Visitor,
+    /// The owner or an admin of the chat's desk, answering as support.
+    Staff,
+}
+
 pub struct ChatSessionService {
     chat_session_table: Arc<ChatSessionWorkTable>,
     bot_service: Arc<BotService>,
     message_store: Arc<MessageStore>,
+    app_service: Arc<AppService>,
 }
 
 impl ChatSessionService {
@@ -24,11 +35,13 @@ impl ChatSessionService {
         chat_session_table: Arc<ChatSessionWorkTable>,
         bot_service: Arc<BotService>,
         message_store: Arc<MessageStore>,
+        app_service: Arc<AppService>,
     ) -> Self {
         Self {
             chat_session_table,
             bot_service,
             message_store,
+            app_service,
         }
     }
 
@@ -81,7 +94,7 @@ impl ChatSessionService {
             "SessionService::close_session: closing"
         );
 
-        let row = self.verify_session_access(session_id, user_pub_id)?;
+        let (row, _) = self.verify_session_access(session_id, user_pub_id)?;
 
         let closed_at = Utc::now().timestamp_millis();
         self.chat_session_table
@@ -97,8 +110,8 @@ impl ChatSessionService {
         Ok(())
     }
 
-    /// Send a message via BotService.
-    /// User must own the session. App context is taken from session.
+    /// Send a message into a session: from its visitor, or from the desk's
+    /// staff, which the visitor sees as a support reply like one from Telegram.
     pub async fn send_message(
         &self,
         session_id: SessionId,
@@ -112,14 +125,22 @@ impl ChatSessionService {
             "SessionService::send_message: sending"
         );
 
-        let row = self.verify_session_access(session_id, user_pub_id)?;
+        let (row, role) = self.verify_session_access(session_id, user_pub_id)?;
         let app_public_id = AppPublicId::from_packed(row.app_public_id)?;
 
-        let sent_at = self
-            .bot_service
-            .send_message(app_public_id, session_id, content, "User".to_string())
-            .await
-            .map_err(|e| eyre::eyre!("Failed to send message: {e}"))?;
+        let sent = match role {
+            ChatRole::Visitor => {
+                self.bot_service
+                    .send_message(app_public_id, session_id, content, "User".to_string())
+                    .await
+            }
+            ChatRole::Staff => {
+                self.bot_service
+                    .send_support_reply(app_public_id, session_id, content, user_pub_id)
+                    .await
+            }
+        };
+        let sent_at = sent.map_err(|e| eyre::eyre!("Failed to send message: {e}"))?;
 
         tracing::debug!(
             session_id = %session_id,
@@ -163,18 +184,15 @@ impl ChatSessionService {
         Ok(belongs)
     }
 
-    /// Verify session exists and belongs to user. Returns the row.
+    /// Whether `user_pub_id` may act on the session, and as whom: the visitor
+    /// it belongs to, or the owner or an admin of its desk. Before, only the
+    /// visitor could, so a desk's managers could list their chats but not
+    /// read, answer or close any of them.
     pub fn verify_session_access(
         &self,
         session_id: SessionId,
         user_pub_id: UserPublicId,
-    ) -> eyre::Result<ChatSessionRow> {
-        tracing::debug!(
-            session_id = %session_id,
-            user_pub_id = %user_pub_id,
-            "SessionService::verify_session_access: checking"
-        );
-
+    ) -> eyre::Result<(ChatSessionRow, ChatRole)> {
         let packed_session_id: PackedNanoId = session_id.pack()?;
         let packed_user_id: PackedNanoId = user_pub_id.pack()?;
 
@@ -183,22 +201,29 @@ impl ChatSessionService {
             .select_by_session_id(packed_session_id)
             .ok_or_else(|| eyre::eyre!("Session not found"))?;
 
-        if session.user_pub_id != packed_user_id {
-            tracing::warn!(
-                session_id = %session_id,
-                requester_user_id = %user_pub_id,
-                session_user_id = ?session.user_pub_id,
-                "SessionService::verify_session_access: session belongs to different user"
-            );
-            bail!("Session does not belong to this user");
+        if session.user_pub_id == packed_user_id {
+            return Ok((session, ChatRole::Visitor));
         }
-
-        tracing::debug!(
+        let app_public_id = AppPublicId::from_packed(session.app_public_id)?;
+        if self
+            .app_service
+            .ensure_app_admin_or_owner(app_public_id, user_pub_id)
+            .is_ok()
+        {
+            return Ok((session, ChatRole::Staff));
+        }
+        tracing::warn!(
             session_id = %session_id,
-            "SessionService::verify_session_access: verified"
+            requester_user_id = %user_pub_id,
+            "SessionService::verify_session_access: neither the visitor nor the desk's staff"
         );
+        bail!("Session does not belong to this user")
+    }
 
-        Ok(session)
+    /// Whether `app` exists and is active, so a signed-in user may open a chat
+    /// with it.
+    pub fn app_accepts_chats(&self, app: AppPublicId) -> eyre::Result<bool> {
+        Ok(self.app_service.get_app(app)?.is_some_and(|row| row.active))
     }
 
     /// List messages for session.

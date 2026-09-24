@@ -349,7 +349,7 @@
       "endpoints": [
         {
           "code": 20001,
-          "description": "Create a new support chat session for the given end-user of this app. Returns the 16-character session_id used by all subsequent message operations. Caller must be an App connection.",
+          "description": "Create a new support chat session for an end user, who must be the caller: an App connection for its own visitor, or a signed-in user for themselves, naming the desk in app_public_id. Returns the 16-character session_id used by all subsequent message operations.",
           "errors": [],
           "json_schema": null,
           "name": "CreateChatSession",
@@ -359,6 +359,16 @@
               "ty": {
                 "NanoId": {
                   "len": 16
+                }
+              }
+            },
+            {
+              "name": "appPublicId",
+              "ty": {
+                "Optional": {
+                  "NanoId": {
+                    "len": 16
+                  }
                 }
               }
             }
@@ -378,13 +388,14 @@
             }
           ],
           "roles": [
-            "UserRole::App"
+            "UserRole::App",
+            "UserRole::User"
           ],
           "stream_response": null
         },
         {
           "code": 20002,
-          "description": "Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, not via this endpoint.",
+          "description": "Send a message into an existing chat session. The message is stored and relayed to the app's support staff via Telegram. Support staff reply from Telegram, or through this endpoint as the desk's owner or an admin, which the visitor sees as a support reply.",
           "errors": [],
           "json_schema": null,
           "name": "SendMessage",

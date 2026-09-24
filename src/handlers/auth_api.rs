@@ -5,6 +5,7 @@ use honey_id_types::HoneyIdClient;
 use honey_id_types::enums::HoneyEndpointMethodCode;
 use honey_id_types::handlers::auth_to_app::{
     MethodApiKeyConnect, MethodReceiveToken, MethodReceiveUserDeleted, MethodReceiveUserInfo,
+    MethodValidateToken,
 };
 use honey_id_types::handlers::convenience_utils::generic_auth_handler::{
     AuthorizedConnectContext, AuthorizedConnectRequest, GenericAuthorizedConnect,
@@ -82,6 +83,12 @@ pub fn register_auth_api_handlers(
     server.add_handler(MethodReceiveUserInfo {
         token_storage: token_storage.clone(),
         user_storage: user_storage.clone(),
+    });
+
+    // auth asks the app a token came from whether it is still good, for
+    // SubmitAppToken. Nothing registered it, so the answer was NotImplemented.
+    server.add_handler(MethodValidateToken {
+        token_storage: token_storage.clone(),
     });
 
     server.add_handler(MethodReceiveUserDeleted {

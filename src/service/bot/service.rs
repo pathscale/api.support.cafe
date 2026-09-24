@@ -89,4 +89,16 @@ impl BotService {
             .send_message(app_public_id, session_id, content, sender_name)
             .await
     }
+
+    pub async fn send_support_reply(
+        &self,
+        app_public_id: AppPublicId,
+        session_id: SessionId,
+        content: String,
+        staff: honey_id_types::id_entities::UserPublicId,
+    ) -> eyre::Result<i64> {
+        self.bot_router
+            .send_support_reply(app_public_id, session_id, content, staff)
+            .await
+    }
 }
