@@ -210,6 +210,7 @@ pub enum EnumEndpoint {
     ListChatSessions = 20006,
     SetMyTgHandle = 20007,
     GetMyTgHandle = 20008,
+    SubmitContactMessage = 20009,
     CreateApp = 30000,
     EditApp = 30001,
     ListApps = 30002,
@@ -238,6 +239,7 @@ impl EnumEndpoint {
             Self::SubscribeEvents => SubscribeEventsRequest::SCHEMA,
             Self::CloseChatSession => CloseChatSessionRequest::SCHEMA,
             Self::ListChatSessions => ListChatSessionsRequest::SCHEMA,
+            Self::SubmitContactMessage => SubmitContactMessageRequest::SCHEMA,
             Self::AppConnect => AppConnectRequest::SCHEMA,
             Self::CreateApp => CreateAppRequest::SCHEMA,
             Self::EditApp => EditAppRequest::SCHEMA,
@@ -1166,6 +1168,19 @@ pub struct SetRoleRequest {
 pub struct SetRoleResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct SubmitContactMessageRequest {
+    pub name: String,
+    pub email: String,
+    pub message: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SubmitContactMessageResponse {
+    pub session_id: Nanoid<16, Base62Alphabet>,
+    pub created_at: i64,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SubscribeEventsRequest {
     pub session_id: Nanoid<16, Base62Alphabet>,
     #[serde(default)]
@@ -1480,6 +1495,54 @@ impl WsRequest for ListChatSessionsRequest {
 }
 impl WsResponse for ListChatSessionsResponse {
     type Request = ListChatSessionsRequest;
+}
+
+impl WsRequest for SubmitContactMessageRequest {
+    type Response = SubmitContactMessageResponse;
+    const METHOD_ID: u32 = 20009;
+    const ROLES: &[u32] = &[2];
+    const SCHEMA: &'static str = r#"{
+  "name": "SubmitContactMessage",
+  "code": 20009,
+  "parameters": [
+    {
+      "name": "name",
+      "ty": "String"
+    },
+    {
+      "name": "email",
+      "ty": "String"
+    },
+    {
+      "name": "message",
+      "ty": "String"
+    }
+  ],
+  "returns": [
+    {
+      "name": "session_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "created_at",
+      "ty": "TimeStampMs"
+    }
+  ],
+  "stream_response": null,
+  "description": "Submit a contact form from the current anonymous visitor to this app's support desk. Creates a chat session for that visitor and stores the name, email, and message as its first message.",
+  "json_schema": null,
+  "roles": [
+    "UserRole::App"
+  ],
+  "errors": []
+}"#;
+}
+impl WsResponse for SubmitContactMessageResponse {
+    type Request = SubmitContactMessageRequest;
 }
 
 impl WsRequest for AppConnectRequest {

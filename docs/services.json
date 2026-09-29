@@ -549,6 +549,45 @@
             "UserRole::AppAdmin"
           ],
           "stream_response": null
+        },
+        {
+          "code": 20009,
+          "description": "Submit a contact form from the current anonymous visitor to this app's support desk. Creates a chat session for that visitor and stores the name, email, and message as its first message.",
+          "errors": [],
+          "json_schema": null,
+          "name": "SubmitContactMessage",
+          "parameters": [
+            {
+              "name": "name",
+              "ty": "String"
+            },
+            {
+              "name": "email",
+              "ty": "String"
+            },
+            {
+              "name": "message",
+              "ty": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "sessionId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "createdAt",
+              "ty": "TimeStampMs"
+            }
+          ],
+          "roles": [
+            "UserRole::App"
+          ],
+          "stream_response": null
         }
       ],
       "id": 2,

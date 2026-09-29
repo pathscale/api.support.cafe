@@ -316,6 +316,52 @@
         ],
         "type": "object"
       }
+    },
+    {
+      "code": 20009,
+      "description": "Submit a contact form from the current anonymous visitor to this app's support desk. Creates a chat session for that visitor and stores the name, email, and message as its first message.",
+      "frontendFacing": true,
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "message"
+        ],
+        "type": "object"
+      },
+      "name": "submit_contact_message",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "createdAt": {
+            "description": "Unix timestamp in milliseconds",
+            "type": "integer"
+          },
+          "sessionId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "createdAt"
+        ],
+        "type": "object"
+      }
     }
   ]
 }
