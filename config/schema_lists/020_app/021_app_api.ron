@@ -107,6 +107,24 @@ Config(
                     roles: ["UserRole::App", "UserRole::User", "UserRole::AppAdmin"],
                 ),
             ),
+            EndpointSchemaElement(
+                frontend_facing: true,
+                schema: (
+                    name: "SubmitContactMessage",
+                    code: 20009,
+                    description: "Submit a contact form from the current anonymous visitor to this app's support desk. Creates a chat session for that visitor and stores the name, email, and message as its first message.",
+                    parameters: [
+                        Field(name: "name", ty: String),
+                        Field(name: "email", ty: String),
+                        Field(name: "message", ty: String),
+                    ],
+                    returns: [
+                        Field(name: "session_id", ty: NanoId(len: 16)),
+                        Field(name: "created_at", ty: TimeStampMs),
+                    ],
+                    roles: ["UserRole::App"],
+                ),
+            ),
         ],
     ),
 )

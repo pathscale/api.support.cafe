@@ -64,6 +64,7 @@ ID: 2
 |20004|SubscribeEvents|`sessionId: Nanoid<16, Base62Alphabet>`, `unsub: Option<bool>`|`data: Vec<ChatMessage>`|Subscribe to live chat events (new messages) for a session; pass unsub: true to unsubscribe. Events are delivered as stream frames over the legacy protocol only.|true||
 |20005|CloseChatSession|`sessionId: Nanoid<16, Base62Alphabet>`||Close a chat session; no further messages can be sent to it.|true||
 |20006|ListChatSessions||`data: Vec<ChatSession>`|List chat sessions visible to the caller (the app's sessions for App connections, the user's own sessions otherwise).|true||
+|20009|SubmitContactMessage|`name: String`, `email: String`, `message: String`|`sessionId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`|Submit a contact form from the current anonymous visitor to this app's support desk. Creates a chat session for that visitor and stores the name, email, and message as its first message.|true||
 
 ## appConnect Server
 ID: 2
