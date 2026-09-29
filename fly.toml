@@ -27,14 +27,15 @@ kill_timeout = "30s"
   # Plain HTTP behind Fly's TLS.
   CAFE__SERVER__ADDRESS = "0.0.0.0:8080"
   CAFE__SERVER__INSECURE = "true"
-  # Which Doppler config production reads, in the repository rather than as
-  # hand-set Fly secrets. Set by hand, it drifted: production ran on the dev
-  # config, so it validated honey.id callbacks with the dev app key and every
-  # sign-in failed with "Incorrect Auth API key". Only the service token, which
-  # has to be a token for this config, stays a Fly secret.
+  # Which Doppler config production reads, in the repository rather than only
+  # as hand-set Fly secrets, which nobody could see. Production reads `dev`,
+  # which holds the production honey.id app (sMu89YGgeej7EYBL) and its key;
+  # `prd` holds only those two. Every sign-in failed with "Incorrect Auth API
+  # key" while `dev` still carried the dev app. The service token, which is a
+  # token for this config, stays a Fly secret.
   CAFE_SECRETS_ENABLED = "true"
   CAFE_SECRETS_DOPPLER_PROJECT = "api-support-cafe"
-  CAFE_SECRETS_DOPPLER_CONFIG = "prd"
+  CAFE_SECRETS_DOPPLER_CONFIG = "dev"
 
 # TLS is Fly's now, not this app's. It used to terminate its own on 443 with
 # handlers = [], which is what made a failed start look like a network fault:
