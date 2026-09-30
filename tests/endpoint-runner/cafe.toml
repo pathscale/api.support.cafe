@@ -1,0 +1,733 @@
+# End-to-end QA of api.support.cafe against local honey.id services (auth.honey.id
+# and api.honey.id), all three booted from release builds on empty stores:
+#
+#   endpoint-runner run ~/code/api.support.cafe/tests/endpoint-runner/cafe.toml
+#
+# Needs auth.honey.id-backend and api.honey.id-backend checked out beside this
+# repository. Fresh ports, stores and keys every run. Doppler is explicitly
+# disabled for all three services; Telegram bot tokens are fakes, and no
+# production or dev instance is involved. Every endpoint in docs/services.json
+# must succeed at least once, or the run fails. How to read and extend this
+# file: pathscale/EndpointRunner's README.
+#
+# The order is the production one. support.cafe is an app registered in
+# honey.id, so: bring up honey.id and its admin, create the support.cafe app
+# there, start support.cafe with its id and callback API key, sign a user in
+# through auth, then make them support.cafe's admin with
+# CAFE__HONEY_ID__ADMIN_PUB_ID and a restart.
+
+url = "ws://127.0.0.1:${cafe_port}/"
+services = "../../docs/services.json"
+cover = ["default"]
+# Each role's class: everything it may call succeeds as it, everything else
+# is refused as it.
+roles = ["Admin", "AppAdmin", "Support", "User", "App"]
+
+[target.auth]
+url = "ws://127.0.0.1:${auth_port}/"
+services = "../../../auth.honey.id-backend/docs/services.json"
+
+[target.honey]
+url = "ws://127.0.0.1:${api_port}/"
+services = "../../../api.honey.id-backend/docs/services.json"
+
+[vars]
+tmp = "$tmpdir"
+auth_port = "$port"
+api_port = "$port"
+cafe_port = "$port"
+honey_app = "$nanoid16"
+callback_key = "$nanoid32"
+api_app_key = "$nanoid32"
+platform_key = "$nanoid32"
+auth_db_key = "$base64_32"
+cafe_platform_key = "$nanoid32"
+honey_admin = "$nanoid16"
+honey_admin_pass = "$nanoid32"
+admin = "$nanoid16"
+admin_pass = "$nanoid32"
+staff = "$nanoid16"
+staff_pass = "$nanoid32"
+customer = "$nanoid16"
+mgr = "$nanoid16"
+mgr_pass = "$nanoid32"
+customer2 = "$nanoid16"
+member = "$nanoid16"
+member_pass = "$nanoid32"
+
+[[boot]]
+name = "auth"
+dir = "../../../auth.honey.id-backend"
+build = ["cargo", "build", "--release"]
+cmd = ["target/release/auth_honey_be"]
+ready = "127.0.0.1:${auth_port}"
+[boot.env]
+AUTH_SECRETS_ENABLED = "false"
+AUTH__SERVER__ADDRESS = "127.0.0.1:${auth_port}"
+AUTH__DATABASE__PATH = "${tmp}/auth-db"
+AUTH__DATABASE__ENCRYPTION_KEY = "${auth_db_key}"
+AUTH__LOG__FOLDER = "${tmp}/auth-log"
+AUTH__SERVICE__API_APP_PUB_ID = "${honey_app}"
+AUTH__SERVICE__API_APP_URL = "ws://127.0.0.1:${api_port}"
+AUTH__SERVICE__API_APP_CALLBACK_KEY = "${callback_key}"
+AUTH__SERVICE__API_APP_API_KEY = "${api_app_key}"
+AUTH__SERVICE__PLATFORM_API_KEY = "${platform_key}"
+
+[[boot]]
+name = "honey"
+dir = "../../../api.honey.id-backend"
+build = ["cargo", "build", "--release"]
+cmd = ["target/release/api_honey_be"]
+ready = "127.0.0.1:${api_port}"
+[boot.env]
+API_SECRETS_ENABLED = "false"
+API__SERVER__ADDRESS = "127.0.0.1:${api_port}"
+API__DATABASE__PATH = "${tmp}/honey-db"
+API__LOG__FOLDER = "${tmp}/honey-log"
+API__SERVICE__HONEY_AUTH_PLATFORM_KEY = "${platform_key}"
+API__SERVICE__API_APP_CALLBACK_URL = "ws://127.0.0.1:${api_port}"
+API__HONEYID__ADDR = "ws://127.0.0.1:${auth_port}"
+API__HONEYID__APP_PUBLIC_ID = "${honey_app}"
+API__HONEYID__AUTH_API_KEY = "${api_app_key}"
+API__SERVICE__API_APP_CALLBACK_KEY = "${callback_key}"
+
+[[boot]]
+name = "cafe"
+dir = "../.."
+build = ["cargo", "build", "--release"]
+cmd = ["target/release/support_cafe"]
+ready = "127.0.0.1:${cafe_port}"
+deferred = true
+[boot.env]
+CAFE_SECRETS_ENABLED = "false"
+CAFE__SERVER__ADDRESS = "127.0.0.1:${cafe_port}"
+CAFE__DATABASE__PATH = "${tmp}/cafe-db"
+CAFE__LOG__FOLDER = "${tmp}/cafe-log"
+CAFE__SERVICE__PLATFORM_API_KEY = "${cafe_platform_key}"
+CAFE__HONEY_ID__ADDR = "ws://127.0.0.1:${auth_port}"
+
+# --- honey.id's admin, as after a wipe ----------------------------------------
+
+[[step]]
+on = "auth"
+connect = "Signup"
+params = { appPublicId = "${honey_app}", username = "qa${honey_admin}", password = "${b32:honey_admin_pass}" }
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${honey_app}", username = "qa${honey_admin}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:honey_admin_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+on = "honey"
+connect = "Init"
+params = { accessToken = "${token}" }
+save = { honey_admin_pub = "userPublicId" }
+
+[[step]]
+restart = "honey"
+env = { API__HONEYID__ADMIN_PUB_ID = "${honey_admin_pub}" }
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${honey_app}", username = "qa${honey_admin}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:honey_admin_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+on = "honey"
+connect = "Init"
+params = { accessToken = "${token}" }
+
+# --- register support.cafe as a honey.id app, then start it -------------------
+
+[[step]]
+name = "register support.cafe in honey.id"
+call = "CreateApp"
+params = { name = "support.cafe", description = "endpoint-runner", callbackUrl = "ws://127.0.0.1:${cafe_port}/" }
+save = { cafe_app = "appPublicId", cafe_key = "callbackApiKey" }
+
+[[step]]
+start = "cafe"
+env = { CAFE__HONEY_ID__APP_PUBLIC_ID = "${cafe_app}", CAFE__HONEY_ID__AUTH_API_KEY = "${cafe_key}" }
+
+# --- a support.cafe user, signed in through auth -----------------------------
+
+[[step]]
+on = "auth"
+connect = "Signup"
+params = { appPublicId = "${cafe_app}", username = "qa${admin}", password = "${b32:admin_pass}" }
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${admin}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:admin_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+connect = "Init"
+params = { accessToken = "${token}" }
+role = "User"
+save = { admin_pub = "userId" }
+
+[[step]]
+call = "GetMyInfo"
+
+[[step]]
+name = "a user has no chats yet"
+call = "ListChatSessions"
+
+[[step]]
+sweep = "denied"
+
+[[step]]
+name = "a user is not an admin"
+call = "GetUsers"
+expect = "error"
+
+# --- promote them, as after a wipe --------------------------------------------
+
+[[step]]
+restart = "cafe"
+env = { CAFE__HONEY_ID__APP_PUBLIC_ID = "${cafe_app}", CAFE__HONEY_ID__AUTH_API_KEY = "${cafe_key}", CAFE__HONEY_ID__ADMIN_PUB_ID = "${admin_pub}" }
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${admin}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:admin_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+name = "the admin signs in"
+connect = "Init"
+params = { accessToken = "${token}" }
+role = "Admin"
+
+# --- platform admin -------------------------------------------------------------
+
+[[step]]
+call = "GetUsers"
+
+[[step]]
+call = "GetAllApps"
+
+[[step]]
+call = "SetLogLevel"
+params = { level = "Debug" }
+
+[[step]]
+call = "SetRole"
+params = { userPubId = "${admin_pub}", role = "Admin" }
+
+[[step]]
+name = "the admin's own Telegram handle"
+call = "SetMyTgHandle"
+params = { tgHandle = "qa_admin" }
+
+[[step]]
+call = "GetMyTgHandle"
+
+[[step]]
+call = "GetMyInfo"
+
+# --- an app of their own --------------------------------------------------------
+
+[[step]]
+call = "CreateApp"
+params = { tgBotToken = "123456:endpoint-runner-not-a-real-token", appName = "qa desk", messagePersistenceEnabled = true }
+save = { desk = "appPublicId" }
+
+[[step]]
+call = "ListApps"
+
+[[step]]
+call = "EditApp"
+params = { appPublicId = "${desk}", appName = "qa desk renamed" }
+
+[[step]]
+call = "ListAppMembers"
+params = { appPublicId = "${desk}" }
+
+[[step]]
+call = "DisableMessagePersistence"
+params = { appPublicId = "${desk}" }
+
+[[step]]
+call = "EnableMessagePersistence"
+params = { appPublicId = "${desk}" }
+
+[[step]]
+sweep = "denied"
+
+# --- support staff: a second user, added to the desk ----------------------------
+
+[[step]]
+on = "auth"
+connect = "Signup"
+params = { appPublicId = "${cafe_app}", username = "qa${staff}", password = "${b32:staff_pass}" }
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${staff}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:staff_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+name = "staff sign in once, so support.cafe knows them"
+connect = "Init"
+params = { accessToken = "${token}" }
+save = { staff_pub = "userId" }
+
+[[step]]
+name = "not yet support staff"
+call = "SetMyTgHandle"
+params = { tgHandle = "qa_support" }
+expect = "error"
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${admin}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:admin_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+name = "the admin again"
+connect = "Init"
+params = { accessToken = "${token}" }
+role = "Admin"
+
+[[step]]
+call = "AddAppMember"
+params = { appPublicId = "${desk}", userPubId = "${staff_pub}" }
+
+[[step]]
+call = "SetAppMemberRole"
+params = { appPublicId = "${desk}", userPubId = "${staff_pub}", role = "Support" }
+
+[[step]]
+name = "enabling needs the staff member's Telegram handle first"
+call = "EnableSupportUser"
+params = { appPublicId = "${desk}", userPubId = "${staff_pub}" }
+expect = "error"
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${staff}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:staff_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+name = "staff sign in as support"
+connect = "Init"
+params = { accessToken = "${token}" }
+role = "Support"
+
+[[step]]
+call = "SetMyTgHandle"
+params = { tgHandle = "qa_support" }
+
+[[step]]
+call = "GetMyTgHandle"
+
+[[step]]
+call = "ListAppMembers"
+params = { appPublicId = "${desk}" }
+
+[[step]]
+call = "GetMyInfo"
+
+[[step]]
+sweep = "denied"
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${admin}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:admin_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+connect = "Init"
+params = { accessToken = "${token}" }
+role = "Admin"
+
+[[step]]
+call = "EnableSupportUser"
+params = { appPublicId = "${desk}", userPubId = "${staff_pub}" }
+
+[[step]]
+call = "DisableSupportUser"
+params = { appPublicId = "${desk}", userPubId = "${staff_pub}" }
+
+# --- a customer, through the app's own connection ------------------------------
+
+[[step]]
+name = "AppConnect refuses an app that does not exist"
+connect = "AppConnect"
+params = { appPublicId = "${customer}", userPublicId = "${customer}" }
+expect = "error"
+error_code = 100404
+
+[[step]]
+name = "AppConnect refuses a registered account's id"
+connect = "AppConnect"
+params = { appPublicId = "${desk}", userPublicId = "${staff_pub}" }
+expect = "error"
+error_code = 100403
+
+[[step]]
+connect = "AppConnect"
+params = { appPublicId = "${desk}", userPublicId = "${customer}" }
+role = "App"
+
+[[step]]
+name = "submit a contact form as an app visitor"
+call = "SubmitContactMessage"
+params = { name = "Endpoint Runner Visitor", email = "visitor@endpoint-runner.test", message = "I need help with my account." }
+
+[[step]]
+name = "an app connection cannot open a session for someone else"
+call = "CreateChatSession"
+params = { userPubId = "${staff_pub}" }
+expect = "error"
+error_code = 100403
+
+[[step]]
+call = "CreateChatSession"
+params = { userPubId = "${customer}" }
+save = { session = "sessionId" }
+
+[[step]]
+call = "ListChatSessions"
+
+[[step]]
+call = "SendMessage"
+params = { sessionId = "${session}", content = "hello from endpoint-runner" }
+
+[[step]]
+call = "ListMessages"
+params = { sessionId = "${session}" }
+
+[[step]]
+call = "SubscribeEvents"
+params = { sessionId = "${session}" }
+
+[[step]]
+call = "CloseChatSession"
+params = { sessionId = "${session}" }
+
+[[step]]
+sweep = "denied"
+
+# --- AppAdmin: an app manager, over a desk of their own ----------------------
+
+[[step]]
+on = "auth"
+connect = "Signup"
+params = { appPublicId = "${cafe_app}", username = "qa${mgr}", password = "${b32:mgr_pass}" }
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${mgr}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:mgr_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+name = "the manager signs in once, so support.cafe knows them"
+connect = "Init"
+params = { accessToken = "${token}" }
+save = { mgr_pub = "userId" }
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${admin}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:admin_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+name = "the admin makes them an app manager"
+connect = "Init"
+params = { accessToken = "${token}" }
+role = "Admin"
+
+[[step]]
+call = "SetRole"
+params = { userPubId = "${mgr_pub}", role = "AppAdmin" }
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${mgr}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:mgr_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+name = "the manager signs in as one"
+connect = "Init"
+params = { accessToken = "${token}" }
+role = "AppAdmin"
+
+[[step]]
+call = "CreateApp"
+params = { tgBotToken = "654321:endpoint-runner-not-a-real-token", appName = "qa managed desk" }
+save = { desk2 = "appPublicId" }
+
+[[step]]
+call = "ListApps"
+
+[[step]]
+call = "EditApp"
+params = { appPublicId = "${desk2}", appName = "qa managed desk renamed" }
+
+[[step]]
+call = "ListAppMembers"
+params = { appPublicId = "${desk2}" }
+
+[[step]]
+call = "AddAppMember"
+params = { appPublicId = "${desk2}", userPubId = "${staff_pub}" }
+
+[[step]]
+call = "SetAppMemberRole"
+params = { appPublicId = "${desk2}", userPubId = "${staff_pub}", role = "Support" }
+
+[[step]]
+call = "EnableSupportUser"
+params = { appPublicId = "${desk2}", userPubId = "${staff_pub}" }
+
+[[step]]
+call = "DisableSupportUser"
+params = { appPublicId = "${desk2}", userPubId = "${staff_pub}" }
+
+[[step]]
+call = "DisableMessagePersistence"
+params = { appPublicId = "${desk2}" }
+
+[[step]]
+call = "EnableMessagePersistence"
+params = { appPublicId = "${desk2}" }
+
+[[step]]
+call = "SetMyTgHandle"
+params = { tgHandle = "qa_manager" }
+
+[[step]]
+call = "GetMyTgHandle"
+
+[[step]]
+call = "GetMyInfo"
+
+[[step]]
+name = "an app manager cannot edit a desk that is not theirs"
+call = "EditApp"
+params = { appPublicId = "${desk}", appName = "not mine" }
+expect = "error"
+
+[[step]]
+name = "nor delete it"
+call = "DeleteApp"
+params = { appPublicId = "${desk}" }
+expect = "error"
+
+[[step]]
+name = "nor add themselves to it"
+call = "AddAppMember"
+params = { appPublicId = "${desk}", userPubId = "${mgr_pub}" }
+expect = "error"
+
+# a customer writes in on the manager's desk
+
+[[step]]
+connect = "AppConnect"
+params = { appPublicId = "${desk2}", userPublicId = "${customer2}" }
+
+[[step]]
+call = "CreateChatSession"
+params = { userPubId = "${customer2}" }
+save = { session2 = "sessionId" }
+
+[[step]]
+call = "SendMessage"
+params = { sessionId = "${session2}", content = "hello desk" }
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${mgr}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:mgr_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+name = "the manager answers"
+connect = "Init"
+params = { accessToken = "${token}" }
+role = "AppAdmin"
+
+[[step]]
+call = "ListChatSessions"
+
+[[step]]
+call = "ListMessages"
+params = { sessionId = "${session2}" }
+
+[[step]]
+call = "SendMessage"
+params = { sessionId = "${session2}", content = "hello customer" }
+
+[[step]]
+call = "SubscribeEvents"
+params = { sessionId = "${session2}" }
+
+[[step]]
+name = "an app manager cannot read another desk's chat"
+call = "ListMessages"
+params = { sessionId = "${session}" }
+expect = "error"
+error_code = 100403
+
+[[step]]
+call = "CloseChatSession"
+params = { sessionId = "${session2}" }
+
+[[step]]
+call = "DeleteApp"
+params = { appPublicId = "${desk2}" }
+
+[[step]]
+sweep = "denied"
+
+# --- a signed-in user writes in to a desk themselves -------------------------
+
+[[step]]
+on = "auth"
+connect = "Signup"
+params = { appPublicId = "${cafe_app}", username = "qa${member}", password = "${b32:member_pass}" }
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${member}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:member_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+name = "a signed-in user"
+connect = "Init"
+params = { accessToken = "${token}" }
+role = "User"
+save = { member_pub = "userId" }
+
+[[step]]
+name = "opens a chat with a desk, for themselves"
+call = "CreateChatSession"
+params = { userPubId = "${member_pub}", appPublicId = "${desk}" }
+save = { session3 = "sessionId" }
+
+[[step]]
+name = "and only for themselves"
+call = "CreateChatSession"
+params = { userPubId = "${customer}", appPublicId = "${desk}" }
+expect = "error"
+error_code = 100403
+
+[[step]]
+name = "a desk that does not exist takes no chats"
+call = "CreateChatSession"
+params = { userPubId = "${member_pub}", appPublicId = "${member}" }
+expect = "error"
+
+[[step]]
+call = "SendMessage"
+params = { sessionId = "${session3}", content = "hello, signed in" }
+
+[[step]]
+call = "ListMessages"
+params = { sessionId = "${session3}" }
+
+[[step]]
+call = "SubscribeEvents"
+params = { sessionId = "${session3}" }
+
+[[step]]
+call = "ListChatSessions"
+
+[[step]]
+name = "nor can they read someone else's chat"
+call = "ListMessages"
+params = { sessionId = "${session}" }
+expect = "error"
+error_code = 100403
+
+[[step]]
+call = "CloseChatSession"
+params = { sessionId = "${session3}" }
+
+# --- and last, deleting the app -----------------------------------------------
+
+[[step]]
+on = "auth"
+connect = "SubmitUsername"
+params = { appPublicId = "${cafe_app}", username = "qa${admin}" }
+
+[[step]]
+call = "SubmitPassword"
+params = { password = "${b32:admin_pass}" }
+save = { token = "accessToken" }
+
+[[step]]
+connect = "Init"
+params = { accessToken = "${token}" }
+role = "Admin"
+
+[[step]]
+call = "DeleteApp"
+params = { appPublicId = "${desk}" }
