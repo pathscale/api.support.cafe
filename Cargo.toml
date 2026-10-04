@@ -38,7 +38,7 @@ nago-http = "^0.1.1"
 nago-telegram = "^0.1"
 tracing = "^0.1"
 url = "^2.5.7"
-worktable = { version = "^1.10.0-beta1" }
+worktable = { version = "^1.11.0" }
 honey_id-types = "^2.1"
 cert-provider = { package = "ps-cert-provider", version = "^0.1", features = ["dns01"], optional = true }
 
