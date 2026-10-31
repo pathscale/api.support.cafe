@@ -14,8 +14,8 @@ Backend for **support.cafe** — a support-desk service. WebSocket RPC (not REST
   tool that owns the answer could just be asked. Do not swap it for another parser
   either, and do not assume `jq` is present: it does not ship with macOS. A fixed-shape
   field is one `sed -nE` line; anything needing real parsing belongs in this repo's own
-  language, where it can be tested. The `.py` files here are legacy: do not extend them,
-  and port them out when you are already changing that area.
+  language, where it can be tested. No `.py` file or `python3` call is left in this
+  repository; keep it that way.
 
 - **No Node.js, npm, npx, Bun, Deno, or JavaScript tooling.** Service code,
   operational tools, QA harnesses, and CI helpers are Rust. Extend the existing
