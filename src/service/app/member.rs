@@ -182,10 +182,12 @@ impl AppService {
         Ok(())
     }
 
+    /// Every app the user belongs to, with the user's role in it. The role is
+    /// per app: being Owner of one app says nothing about another.
     pub fn list_apps_for_user(
         &self,
         user_pub_id: UserPublicId,
-    ) -> eyre::Result<Vec<crate::db::schema::app_config::AppConfigRow>> {
+    ) -> eyre::Result<Vec<(crate::db::schema::app_config::AppConfigRow, AppMemberRole)>> {
         let packed_user = user_pub_id.pack()?;
         let rows = self
             .app_member_table
@@ -194,7 +196,11 @@ impl AppService {
 
         Ok(rows
             .into_iter()
-            .filter_map(|r| self.app_config_table.select_by_public_id(r.app_public_id))
+            .filter_map(|r| {
+                self.app_config_table
+                    .select_by_public_id(r.app_public_id)
+                    .map(|app| (app, r.role))
+            })
             .collect())
     }
 
