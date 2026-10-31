@@ -105,6 +105,7 @@ to every agent and human; private memory dies with your machine.
 ## Guides
 
 - WorkTable schema vs. deploy: [`docs/worktable-schema-and-deploy.md`](docs/worktable-schema-and-deploy.md).
+- Known security limitations, including how public chat works: [`docs/known-limitations.md`](docs/known-limitations.md).
 
 ## Git workflow
 
