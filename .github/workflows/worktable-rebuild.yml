@@ -57,7 +57,9 @@ jobs:
           entrypoint: /worktable_rebuild
 
       - name: Login to Fly registry
-        run: buildah login -u x -p "${{ secrets.FLY_API_TOKEN }}" registry.fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: printf '%s' "$FLY_API_TOKEN" | buildah login -u x --password-stdin registry.fly.io
 
       - name: Push recovery image
         run: buildah push --compression-format gzip --remove-signatures registry.fly.io/support-cafe-master-fly:worktable-rebuild-${{ github.sha }}

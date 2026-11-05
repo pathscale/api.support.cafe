@@ -123,7 +123,9 @@ jobs:
           entrypoint: /support_cafe
 
       - name: Login to Fly registry
-        run: buildah login -u x -p "${{ secrets.FLY_API_TOKEN }}" ${{ env.FLY_REGISTRY }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: printf '%s' "$FLY_API_TOKEN" | buildah login -u x --password-stdin "${{ env.FLY_REGISTRY }}"
 
       - name: Push image to Fly registry
         run: |
