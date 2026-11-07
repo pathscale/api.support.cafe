@@ -19,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          persist-credentials: false
           fetch-depth: 2
       - id: check
         run: |
@@ -41,6 +42,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set version and image
         run: |
@@ -120,7 +123,9 @@ jobs:
           entrypoint: /support_cafe
 
       - name: Login to Fly registry
-        run: buildah login -u x -p "${{ secrets.FLY_API_TOKEN }}" ${{ env.FLY_REGISTRY }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: printf '%s' "$FLY_API_TOKEN" | buildah login -u x --password-stdin "${{ env.FLY_REGISTRY }}"
 
       - name: Push image to Fly registry
         run: |
