@@ -7,29 +7,19 @@ use honey_id_types::handlers::convenience_utils::user_management::{
 use honey_id_types::id_entities::UserPublicId;
 
 use crate::codegen::model::{GetMyInfoResponse, UserRole};
-use crate::db::schema::app_member::AppMemberWorkTable;
-use crate::db::schema::support_info::SupportInfoWorkTable;
-use crate::db::schema::user::{UserRow, UserWorkTable};
+use crate::db::schema::user::UserRow;
+use crate::db::schema::visitor_credential::reservation;
+use crate::db::tables::Tables;
 use crate::db::util::PackedUserPubId;
 
 #[derive(Clone)]
 pub struct UserService {
-    user_table: Arc<UserWorkTable>,
-    app_member_table: Arc<AppMemberWorkTable>,
-    support_info_table: Arc<SupportInfoWorkTable>,
+    tables: Arc<Tables>,
 }
 
 impl UserService {
-    pub fn new(
-        user_table: Arc<UserWorkTable>,
-        app_member_table: Arc<AppMemberWorkTable>,
-        support_info_table: Arc<SupportInfoWorkTable>,
-    ) -> Self {
-        Self {
-            user_table,
-            app_member_table,
-            support_info_table,
-        }
+    pub fn new(tables: Arc<Tables>) -> Self {
+        Self { tables }
     }
 
     pub fn get_my_info(&self, user_pub_id: UserPublicId) -> eyre::Result<GetMyInfoResponse> {
@@ -38,6 +28,7 @@ impl UserService {
             .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))?;
 
         let user = self
+            .tables
             .user_table
             .select_by_pub_id(packed_id)
             .ok_or_else(|| eyre::eyre!("User not found"))?;
@@ -58,7 +49,8 @@ impl UserStorage for UserService {
             .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))?;
 
         Ok(vec![
-            self.user_table
+            self.tables
+                .user_table
                 .select_by_pub_id(packed_id)
                 .map(|u| u.role as u32)
                 .unwrap_or(UserRole::Public as u32),
@@ -77,18 +69,28 @@ impl UserStorage for UserService {
         let packed_id = PackedUserPubId::pack(&user_info_request.user_pub_id)
             .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))?;
 
-        if let Some(mut user) = self.user_table.select_by_pub_id(packed_id) {
+        let _allocation = self.tables.visitor_identity_allocation.lock().await;
+        if let Some(mut user) = self.tables.user_table.select_by_pub_id(packed_id) {
             user.username = user_info_request.username;
-            self.user_table.replace(user).await?;
+            self.tables.user_table.replace(user).await?;
         } else {
-            self.user_table
+            eyre::ensure!(
+                self.tables
+                    .visitor_credential_table
+                    .select(packed_id)
+                    .is_none(),
+                "Public ID is reserved"
+            );
+            self.tables
+                .user_table
                 .insert(UserRow {
-                    id: self.user_table.get_next_pk().into(),
+                    id: self.tables.user_table.get_next_pk().into(),
                     pub_id: packed_id,
                     username: user_info_request.username,
                     role: UserRole::User,
                 })
                 .await?;
+            self.tables.user_table.wait_for_ops().await?;
         }
 
         Ok(())
@@ -98,13 +100,31 @@ impl UserStorage for UserService {
         let packed_id = PackedUserPubId::pack(&user_info.user_pub_id)
             .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))?;
 
-        self.app_member_table
+        let _allocation = self.tables.visitor_identity_allocation.lock().await;
+        if self.tables.user_table.select_by_pub_id(packed_id).is_some() {
+            if self
+                .tables
+                .visitor_credential_table
+                .select(packed_id)
+                .is_none()
+            {
+                self.tables
+                    .visitor_credential_table
+                    .insert(reservation(packed_id))
+                    .await?;
+            }
+            // Existing sessions and still-connected clients can retain this ID.
+            self.tables.wait_for_visitor_ops().await?;
+        }
+        self.tables
+            .app_member_table
             .delete_by_user_pub_id(packed_id)
             .await?;
-        self.support_info_table
+        self.tables
+            .support_info_table
             .delete_by_user_pub_id(packed_id)
             .await?;
-        self.user_table.delete_by_pub_id(packed_id).await?;
+        self.tables.user_table.delete_by_pub_id(packed_id).await?;
 
         Ok(())
     }

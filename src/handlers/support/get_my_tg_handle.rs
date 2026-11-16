@@ -1,15 +1,19 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
 use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
 use crate::codegen::model::{EnumErrorCode, GetMyTgHandleRequest, GetMyTgHandleResponse};
+use crate::service::app::AppService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
+
+use super::signed_in_staff;
 
 #[derive(Clone)]
 pub struct MethodGetMyTgHandle {
-    pub support_info_table: Arc<crate::db::schema::support_info::SupportInfoWorkTable>,
+    pub app_service: Arc<AppService>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
@@ -18,36 +22,23 @@ impl RequestHandler for MethodGetMyTgHandle {
     type Request = GetMyTgHandleRequest;
     type Error = CustomError;
 
-    async fn handle(&self, ctx: RequestContext, _req: Self::Request) -> Response<Self::Request> {
-        tracing::debug!(
-            connection_id = ctx.connection_id,
-            "GetMyTgHandle: received request"
-        );
-
-        let user_pub_id = self
-            .user_connection_registry
-            .get(ctx.connection_id)
-            .await
+    async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
+        let user = signed_in_staff(&ctx, &self.user_connection_registry).await?;
+        let app = req.app_public_id.into();
+        let member = self
+            .app_service
+            .telegram_member(app, user)
+            .internal()?
             .ok_or_else(|| {
-                CustomError::new(EnumErrorCode::Unauthorized)
-                    .with_message("Connection not authenticated")
+                CustomError::new(EnumErrorCode::Forbidden).with_message("Not a member of this app")
             })?;
-
-        let packed_id = user_pub_id
-            .pack()
-            .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))
-            .internal()?;
-
-        let tg_handle = self
-            .support_info_table
-            .select(packed_id)
-            .map(|row| row.tg_handle);
-
-        tracing::debug!(
-            connection_id = ctx.connection_id,
-            "GetMyTgHandle: completed successfully"
-        );
-
-        Ok(GetMyTgHandleResponse { tg_handle })
+        let status = self
+            .app_service
+            .telegram_link_status(app, &member, Instant::now())
+            .await;
+        Ok(GetMyTgHandleResponse {
+            tg_handle: status.handle,
+            link_state: status.state.to_owned(),
+        })
     }
 }

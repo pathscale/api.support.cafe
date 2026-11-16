@@ -2,8 +2,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::service::log::LogService;
-use endpoint_libs::libs::ws::WebsocketServer;
+use endpoint_libs::libs::peer::PeerIdentity;
 use endpoint_libs::libs::ws::mcp::McpServerInfo;
+use endpoint_libs::libs::ws::{OnDisconnect, WebsocketServer};
 use eyre::Result;
 use honey_id_types::HoneyIdClient;
 use honey_id_types::handlers::convenience_utils::token_management::TokenWorkTableStorage;
@@ -49,6 +50,15 @@ impl App {
 
         #[cfg(not(feature = "s3-sync"))]
         let db = Arc::new(Tables::new(config.database.clone()).await?);
+        Self::init_with_tables(config, log_service, db).await
+    }
+
+    async fn init_with_tables(
+        config: Config,
+        log_service: Arc<LogService>,
+        db: Arc<Tables>,
+    ) -> Result<Self> {
+        db.require_visitor_migration().await?;
         let app_connection_registry = Arc::new(AppConnectionRegistry::new());
         let user_connection_registry = Arc::new(UserConnectionRegistry::new());
         let message_store = Arc::new(MessageStore::new(
@@ -58,17 +68,14 @@ impl App {
             db.support_memory_message_table.clone(),
             db.app_slot_table.clone(),
         ));
-        let user_service = Arc::new(UserService::new(
-            db.user_table.clone(),
-            db.app_member_table.clone(),
-            db.support_info_table.clone(),
-        ));
+        let user_service = Arc::new(UserService::new(db.clone()));
         let app_service = Arc::new(AppService::new(
             db.app_config_table.clone(),
             db.app_member_table.clone(),
             db.support_info_table.clone(),
             db.user_table.clone(),
             message_store.clone(),
+            db.telegram_link_table.clone(),
         ));
         let bot_service = Arc::new(BotService::new(
             db.app_member_table.clone(),
@@ -106,6 +113,10 @@ impl App {
     }
 
     async fn register_handlers(&self, server: &mut WebsocketServer) {
+        server.add_on_disconnect_hook(ConnectionRegistryCleanup {
+            app_connections: self.ctx.app_connection_registry.clone(),
+            user_connections: self.ctx.user_connection_registry.clone(),
+        });
         register_auth_api_handlers(
             server,
             self.ctx.db.clone(),
@@ -131,6 +142,7 @@ impl App {
         );
 
         let mut server = WebsocketServer::new(self.ctx.config.server.clone().into());
+        crate::admission::install(&mut server);
         self.register_handlers(&mut server).await;
 
         // Expose every registered endpoint as an MCP tool (JSON-RPC 2.0 frames
@@ -179,6 +191,62 @@ impl App {
     }
 }
 
+struct ConnectionRegistryCleanup {
+    app_connections: Arc<AppConnectionRegistry>,
+    user_connections: Arc<UserConnectionRegistry>,
+}
+
+#[async_trait::async_trait(?Send)]
+impl OnDisconnect for ConnectionRegistryCleanup {
+    async fn on_disconnect(&self, connection_id: u32, _peer: &PeerIdentity) {
+        self.app_connections.unregister(connection_id).await;
+        self.user_connections.unregister(connection_id).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn disconnect_cleanup_removes_only_the_ended_connection_from_both_registries() {
+        nagoya::block_on(async {
+            let app_connections = Arc::new(AppConnectionRegistry::new());
+            let user_connections = Arc::new(UserConnectionRegistry::new());
+            let app_a = crate::id_types::AppPublicId::from(crate::id_types::NanoId::new());
+            let app_b = crate::id_types::AppPublicId::from(crate::id_types::NanoId::new());
+            let user_a = UserPublicId::default();
+            let user_b = UserPublicId::default();
+            let user_c = UserPublicId::default();
+
+            app_connections.register(1, app_a).await;
+            user_connections.register(1, user_a).await;
+            app_connections.register(2, app_b).await;
+            user_connections.register(2, user_b).await;
+            user_connections.register(3, user_c).await;
+
+            let cleanup = ConnectionRegistryCleanup {
+                app_connections: app_connections.clone(),
+                user_connections: user_connections.clone(),
+            };
+            let peer = PeerIdentity::Unknown;
+            cleanup.on_disconnect(1, &peer).await;
+            cleanup.on_disconnect(3, &peer).await;
+
+            assert_eq!(app_connections.get(1).await, None);
+            assert_eq!(user_connections.get(1).await, None);
+            assert_eq!(user_connections.get(3).await, None);
+            assert_eq!(app_connections.get(2).await, Some(app_b));
+            assert_eq!(user_connections.get(2).await, Some(user_b));
+
+            cleanup.on_disconnect(1, &peer).await;
+            cleanup.on_disconnect(99, &peer).await;
+            assert_eq!(app_connections.get(2).await, Some(app_b));
+            assert_eq!(user_connections.get(2).await, Some(user_b));
+        });
+    }
+}
+
 async fn bootstrap_admin_user(
     tables: &Tables,
     admin_pub_id: psc_nanoid::Nanoid<16, psc_nanoid::alphabet::Base62Alphabet>,
@@ -215,3 +283,6 @@ async fn bootstrap_admin_user(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod visitor_acceptance;

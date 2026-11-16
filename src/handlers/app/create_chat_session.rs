@@ -5,6 +5,7 @@ use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
 use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 use honey_id_types::id_entities::UserPublicId;
 
+use super::map_session_error;
 use crate::codegen::model::{CreateChatSessionRequest, CreateChatSessionResponse, EnumErrorCode};
 use crate::id_types::{AppPublicId, SessionId};
 use crate::service::app_connection_registry::AppConnectionRegistry;
@@ -61,9 +62,9 @@ impl RequestHandler for MethodCreateChatSession {
 
         let row = self
             .session_service
-            .create_session(UserPublicId::from(req.user_pub_id), app_public_id)
+            .create_session(user_pub_id, app_public_id)
             .await
-            .internal()?;
+            .map_err(map_session_error)?;
 
         tracing::debug!(
             connection_id = ctx.connection_id,

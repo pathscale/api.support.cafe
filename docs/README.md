@@ -71,7 +71,7 @@ ID: 2
 ### Endpoints
 |Code|Name|Parameters|Response|Description|FE Facing|Errors|
 |-----------|-----------|----------|--------|-----------|-----------|-----------|
-|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Nanoid<16, Base62Alphabet>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`|Connect as an app widget on behalf of an end-user, declaring the app and user public ids. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.|true||
+|20000|AppConnect|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPublicId: Option<Nanoid<16, Base62Alphabet>>`, `visitorSecret: Option<String>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `appName: Option<String>`, `userPublicId: Nanoid<16, Base62Alphabet>`, `visitorSecret: Option<String>`|Connect as an anonymous visitor. Omit both visitor fields for a new identity, or supply the server-issued ID and secret to reconnect. WebSocket handshake only.|true||
 
 ## appAdminApi Server
 ID: 3
@@ -80,8 +80,8 @@ ID: 3
 |-----------|-----------|----------|--------|-----------|-----------|-----------|
 |30000|CreateApp|`tgBotToken: String`, `appName: Option<String>`, `messagePersistenceEnabled: Option<bool>`|`appPublicId: Nanoid<16, Base62Alphabet>`, `createdAt: i64`|Register a new tenant app with its Telegram bot token. The caller becomes the app Owner and the bot is registered and started.|true||
 |30001|EditApp|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgBotToken: Option<String>`, `appName: Option<String>`, `active: Option<bool>`, `messagePersistenceEnabled: Option<bool>`||Update an app's name, Telegram bot token, active flag, or message persistence. Changing the token or active flag restarts or stops the app's bot.|true||
-|30002|ListApps||`data: Vec<AppConfig>`|List apps the caller is a member of. The response includes each app's Telegram bot token — treat it as a secret.|true||
-|30003|EnableSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`||Enable an app member to receive support messages in Telegram.|true||
+|30002|ListApps||`data: Vec<AppConfig>`|List the caller's apps, or all apps for a platform administrator. Bot tokens are returned only to platform administrators and the app's owner or administrators.|true||
+|30003|EnableSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`||Enable an app member with a verified Telegram link for this app to receive support messages in Telegram.|true||
 |30005|DisableSupportUser|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`||Stop an app member from receiving support messages in Telegram.|true||
 |30006|AddAppMember|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`||Add a user to an app as a Support member. Use SetAppMemberRole to change their role afterwards.|true||
 |30007|SetAppMemberRole|`appPublicId: Nanoid<16, Base62Alphabet>`, `userPubId: Nanoid<16, Base62Alphabet>`, `role: AppMemberRole`||Change an app member's role (Owner, Admin, or Support). Only the app Owner may call this.|true||
@@ -105,8 +105,8 @@ ID: 5
 ### Endpoints
 |Code|Name|Parameters|Response|Description|FE Facing|Errors|
 |-----------|-----------|----------|--------|-----------|-----------|-----------|
-|20007|SetMyTgHandle|`tgHandle: String`||Set the caller's Telegram handle, used to route support replies. The handle is bound to a Telegram chat when the member sends /start to the app's bot.|true||
-|20008|GetMyTgHandle||`tgHandle: Option<String>`|Get the caller's currently configured Telegram handle, if any.|true||
+|20007|SetMyTgHandle|`appPublicId: Nanoid<16, Base62Alphabet>`, `tgHandle: String`|`challenge: String`|Start Telegram verification for the signed-in app member. Send /start followed by the returned private code in a one-to-one chat with this app's bot within ten minutes, using the claimed Telegram username. Issuing a new code revokes the previous link for this app.|true||
+|20008|GetMyTgHandle|`appPublicId: Nanoid<16, Base62Alphabet>`|`tgHandle: Option<String>`, `linkState: String`|Get the caller's claimed Telegram handle and its verification state for this app. Only a verified link can route support traffic. The state is unverified, pending, or verified.|true||
 
 ## userApi Server
 ID: 6

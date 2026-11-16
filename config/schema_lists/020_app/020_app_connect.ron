@@ -12,14 +12,17 @@ Config(
                 schema: (
                     name: "AppConnect",
                     code: 20000,
-                    description: "Connect as an app widget on behalf of an end-user, declaring the app and user public ids. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
+                    description: "Connect as an anonymous visitor. Omit both visitor fields for a new identity, or supply the server-issued ID and secret to reconnect. WebSocket handshake only.",
                     parameters: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
-                        Field(name: "user_public_id", ty: NanoId(len: 16)),
+                        Field(name: "user_public_id", ty: Optional(NanoId(len: 16))),
+                        Field(name: "visitor_secret", ty: Optional(String)),
                     ],
                     returns: [
                         Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "app_name", ty: Optional(String)),
+                        Field(name: "user_public_id", ty: NanoId(len: 16)),
+                        Field(name: "visitor_secret", ty: Optional(String)),
                     ],
                     roles: ["UserRole::Public"],
                 ),

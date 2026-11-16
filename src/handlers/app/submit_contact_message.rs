@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
-use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
+use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
+use super::map_session_error;
 use crate::codegen::model::{
     EnumErrorCode, SubmitContactMessageRequest, SubmitContactMessageResponse,
 };
-use crate::id_types::SessionId;
 use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::session::ChatSessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
@@ -54,22 +54,16 @@ impl RequestHandler for MethodSubmitContactMessage {
                     .with_message("Visitor identity not authenticated")
             })?;
 
-        let row = self
-            .session_service
-            .create_session(user_pub_id, app_public_id)
-            .await
-            .internal()?;
-        let session_id = SessionId::from_packed(row.session_id).internal()?;
-
         let content = format!(
             "Contact form\nName: {}\nEmail: {}\n\n{}",
             req.name, req.email, req.message
         );
-        let sent_at = self
+        let (row, sent_at) = self
             .session_service
-            .send_message(session_id, content, user_pub_id)
+            .submit_contact_message(user_pub_id, app_public_id, content)
             .await
-            .internal()?;
+            .map_err(map_session_error)?;
+        let session_id = row.session_id.unpack().expect("valid nanoid");
 
         tracing::debug!(
             connection_id = ctx.connection_id,
@@ -79,7 +73,7 @@ impl RequestHandler for MethodSubmitContactMessage {
         );
 
         Ok(SubmitContactMessageResponse {
-            session_id: row.session_id.unpack().expect("valid nanoid"),
+            session_id,
             created_at: row.created_at,
         })
     }

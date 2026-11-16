@@ -6,9 +6,24 @@
 > If the schema moves, upgrading versions and deploying becomes significantly
 > more complicated, and the change **must** ship with a WT data migration script.
 
-This repo has **7 `worktable!` definitions**, **6 of them with
+This repo has **10 `worktable!` definitions**, **9 of them with
 `persist: true`** — those are the ones holding on-disk data, and the ones a
 schema change can break.
+
+The additive visitor reservation table has its own offline migration. See
+[anonymous widget connections](visitor-connect.md#upgrade-an-existing-store).
+
+## Additive Telegram link bootstrap
+
+The disk and S3 loaders open the new version 1 `telegram_link` table on
+startup. Existing stores start with no verified links. The bootstrap leaves
+existing tables and visitor credential migration markers intact. Members
+verify once per desk, and their verified links survive service restarts.
+
+The existing `worktable_rebuild` command copies verified link rows and
+preserves the membership keys they reference. A source from before this
+feature has an empty link table. Use the normal visitor credential rebuild
+mode for stores that already have visitor reservations.
 
 ## The rule
 
@@ -72,35 +87,40 @@ backend used to write the old snapshots rather than silently adopting the new
 default.
 
 The beta18 cold-load compatibility path was validated separately against
-AgencyZero's real beta17 `qa-profile` database (248 projects, 155 items and 179
-sessions loaded). For this service, the existing rollback-safe rebuild tool
-covers all six persisted tables and must be run against a distinct prefix
+a real beta17 QA database copy (all persisted tables loaded). For this service, the existing rollback-safe rebuild tool
+covers all nine persisted tables and must be run against a distinct prefix
 before switching production data:
 
 ```bash
+WORKTABLE_REBUILD_DIR="$owned_scratch" \
+WORKTABLE_REBUILD_LEGACY_VISITORS=1 \
 WORKTABLE_REBUILD_TARGET_PREFIX=db-beta18 \
   cargo run --release --features s3-sync \
   --bin worktable_rebuild
 ```
 
 Keep the old prefix unchanged until the beta18 service has cold-started from
-the rebuilt prefix and the six reported row counts have been compared with the
-source. Rollback is selecting the old prefix and redeploying the previous
-image.
+the rebuilt prefix and the reported row counts (one line per table and per
+message partition; `visitor_credential` is copied without a count) have been
+compared with the source. Rollback is selecting the old prefix and redeploying
+the previous image.
 
 ## Precedent — WorkTable beta18 to beta19, 2026-09-05
 
 WorkTable moved from `1.0.0-beta.18` to `1.0.0-beta.19`; the seven local
 `worktable!` definitions did not change. Beta19 keeps the same persisted WTI
 index format while changing the in-memory backend and reclamation plumbing.
-The release compatibility path was exercised against AgencyZero's real beta18
-QA database: first launch and reopen both succeeded without a manual rewrite.
+The release compatibility path was exercised against a real beta18 QA
+database: first launch and reopen both succeeded without a manual rewrite.
 
 This service still uses the rollback-safe rebuild runner because its source of
-truth is an S3 prefix. Rebuild into a distinct prefix, compare the six reported
-row counts, then switch the service only after a cold start from that prefix:
+truth is an S3 prefix. Rebuild into a distinct prefix, compare the reported
+row counts with the source, then switch the service only after a cold start
+from that prefix:
 
 ```bash
+WORKTABLE_REBUILD_DIR="$owned_scratch" \
+WORKTABLE_REBUILD_LEGACY_VISITORS=1 \
 WORKTABLE_REBUILD_TARGET_PREFIX=db-beta19 \
   cargo run --release --features s3-sync \
   --bin worktable_rebuild

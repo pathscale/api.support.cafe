@@ -2,6 +2,7 @@ use std::sync::OnceLock;
 
 #[cfg(feature = "acme")]
 pub mod acme;
+mod admission;
 pub mod app;
 pub mod codegen;
 pub mod config;

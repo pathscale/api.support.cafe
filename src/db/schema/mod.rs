@@ -5,4 +5,6 @@ pub mod chat_session;
 pub mod support_info;
 pub mod support_memory_message;
 pub mod support_message;
+pub mod telegram_link;
 pub mod user;
+pub mod visitor_credential;

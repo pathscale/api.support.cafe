@@ -6,7 +6,7 @@ use num_derive::FromPrimitive;
 use serde::*;
 use strum_macros::{Display, EnumString};
 
-use psc_nanoid::{Nanoid, alphabet::Base62Alphabet};
+use psc_nanoid::{alphabet::Base62Alphabet, Nanoid};
 use rkyv::Archive;
 use std::net::IpAddr;
 use worktable::prelude::*;
@@ -934,7 +934,10 @@ pub struct AddAppMemberResponse {}
 #[serde(rename_all = "camelCase")]
 pub struct AppConnectRequest {
     pub app_public_id: Nanoid<16, Base62Alphabet>,
-    pub user_public_id: Nanoid<16, Base62Alphabet>,
+    #[serde(default)]
+    pub user_public_id: Option<Nanoid<16, Base62Alphabet>>,
+    #[serde(default)]
+    pub visitor_secret: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -942,6 +945,9 @@ pub struct AppConnectResponse {
     pub app_public_id: Nanoid<16, Base62Alphabet>,
     #[serde(default)]
     pub app_name: Option<String>,
+    pub user_public_id: Nanoid<16, Base62Alphabet>,
+    #[serde(default)]
+    pub visitor_secret: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -1057,12 +1063,15 @@ pub struct GetMyInfoResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct GetMyTgHandleRequest {}
+pub struct GetMyTgHandleRequest {
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
+}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GetMyTgHandleResponse {
     #[serde(default)]
     pub tg_handle: Option<String>,
+    pub link_state: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -1152,11 +1161,14 @@ pub struct SetLogLevelResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SetMyTgHandleRequest {
+    pub app_public_id: Nanoid<16, Base62Alphabet>,
     pub tg_handle: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct SetMyTgHandleResponse {}
+pub struct SetMyTgHandleResponse {
+    pub challenge: String,
+}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SetRoleRequest {
@@ -1564,9 +1576,17 @@ impl WsRequest for AppConnectRequest {
     {
       "name": "user_public_id",
       "ty": {
-        "NanoId": {
-          "len": 16
+        "Optional": {
+          "NanoId": {
+            "len": 16
+          }
         }
+      }
+    },
+    {
+      "name": "visitor_secret",
+      "ty": {
+        "Optional": "String"
       }
     }
   ],
@@ -1584,10 +1604,24 @@ impl WsRequest for AppConnectRequest {
       "ty": {
         "Optional": "String"
       }
+    },
+    {
+      "name": "user_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
+      "name": "visitor_secret",
+      "ty": {
+        "Optional": "String"
+      }
     }
   ],
   "stream_response": null,
-  "description": "Connect as an app widget on behalf of an end-user, declaring the app and user public ids. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
+  "description": "Connect as an anonymous visitor. Omit both visitor fields for a new identity, or supply the server-issued ID and secret to reconnect. WebSocket handshake only.",
   "json_schema": null,
   "roles": [
     "UserRole::Public"
@@ -1711,7 +1745,7 @@ impl WsResponse for EditAppResponse {
 impl WsRequest for ListAppsRequest {
     type Response = ListAppsResponse;
     const METHOD_ID: u32 = 30002;
-    const ROLES: &[u32] = &[1, 4];
+    const ROLES: &[u32] = &[1, 4, 5];
     const SCHEMA: &'static str = r#"{
   "name": "ListApps",
   "code": 30002,
@@ -1727,11 +1761,12 @@ impl WsRequest for ListAppsRequest {
     }
   ],
   "stream_response": null,
-  "description": "List apps the caller is a member of. The response includes each app's Telegram bot token — treat it as a secret.",
+  "description": "List the caller's apps, or all apps for a platform administrator. Bot tokens are returned only to platform administrators and the app's owner or administrators.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
-    "UserRole::AppAdmin"
+    "UserRole::AppAdmin",
+    "UserRole::Support"
   ],
   "errors": []
 }"#;
@@ -1767,7 +1802,7 @@ impl WsRequest for EnableSupportUserRequest {
   ],
   "returns": [],
   "stream_response": null,
-  "description": "Enable an app member to receive support messages in Telegram.",
+  "description": "Enable an app member with a verified Telegram link for this app to receive support messages in Telegram.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
@@ -2187,13 +2222,26 @@ impl WsRequest for SetMyTgHandleRequest {
   "code": 20007,
   "parameters": [
     {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    },
+    {
       "name": "tg_handle",
       "ty": "String"
     }
   ],
-  "returns": [],
+  "returns": [
+    {
+      "name": "challenge",
+      "ty": "String"
+    }
+  ],
   "stream_response": null,
-  "description": "Set the caller's Telegram handle, used to route support replies. The handle is bound to a Telegram chat when the member sends /start to the app's bot.",
+  "description": "Start Telegram verification for the signed-in app member. Send /start followed by the returned private code in a one-to-one chat with this app's bot within ten minutes, using the claimed Telegram username. Issuing a new code revokes the previous link for this app.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",
@@ -2214,17 +2262,30 @@ impl WsRequest for GetMyTgHandleRequest {
     const SCHEMA: &'static str = r#"{
   "name": "GetMyTgHandle",
   "code": 20008,
-  "parameters": [],
+  "parameters": [
+    {
+      "name": "app_public_id",
+      "ty": {
+        "NanoId": {
+          "len": 16
+        }
+      }
+    }
+  ],
   "returns": [
     {
       "name": "tg_handle",
       "ty": {
         "Optional": "String"
       }
+    },
+    {
+      "name": "link_state",
+      "ty": "String"
     }
   ],
   "stream_response": null,
-  "description": "Get the caller's currently configured Telegram handle, if any.",
+  "description": "Get the caller's claimed Telegram handle and its verification state for this app. Only a verified link can route support traffic. The state is unverified, pending, or verified.",
   "json_schema": null,
   "roles": [
     "UserRole::Admin",

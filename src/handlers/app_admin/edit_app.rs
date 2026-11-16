@@ -50,32 +50,10 @@ impl RequestHandler for MethodEditApp {
             message_persistence_enabled: req.message_persistence_enabled,
         };
 
-        self.app_service
+        self.bot_service
             .edit_app(app_public_id, update)
             .await
             .internal()?;
-
-        if let Some(token) = &req.tg_bot_token {
-            self.bot_service.unregister_bot(app_public_id).await;
-            self.bot_service
-                .register_bot(app_public_id, token.clone())
-                .await
-                .internal()?;
-        }
-
-        if let Some(active) = req.active {
-            if active {
-                let app = self.app_service.get_app(app_public_id).internal()?;
-                if let Some(app) = app {
-                    self.bot_service
-                        .register_bot(app_public_id, app.tg_bot_token)
-                        .await
-                        .internal()?;
-                }
-            } else {
-                self.bot_service.unregister_bot(app_public_id).await;
-            }
-        }
 
         tracing::debug!(
             connection_id = ctx.connection_id,

@@ -2,6 +2,11 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      visitor_migration_confirmed:
+        description: One-time visitor credential cutover guard. The production store has completed --migrate-visitor-credentials, or is new
+        type: boolean
+        default: false
 
 concurrency:
   group: ci
@@ -17,8 +22,9 @@ jobs:
     outputs:
       changed: ${{ steps.check.outputs.changed }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
+          persist-credentials: false
           fetch-depth: 2
       - id: check
         run: |
@@ -40,7 +46,21 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      # The service refuses to start on a store with chat sessions and no
+      # visitor migration marker. The migration needs stopped writers, so it
+      # cannot run as part of a rolling deploy.
+      - name: Require visitor credential migration
+        env:
+          CONFIRMED: ${{ inputs.visitor_migration_confirmed }}
+        run: |
+          if [ "$CONFIRMED" != "true" ]; then
+            echo "::error::Run --migrate-visitor-credentials against the production store with writers stopped (docs/visitor-connect.md), then dispatch again with visitor_migration_confirmed."
+            exit 1
+          fi
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
 
       - name: Set version and image
         run: |
@@ -50,7 +70,7 @@ jobs:
           echo "FLY_APP=support-cafe-master-fly" >> $GITHUB_ENV
 
       - name: Cache apt
-        uses: ubicloud/cache@v4
+        uses: ubicloud/cache@92361f338d82d2c58a98875f1b5c95cd14cd6b2a
         with:
           path: |
             /var/cache/apt/archives/
@@ -69,7 +89,7 @@ jobs:
           rustup target add x86_64-unknown-linux-musl
 
       - name: Cache cargo registry
-        uses: ubicloud/cache@v4
+        uses: ubicloud/cache@92361f338d82d2c58a98875f1b5c95cd14cd6b2a
         with:
           path: |
             ~/.cargo/bin
@@ -80,10 +100,16 @@ jobs:
           restore-keys: cargo-registry-1-
 
       - name: Setup cargo sweep
-        run: command -v cargo-sweep >/dev/null 2>&1 || cargo install cargo-sweep
+        run: |
+          set -euo pipefail
+          install_root="$(mktemp -d "$RUNNER_TEMP/cargo-sweep.XXXXXX")"
+          cargo install --locked --version '=0.8.0' --root "$install_root" cargo-sweep
+          CARGO_SWEEP_BIN="$install_root/bin/cargo-sweep"
+          test -x "$CARGO_SWEEP_BIN"
+          echo "CARGO_SWEEP_BIN=$CARGO_SWEEP_BIN" >> "$GITHUB_ENV"
 
       - name: Cache target dependencies
-        uses: ubicloud/cache@v4
+        uses: ubicloud/cache@92361f338d82d2c58a98875f1b5c95cd14cd6b2a
         with:
           path: |
             /home/runner/target/release/deps
@@ -102,16 +128,16 @@ jobs:
           CARGO_INCREMENTAL: "1"
           WS_SERVER_NAME: SupportCafeServer/${{ github.run_number }}-${{ env.VERSION }}
         run: |
-          cargo sweep --stamp
+          "$CARGO_SWEEP_BIN" sweep --stamp
           cargo build --release --target x86_64-unknown-linux-musl --features s3-sync
-          cargo sweep --file
+          "$CARGO_SWEEP_BIN" sweep --file
 
       - name: Copy binary into build context
         run: cp /home/runner/target/x86_64-unknown-linux-musl/release/support_cafe ./support_cafe
 
       - name: Build image with Buildah
         id: build-image
-        uses: redhat-actions/buildah-build@v2
+        uses: redhat-actions/buildah-build@9dc2ade9b5db229966b5025ae266311e12f349c4
         with:
           image: ${{ env.FLY_REGISTRY }}/${{ env.FLY_APP }}
           tags: ${{ env.VERSION }} latest
@@ -120,14 +146,16 @@ jobs:
           entrypoint: /support_cafe
 
       - name: Login to Fly registry
-        run: buildah login -u x -p "${{ secrets.FLY_API_TOKEN }}" ${{ env.FLY_REGISTRY }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: printf '%s' "$FLY_API_TOKEN" | buildah login -u x --password-stdin "${{ env.FLY_REGISTRY }}"
 
       - name: Push image to Fly registry
         run: |
           buildah push --compression-format gzip --remove-signatures ${{ env.FLY_REGISTRY }}/${{ env.FLY_APP }}:${{ env.VERSION }}
 
       - name: Setup flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@v1
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
 
       - name: Deploy to Fly
         run: flyctl deploy --config fly.toml --detach --ha=false --image ${{ env.FLY_REGISTRY }}/${{ env.FLY_APP }}:${{ env.VERSION }}

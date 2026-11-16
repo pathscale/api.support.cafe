@@ -12,11 +12,14 @@ Config(
                 schema: (
                     name: "SetMyTgHandle",
                     code: 20007,
-                    description: "Set the caller's Telegram handle, used to route support replies. The handle is bound to a Telegram chat when the member sends /start to the app's bot.",
+                    description: "Start Telegram verification for the signed-in app member. Send /start followed by the returned private code in a one-to-one chat with this app's bot within ten minutes, using the claimed Telegram username. Issuing a new code revokes the previous link for this app.",
                     parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
                         Field(name: "tg_handle", ty: String),
                     ],
-                    returns: [],
+                    returns: [
+                        Field(name: "challenge", ty: String),
+                    ],
                     roles: ["UserRole::Admin", "UserRole::AppAdmin", "UserRole::Support"],
                 ),
             ),
@@ -25,10 +28,13 @@ Config(
                 schema: (
                     name: "GetMyTgHandle",
                     code: 20008,
-                    description: "Get the caller's currently configured Telegram handle, if any.",
-                    parameters: [],
+                    description: "Get the caller's claimed Telegram handle and its verification state for this app. Only a verified link can route support traffic. The state is unverified, pending, or verified.",
+                    parameters: [
+                        Field(name: "app_public_id", ty: NanoId(len: 16)),
+                    ],
                     returns: [
                         Field(name: "tg_handle", ty: Optional(String)),
+                        Field(name: "link_state", ty: String),
                     ],
                     roles: ["UserRole::Admin", "UserRole::AppAdmin", "UserRole::Support"],
                 ),

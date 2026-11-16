@@ -2,16 +2,19 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
-use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
+use endpoint_libs::libs::ws::handler::{RequestHandler, Response};
 
+use super::map_session_error;
 use crate::codegen::model::{EnumErrorCode, SendMessageRequest, SendMessageResponse};
 use crate::id_types::SessionId;
+use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::session::ChatSessionService;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
 #[derive(Clone)]
 pub struct MethodSendMessage {
     pub session_service: Arc<ChatSessionService>,
+    pub app_connection_registry: Arc<AppConnectionRegistry>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
@@ -39,11 +42,12 @@ impl RequestHandler for MethodSendMessage {
                     .with_message("Connection not authenticated")
             })?;
 
+        let connection_app_id = self.app_connection_registry.get(ctx.connection_id).await;
         let sent_at = self
             .session_service
-            .send_message(session_id, req.content, user_pub_id)
+            .send_message(session_id, req.content, user_pub_id, connection_app_id)
             .await
-            .internal()?;
+            .map_err(map_session_error)?;
 
         tracing::debug!(
             connection_id = ctx.connection_id,

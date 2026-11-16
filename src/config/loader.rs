@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{Args, Parser};
 use config::{Config as CfgBuilder, Environment, File};
 use eyre::Result;
 
@@ -9,17 +9,39 @@ use super::doppler_source::DopplerSource;
 
 #[derive(Parser)]
 struct CliArgs {
+    #[command(flatten)]
+    config: ConfigArgs,
+}
+
+#[derive(Args)]
+struct ConfigArgs {
     #[arg(short, long, env = "CAFE_CONFIG")]
     config: Option<PathBuf>,
 }
 
-pub fn load() -> Result<Config> {
-    let cli = CliArgs::parse();
+#[derive(Parser)]
+struct ServiceArgs {
+    #[command(flatten)]
+    config: ConfigArgs,
+    /// Reserve pre-credential session owners offline. Stop the service first.
+    #[arg(long)]
+    migrate_visitor_credentials: bool,
+}
 
+pub fn load() -> Result<Config> {
+    load_config(CliArgs::parse().config)
+}
+
+pub fn load_service() -> Result<(Config, bool)> {
+    let cli = ServiceArgs::parse();
+    Ok((load_config(cli.config)?, cli.migrate_visitor_credentials))
+}
+
+fn load_config(args: ConfigArgs) -> Result<Config> {
     let mut builder = CfgBuilder::builder();
 
-    if let Some(path) = &cli.config {
-        builder = builder.add_source(File::from(path.clone()));
+    if let Some(path) = args.config {
+        builder = builder.add_source(File::from(path));
     }
 
     if let Some(doppler) = DopplerSource::try_new()? {

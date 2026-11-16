@@ -1,11 +1,16 @@
 use std::sync::Arc;
 
 use chrono::Utc;
+use futures::lock::Mutex;
 use psc_nanoid::Nanoid;
 use psc_nanoid::alphabet::Base62Alphabet;
 use worktable::prelude::SelectQueryExecutor;
 
 mod member;
+mod telegram;
+
+pub(super) use member::AppStaffDenied;
+pub(crate) use telegram::{TelegramRecipient, normalize_telegram_handle, private_telegram_sender};
 
 use honey_id_types::id_entities::UserPublicId;
 
@@ -14,6 +19,7 @@ use crate::db::schema::app_config::{AppConfigColumns, AppConfigRow, AppConfigWor
 use crate::db::schema::app_member::AppMemberWorkTable;
 use crate::db::schema::app_member::{AppMemberRow, membership_key};
 use crate::db::schema::support_info::SupportInfoWorkTable;
+use crate::db::schema::telegram_link::TelegramLinkWorkTable;
 use crate::db::schema::user::UserWorkTable;
 use crate::id_types::AppPublicId;
 use crate::service::message_store::MessageStore;
@@ -38,6 +44,8 @@ pub struct AppService {
     support_info_table: Arc<SupportInfoWorkTable>,
     user_table: Arc<UserWorkTable>,
     message_store: Arc<MessageStore>,
+    telegram_links: Mutex<telegram::TelegramLinks>,
+    telegram_link_table: Arc<TelegramLinkWorkTable>,
 }
 
 impl AppService {
@@ -47,6 +55,7 @@ impl AppService {
         support_info_table: Arc<SupportInfoWorkTable>,
         user_table: Arc<UserWorkTable>,
         message_store: Arc<MessageStore>,
+        telegram_link_table: Arc<TelegramLinkWorkTable>,
     ) -> Self {
         Self {
             app_config_table,
@@ -54,6 +63,8 @@ impl AppService {
             support_info_table,
             user_table,
             message_store,
+            telegram_links: Mutex::default(),
+            telegram_link_table,
         }
     }
 
@@ -138,6 +149,24 @@ impl AppService {
             "AppService::edit_app: updating app"
         );
 
+        let telegram_guard = if update.tg_bot_token.is_some() || update.active.is_some() {
+            let mut links = self.telegram_links.lock().await;
+            if let Some(current) = self.get_app(app_public_id)?
+                && (update
+                    .tg_bot_token
+                    .as_ref()
+                    .is_some_and(|token| token != &current.tg_bot_token)
+                    || update.active.is_some_and(|active| active != current.active))
+            {
+                // Flush revocations before either setting changes, including
+                // when a later edit restores the original configuration.
+                self.revoke_telegram_app(app_public_id, &mut links).await?;
+            }
+            Some(links)
+        } else {
+            None
+        };
+
         if let Some(token) = &update.tg_bot_token {
             self.app_config_table
                 .update_by_public_id(packed_pub_id, AppConfigColumns::TG_BOT_TOKEN, token.clone())
@@ -181,6 +210,7 @@ impl AppService {
                 })?;
         }
 
+        drop(telegram_guard);
         if let Some(enabled) = update.message_persistence_enabled {
             self.message_store
                 .set_app_persistence(app_public_id, enabled)
@@ -216,6 +246,9 @@ impl AppService {
 
     pub async fn delete_app(&self, app_public_id: AppPublicId) -> eyre::Result<()> {
         let packed_pub_id = app_public_id.pack()?;
+        let mut telegram = self.telegram_links.lock().await;
+        self.revoke_telegram_app(app_public_id, &mut telegram)
+            .await?;
 
         tracing::debug!(
             app_public_id = %app_public_id,

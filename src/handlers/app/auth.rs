@@ -6,33 +6,97 @@ use endpoint_libs::libs::ws::{AuthResponse, SubAuthController, WsConnection};
 use futures::FutureExt;
 use futures::future::LocalBoxFuture;
 use honey_id_types::id_entities::UserPublicId;
+use ring::digest::{SHA256, digest};
+use ring::rand::{SecureRandom, SystemRandom};
+use subtle::ConstantTimeEq;
 
+use crate::admission::AppAdmissionScope;
 use crate::codegen::model::{AppConnectRequest, AppConnectResponse, EnumErrorCode, UserRole};
+use crate::db::schema::visitor_credential::VisitorCredentialRow;
 use crate::db::tables::Tables;
-use crate::id_types::AppPublicId;
+use crate::id_types::{AppPublicId, NanoId, PackedNanoId};
 use crate::service::app_connection_registry::AppConnectionRegistry;
 use crate::service::user_connection_registry::UserConnectionRegistry;
 
-/// A widget's connection on behalf of an anonymous visitor.
-///
-/// The widget runs in a visitor's browser, so there is no app secret it could
-/// hold, and the visitor's public id is the only credential there is: whoever
-/// knows it can read that visitor's chats. The widget must mint it itself, as a
-/// random psc-nanoid kept in the visitor's browser, and it must never be the
-/// public id of a real account. So this refuses:
-///
-/// - an app that does not exist or is not active, rather than registering a
-///   connection for it;
-/// - the public id of any user support.cafe knows, since those are not secret
-///   (staff see them, honey.id shows them) and an account signs in with `Init`.
-///
-/// Before this, any app id and any user id were accepted, so anyone could open
-/// any signed-in user's connection and read their sessions. A visitor key the
-/// server issues would remove the bearer-id weakness; that is a schema change.
+mod upgrade;
+
+pub(crate) use upgrade::upgrade_visitor_handshake;
+
+const SECRET_BYTES: usize = 32;
+const ID_ATTEMPTS: usize = 8;
+
+/// An anonymous visitor is bound to one app by a server-issued credential.
 pub struct MethodAppConnect {
     pub tables: Arc<Tables>,
     pub app_connection_registry: Arc<AppConnectionRegistry>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
+}
+
+fn invalid_credential() -> CustomError {
+    CustomError::new(EnumErrorCode::Forbidden).with_message("Invalid visitor credential")
+}
+
+fn secret_digest(secret: &[u8; SECRET_BYTES]) -> String {
+    hex::encode(digest(&SHA256, secret).as_ref())
+}
+
+fn resume_visitor(
+    tables: &Tables,
+    app_public_id: PackedNanoId,
+    user_public_id: NanoId,
+    proof: &str,
+) -> Result<(), CustomError> {
+    let mut secret = [0; SECRET_BYTES];
+    hex::decode_to_slice(proof, &mut secret).map_err(|_| invalid_credential())?;
+    let user_public_id = PackedNanoId::pack(&user_public_id).map_err(|_| invalid_credential())?;
+    let row = tables
+        .visitor_credential_table
+        .select(user_public_id)
+        .filter(|row| row.app_public_id == Some(app_public_id))
+        .ok_or_else(invalid_credential)?;
+    let stored_digest = row.secret_digest.ok_or_else(invalid_credential)?;
+    let submitted_digest = secret_digest(&secret);
+    if !bool::from(stored_digest.as_bytes().ct_eq(submitted_digest.as_bytes()))
+        || tables.user_table.select_by_pub_id(user_public_id).is_some()
+    {
+        return Err(invalid_credential());
+    }
+    Ok(())
+}
+
+async fn issue_visitor(
+    tables: &Tables,
+    app_public_id: PackedNanoId,
+) -> eyre::Result<(NanoId, String)> {
+    let mut secret = [0; SECRET_BYTES];
+    SystemRandom::new()
+        .fill(&mut secret)
+        .map_err(|_| eyre::eyre!("Could not generate visitor credential"))?;
+    let digest = secret_digest(&secret);
+
+    // UserService uses the same lock when creating a local account.
+    let _allocation = tables.visitor_identity_allocation.lock().await;
+    for _ in 0..ID_ATTEMPTS {
+        let user_public_id = NanoId::new();
+        let visitor_id = PackedNanoId::pack(&user_public_id)
+            .map_err(|_| eyre::eyre!("Could not pack generated visitor ID"))?;
+        if tables.visitor_credential_table.select(visitor_id).is_some()
+            || tables.user_table.select_by_pub_id(visitor_id).is_some()
+        {
+            continue;
+        }
+        tables
+            .visitor_credential_table
+            .insert(VisitorCredentialRow {
+                visitor_id,
+                app_public_id: Some(app_public_id),
+                secret_digest: Some(digest),
+            })
+            .await?;
+        tables.wait_for_visitor_ops().await?;
+        return Ok((user_public_id, hex::encode(secret)));
+    }
+    eyre::bail!("Could not allocate a visitor ID")
 }
 
 impl SubAuthController for MethodAppConnect {
@@ -49,39 +113,45 @@ impl SubAuthController for MethodAppConnect {
         let conn_id = conn.connection_id;
         async move {
             let app_public_id: AppPublicId = req.app_public_id.into();
-            let user_public_id: UserPublicId = req.user_public_id.into();
-
+            let packed_app_id = app_public_id.pack().internal()?;
             let app = self
                 .tables
                 .app_config_table
-                .select_by_public_id(app_public_id.pack().internal()?)
+                .select_by_public_id(packed_app_id)
                 .filter(|app| app.active)
                 .ok_or_else(|| {
                     CustomError::new(EnumErrorCode::NotFound).with_message("No such app")
                 })?;
 
-            if self
-                .tables
-                .user_table
-                .select_by_pub_id(user_public_id.pack().internal()?)
-                .is_some()
-            {
-                return Err(CustomError::new(EnumErrorCode::Forbidden)
-                    .with_message("A registered account signs in with Init, not AppConnect")
-                    .into());
-            }
+            let (user_public_id, visitor_secret) = match (req.user_public_id, req.visitor_secret) {
+                (None, None) => {
+                    AppAdmissionScope::claim(&conn.extensions, app_public_id)?;
+                    let (id, secret) = issue_visitor(&self.tables, packed_app_id)
+                        .await
+                        .internal()?;
+                    (id, Some(secret))
+                }
+                (Some(id), Some(secret)) => {
+                    resume_visitor(&self.tables, packed_app_id, id, &secret)?;
+                    AppAdmissionScope::claim(&conn.extensions, app_public_id)?;
+                    (id, None)
+                }
+                _ => return Err(invalid_credential().into()),
+            };
 
             self.app_connection_registry
                 .register(conn_id, app_public_id)
                 .await;
             self.user_connection_registry
-                .register(conn_id, user_public_id)
+                .register(conn_id, UserPublicId::from(user_public_id))
                 .await;
             conn.set_roles(Arc::new(vec![UserRole::App as u32]));
 
             Ok(AppConnectResponse {
                 app_public_id: req.app_public_id,
                 app_name: app.app_name,
+                user_public_id,
+                visitor_secret,
             })
         }
         .boxed_local()

@@ -7,7 +7,7 @@ use tracing::info;
 use crate::db::schema::app_config::AppConfigRow;
 use crate::id_types::AppPublicId;
 use crate::id_types::SessionId;
-use crate::service::app::AppService;
+use crate::service::app::{AppService, AppUpdate};
 use crate::service::bot::router::{BotRouter, BotStatus, SupportEventStream};
 use crate::service::message_store::MessageStore;
 
@@ -18,17 +18,16 @@ pub struct BotService {
 
 impl BotService {
     pub fn new(
-        app_member_table: Arc<crate::db::schema::app_member::AppMemberWorkTable>,
+        _app_member_table: Arc<crate::db::schema::app_member::AppMemberWorkTable>,
         chat_session_table: Arc<crate::db::schema::chat_session::ChatSessionWorkTable>,
-        support_info_table: Arc<crate::db::schema::support_info::SupportInfoWorkTable>,
+        _support_info_table: Arc<crate::db::schema::support_info::SupportInfoWorkTable>,
         message_store: Arc<MessageStore>,
         app_service: Arc<AppService>,
     ) -> Self {
         let bot_router = Arc::new(BotRouter::new(
-            app_member_table,
             chat_session_table,
-            support_info_table,
             message_store,
+            app_service.clone(),
         ));
         Self {
             bot_router,
@@ -50,6 +49,10 @@ impl BotService {
 
     pub async fn unregister_bot(&self, app_public_id: AppPublicId) {
         self.bot_router.unregister_bot(app_public_id).await
+    }
+
+    pub(crate) async fn edit_app(&self, app: AppPublicId, update: AppUpdate) -> eyre::Result<()> {
+        self.bot_router.edit_app(app, update).await
     }
 
     pub async fn bootstrap_bots(&self) -> eyre::Result<()> {

@@ -79,7 +79,7 @@
     },
     {
       "code": 30002,
-      "description": "List apps the caller is a member of. The response includes each app's Telegram bot token — treat it as a secret.",
+      "description": "List the caller's apps, or all apps for a platform administrator. Bot tokens are returned only to platform administrators and the app's owner or administrators.",
       "frontendFacing": true,
       "inputSchema": {
         "additionalProperties": false,
@@ -143,7 +143,7 @@
     },
     {
       "code": 30003,
-      "description": "Enable an app member to receive support messages in Telegram.",
+      "description": "Enable an app member with a verified Telegram link for this app to receive support messages in Telegram.",
       "frontendFacing": true,
       "inputSchema": {
         "additionalProperties": false,
