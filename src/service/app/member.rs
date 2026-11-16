@@ -9,6 +9,23 @@ use crate::db::schema::user::UserColumns;
 use crate::id_types::AppPublicId;
 use crate::service::app::AppService;
 
+#[derive(Debug)]
+pub(crate) enum AppStaffDenied {
+    NotMember,
+    InsufficientRole,
+}
+
+impl std::fmt::Display for AppStaffDenied {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::NotMember => "User is not a member of this app",
+            Self::InsufficientRole => "User is not allowed to perform this app action",
+        })
+    }
+}
+
+impl std::error::Error for AppStaffDenied {}
+
 impl AppService {
     pub async fn add_member(
         &self,
@@ -52,6 +69,7 @@ impl AppService {
         user_pub_id: UserPublicId,
         expected_role: AppMemberRole,
     ) -> eyre::Result<()> {
+        let mut telegram = self.telegram_links.lock().await;
         let member = self
             .get_member(app_public_id, user_pub_id)?
             .ok_or_else(|| eyre::eyre!("User is not a member of this app"))?;
@@ -63,6 +81,8 @@ impl AppService {
             bail!("Owner cannot be removed through this endpoint");
         }
 
+        self.revoke_telegram_member(app_public_id, member.id, &mut telegram)
+            .await?;
         self.app_member_table
             .delete_by_membership_key(member.membership_key)
             .await?;
@@ -79,6 +99,7 @@ impl AppService {
             bail!("Owner role cannot be assigned through this endpoint");
         }
 
+        let mut telegram = self.telegram_links.lock().await;
         let member = self
             .get_member(app_public_id, user_pub_id)?
             .ok_or_else(|| eyre::eyre!("User is not a member of this app"))?;
@@ -87,6 +108,10 @@ impl AppService {
             bail!("Owner role cannot be changed through this endpoint");
         }
 
+        if member.role != role {
+            self.revoke_telegram_member(app_public_id, member.id, &mut telegram)
+                .await?;
+        }
         let packed_app = app_public_id.pack()?;
         let packed_user = user_pub_id.pack()?;
         let key = membership_key(packed_app, packed_user);
@@ -94,6 +119,7 @@ impl AppService {
         self.app_member_table
             .update_by_membership_key(key, AppMemberColumns::ROLE, role)
             .await?;
+        drop(telegram);
         self.recompute_user_role_from_memberships(user_pub_id)
             .await?;
         Ok(())
@@ -107,10 +133,11 @@ impl AppService {
             .execute()?)
     }
 
-    pub fn list_members_with_support_info(
+    pub async fn list_members_with_support_info(
         &self,
         app_public_id: AppPublicId,
     ) -> eyre::Result<Vec<AppMember>> {
+        let telegram = self.telegram_links.lock().await;
         self.list_members(app_public_id)?
             .into_iter()
             .map(|row| {
@@ -118,7 +145,7 @@ impl AppService {
                     .user_table
                     .select_by_pub_id(row.user_pub_id)
                     .ok_or_else(|| eyre::eyre!("App member user not found"))?;
-                let support_info = self.support_info_table.select(row.user_pub_id);
+                let tg_handle = self.verified_telegram_handle(app_public_id, &row, &telegram);
                 Ok(AppMember {
                     app_public_id: row.app_public_id.unpack().expect("valid packed nanoid"),
                     user_pub_id: row.user_pub_id.unpack().expect("valid packed nanoid"),
@@ -126,7 +153,7 @@ impl AppService {
                     role: row.role,
                     created_at: row.created_at,
                     is_support_enabled: row.is_support_enabled,
-                    tg_handle: support_info.map(|info| info.tg_handle),
+                    tg_handle,
                 })
             })
             .collect::<eyre::Result<Vec<_>>>()
@@ -137,18 +164,16 @@ impl AppService {
         app_public_id: AppPublicId,
         user_pub_id: UserPublicId,
     ) -> eyre::Result<()> {
+        let telegram = self.telegram_links.lock().await;
         let member = self
             .get_member(app_public_id, user_pub_id)?
             .ok_or_else(|| eyre::eyre!("User is not a member of this app"))?;
 
-        let packed_user = user_pub_id.pack()?;
-        let support_info = self
-            .support_info_table
-            .select(packed_user)
-            .ok_or_else(|| eyre::eyre!("Support user Telegram handle is not set"))?;
-
-        if support_info.tg_handle.trim().is_empty() {
-            bail!("Support user Telegram handle is not set");
+        if self
+            .verified_telegram_handle(app_public_id, &member, &telegram)
+            .is_none()
+        {
+            bail!("Support user must verify Telegram for this app");
         }
 
         self.app_member_table
@@ -167,6 +192,7 @@ impl AppService {
         app_public_id: AppPublicId,
         user_pub_id: UserPublicId,
     ) -> eyre::Result<()> {
+        let _telegram = self.telegram_links.lock().await;
         let member = self
             .get_member(app_public_id, user_pub_id)?
             .ok_or_else(|| eyre::eyre!("User is not a member of this app"))?;
@@ -242,12 +268,12 @@ impl AppService {
 
         let member = self
             .get_member(app_public_id, user_pub_id)?
-            .ok_or_else(|| eyre::eyre!("User is not a member of this app"))?;
+            .ok_or(AppStaffDenied::NotMember)?;
 
         if matches!(member.role, AppMemberRole::Owner | AppMemberRole::Admin) {
             Ok(())
         } else {
-            bail!("User is not allowed to perform this app action")
+            Err(AppStaffDenied::InsufficientRole.into())
         }
     }
 

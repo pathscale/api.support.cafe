@@ -42,6 +42,7 @@ pub fn register_auth_api_handlers(
 
     let tables_clone = tables.clone();
     let user_registry_clone = user_connection_registry.clone();
+    let app_registry_clone = app_connection_registry.clone();
 
     auth_controller.add_auth_endpoint(
         EnumEndpoint::Init.schema(),
@@ -51,7 +52,8 @@ pub fn register_auth_api_handlers(
             move |req, ctx| {
                 let tables = tables_clone.clone();
                 let user_registry = user_registry_clone.clone();
-                init_handler(req, ctx, tables, user_registry)
+                let app_registry = app_registry_clone.clone();
+                init_handler(req, ctx, tables, user_registry, app_registry)
             },
         ),
     );
@@ -102,6 +104,7 @@ async fn init_handler(
     ctx: AuthorizedConnectContext,
     tables: Arc<Tables>,
     user_registry: Arc<UserConnectionRegistry>,
+    app_registry: Arc<AppConnectionRegistry>,
 ) -> eyre::Result<InitResponse> {
     tracing::debug!(
         user_pub_id = %ctx.user_pub_id,
@@ -118,6 +121,8 @@ async fn init_handler(
 
     // Register user identity in registry for authorization checks
     let connection_id = ctx.conn.connection_id;
+    // A connection reused for signed-in auth must not retain App scope.
+    app_registry.unregister(connection_id).await;
     user_registry.register(connection_id, ctx.user_pub_id).await;
 
     tracing::debug!(

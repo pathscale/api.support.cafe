@@ -2,41 +2,74 @@
   "tools": [
     {
       "code": 20007,
-      "description": "Set the caller's Telegram handle, used to route support replies. The handle is bound to a Telegram chat when the member sends /start to the app's bot.",
+      "description": "Start Telegram verification for the signed-in app member. Send /start followed by the returned private code in a one-to-one chat with this app's bot within ten minutes, using the claimed Telegram username. Issuing a new code revokes the previous link for this app.",
       "frontendFacing": true,
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
           "tgHandle": {
             "type": "string"
           }
         },
         "required": [
+          "appPublicId",
           "tgHandle"
         ],
         "type": "object"
       },
-      "name": "set_my_tg_handle"
+      "name": "set_my_tg_handle",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "challenge": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge"
+        ],
+        "type": "object"
+      }
     },
     {
       "code": 20008,
-      "description": "Get the caller's currently configured Telegram handle, if any.",
+      "description": "Get the caller's claimed Telegram handle and its verification state for this app. Only a verified link can route support traffic. The state is unverified, pending, or verified.",
       "frontendFacing": true,
       "inputSchema": {
         "additionalProperties": false,
-        "properties": {},
-        "required": [],
+        "properties": {
+          "appPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "appPublicId"
+        ],
         "type": "object"
       },
       "name": "get_my_tg_handle",
       "outputSchema": {
         "additionalProperties": false,
         "properties": {
+          "linkState": {
+            "type": "string"
+          },
           "tgHandle": {
             "type": "string"
           }
         },
-        "required": [],
+        "required": [
+          "linkState"
+        ],
         "type": "object"
       }
     }

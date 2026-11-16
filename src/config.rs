@@ -10,7 +10,7 @@ use honey_id_types::HoneyIdConfig;
 use serde::Deserialize;
 use smart_default::SmartDefault;
 
-pub use loader::load;
+pub use loader::{load, load_service};
 
 #[derive(Clone, Debug, SmartDefault, Deserialize)]
 #[serde(default)]

@@ -2,7 +2,7 @@
   "tools": [
     {
       "code": 20000,
-      "description": "Connect as an app widget on behalf of an end-user, declaring the app and user public ids. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
+      "description": "Connect as an anonymous visitor. Omit both visitor fields for a new identity, or supply the server-issued ID and secret to reconnect. WebSocket handshake only.",
       "frontendFacing": true,
       "inputSchema": {
         "additionalProperties": false,
@@ -18,11 +18,13 @@
             "minLength": 16,
             "pattern": "^[0-9A-Za-z]+$",
             "type": "string"
+          },
+          "visitorSecret": {
+            "type": "string"
           }
         },
         "required": [
-          "appPublicId",
-          "userPublicId"
+          "appPublicId"
         ],
         "type": "object"
       },
@@ -38,10 +40,20 @@
             "minLength": 16,
             "pattern": "^[0-9A-Za-z]+$",
             "type": "string"
+          },
+          "userPublicId": {
+            "maxLength": 16,
+            "minLength": 16,
+            "pattern": "^[0-9A-Za-z]+$",
+            "type": "string"
+          },
+          "visitorSecret": {
+            "type": "string"
           }
         },
         "required": [
-          "appPublicId"
+          "appPublicId",
+          "userPublicId"
         ],
         "type": "object"
       }

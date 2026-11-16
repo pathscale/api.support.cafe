@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::codegen::model::AppMemberRole;
 use crate::codegen::model::ChatMessage;
 use chrono::Utc;
 use crossfire::mpsc::{One, new};
@@ -18,14 +17,12 @@ use serde::Serialize;
 use std::pin::pin;
 use std::time::Duration;
 use tracing::{info, warn};
-use worktable::prelude::SelectQueryExecutor;
 
-use crate::db::schema::app_member::AppMemberWorkTable;
 use crate::db::schema::chat_session::ChatSessionWorkTable;
-use crate::db::schema::support_info::{SupportInfoColumns, SupportInfoWorkTable};
 use crate::db::schema::support_message::SupportMessageRow;
 use crate::handlers::utils::routing_message::RoutingMessage;
 use crate::id_types::{AppPublicId, PackedNanoId, SessionId};
+use crate::service::app::{AppService, AppUpdate, TelegramRecipient, private_telegram_sender};
 use crate::service::message_store::MessageStore;
 
 use nago_telegram::{Bot, Message, SendMessage};
@@ -63,18 +60,16 @@ pub struct BotRouter {
     /// and `take` does not await. An async lock here would also not compile,
     /// because an `AsyncRx` is deliberately not `Sync`.
     event_rx: StdMutex<Option<SupportEventRx>>,
-    app_member_table: Arc<AppMemberWorkTable>,
+    app_service: Arc<AppService>,
     chat_session_table: Arc<ChatSessionWorkTable>,
-    support_info_table: Arc<SupportInfoWorkTable>,
     message_store: Arc<MessageStore>,
 }
 
 impl BotRouter {
     pub fn new(
-        app_member_table: Arc<AppMemberWorkTable>,
         chat_session_table: Arc<ChatSessionWorkTable>,
-        support_info_table: Arc<SupportInfoWorkTable>,
         message_store: Arc<MessageStore>,
+        app_service: Arc<AppService>,
     ) -> Self {
         let (tx, rx) =
             new::<One<RoutingMessage<SessionKey, ChatMessage>>, MAsyncTx<_>, AsyncRx<_>>();
@@ -82,9 +77,8 @@ impl BotRouter {
             bots: RwLock::new(HashMap::new()),
             event_tx: tx,
             event_rx: StdMutex::new(Some(rx)),
-            app_member_table,
+            app_service,
             chat_session_table,
-            support_info_table,
             message_store,
         }
     }
@@ -98,24 +92,78 @@ impl BotRouter {
     }
 
     pub async fn register_bot(&self, app_public_id: AppPublicId, token: String) -> Result<()> {
+        let mut bots = self.bots.write().await;
+        // Create and bootstrap supply a snapshot. A concurrent edit owns
+        // reconciliation if it has already changed that configuration.
+        let configured = self.app_service.get_app(app_public_id)?;
+        if configured.is_some_and(|app| app.active && app.tg_bot_token == token) {
+            self.reconcile_bot(&mut bots, app_public_id, Some(token))
+                .await?;
+        }
+        Ok(())
+    }
+
+    pub async fn edit_app(&self, app: AppPublicId, update: AppUpdate) -> Result<()> {
+        if update.tg_bot_token.is_none() && update.active.is_none() {
+            return self.app_service.edit_app(app, update).await;
+        }
+        let mut bots = self.bots.write().await;
+        let edited = self.app_service.edit_app(app, update).await;
+        // A later field can fail after the token or active flag was written.
+        let token = self
+            .app_service
+            .get_app(app)?
+            .filter(|config| config.active)
+            .map(|config| config.tg_bot_token);
+        let reconciled = self.reconcile_bot(&mut bots, app, token).await;
+        edited.and(reconciled)
+    }
+
+    async fn reconcile_bot(
+        &self,
+        bots: &mut HashMap<AppPublicId, BotInstance>,
+        app_public_id: AppPublicId,
+        token: Option<String>,
+    ) -> Result<()> {
+        if let (Some(instance), Some(token)) = (bots.get(&app_public_id), token.as_deref())
+            && self
+                .app_service
+                .telegram_bot_matches(app_public_id, &instance.generation, token)
+                .await
+        {
+            return Ok(());
+        }
+        self.app_service
+            .deactivate_telegram_bot(app_public_id)
+            .await;
+        if let Some(mut instance) = bots.remove(&app_public_id) {
+            instance.stop().await;
+        }
+        let Some(token) = token else {
+            return Ok(());
+        };
+        let generation = Arc::new(());
         let handler = BotUpdateHandler {
             app_public_id,
-            app_member_table: self.app_member_table.clone(),
+            generation: generation.clone(),
+            app_service: self.app_service.clone(),
             chat_session_table: self.chat_session_table.clone(),
-            support_info_table: self.support_info_table.clone(),
             message_store: self.message_store.clone(),
             event_tx: self.event_tx.clone(),
         };
 
-        let mut bots = self.bots.write().await;
-        if bots.contains_key(&app_public_id) {
-            warn!(?app_public_id, "bot already registered, replacing");
-            if let Some(mut instance) = bots.remove(&app_public_id) {
-                instance.stop().await;
+        self.app_service
+            .activate_telegram_bot(app_public_id, generation.clone(), &token)
+            .await;
+        let instance = match BotInstance::new(token, handler) {
+            Ok(instance) => instance,
+            Err(error) => {
+                self.app_service
+                    .deactivate_telegram_generation(app_public_id, &generation)
+                    .await;
+                return Err(error);
             }
-        }
-
-        let instance = BotInstance::new(token, handler)?;
+        };
         bots.insert(app_public_id, instance);
         info!(?app_public_id, "bot registered");
         Ok(())
@@ -123,6 +171,9 @@ impl BotRouter {
 
     pub async fn unregister_bot(&self, app_public_id: AppPublicId) {
         let mut bots = self.bots.write().await;
+        self.app_service
+            .deactivate_telegram_bot(app_public_id)
+            .await;
         if let Some(mut instance) = bots.remove(&app_public_id) {
             instance.stop().await;
             info!(?app_public_id, "bot unregistered");
@@ -136,9 +187,6 @@ impl BotRouter {
         content: String,
         sender_name: String,
     ) -> Result<i64> {
-        let app_public_id_packed: PackedNanoId = app_public_id.pack()?;
-        let supports = self.enabled_support_chat_ids(app_public_id_packed)?;
-
         let sent_at = Utc::now().timestamp_millis();
         let nanoid: crate::id_types::NanoId = session_id.into();
         let session_id_str = nanoid.to_string();
@@ -158,15 +206,8 @@ impl BotRouter {
             })
             .await?;
 
-        if !supports.is_empty() {
-            let bots = self.bots.read().await;
-            let instance = bots
-                .get(&app_public_id)
-                .ok_or_else(|| eyre::eyre!("bot not found for app"))?;
-            for chat_id in supports {
-                instance.send(chat_id, format!("{msg_prefix}{content}"));
-            }
-        }
+        self.forward_to_telegram(app_public_id, format!("{msg_prefix}{content}"))
+            .await;
 
         let session_id_nanoid: crate::id_types::NanoId = session_id.into();
         let event = ChatMessage {
@@ -196,7 +237,6 @@ impl BotRouter {
         staff: UserPublicId,
     ) -> Result<i64> {
         let app_public_id_packed: PackedNanoId = app_public_id.pack()?;
-        let supports = self.enabled_support_chat_ids(app_public_id_packed)?;
         let sent_at = Utc::now().timestamp_millis();
 
         self.message_store
@@ -213,18 +253,12 @@ impl BotRouter {
             })
             .await?;
 
-        if !supports.is_empty() {
-            let nanoid: crate::id_types::NanoId = session_id.into();
-            let bots = self.bots.read().await;
-            if let Some(instance) = bots.get(&app_public_id) {
-                for chat_id in supports {
-                    instance.send(
-                        chat_id,
-                        format!("{nanoid}\nanswered by {staff} from the dashboard:\n{content}"),
-                    );
-                }
-            }
-        }
+        let nanoid: crate::id_types::NanoId = session_id.into();
+        self.forward_to_telegram(
+            app_public_id,
+            format!("{nanoid}\nanswered by {staff} from the dashboard:\n{content}"),
+        )
+        .await;
 
         let event = ChatMessage {
             session_id: session_id.into(),
@@ -244,23 +278,22 @@ impl BotRouter {
         Ok(sent_at)
     }
 
-    fn enabled_support_chat_ids(&self, app_public_id: PackedNanoId) -> Result<Vec<i64>> {
-        Ok(self
-            .app_member_table
-            .select_by_app_public_id(app_public_id)
-            .execute()
-            .map_err(|e| eyre::eyre!("DB error: {e}"))?
-            .into_iter()
-            .filter(|r| r.is_support_enabled)
-            .filter(|r| {
-                matches!(
-                    r.role,
-                    AppMemberRole::Owner | AppMemberRole::Admin | AppMemberRole::Support
-                )
-            })
-            .filter_map(|r| self.support_info_table.select(r.user_pub_id))
-            .filter_map(|r| r.chat_id)
-            .collect())
+    async fn forward_to_telegram(&self, app: AppPublicId, text: String) {
+        let bots = self.bots.read().await;
+        if let Some(instance) = bots.get(&app) {
+            match self
+                .app_service
+                .enabled_telegram_recipients(app, &instance.generation)
+                .await
+            {
+                Ok(recipients) => {
+                    for recipient in recipients {
+                        instance.send(recipient, text.clone());
+                    }
+                }
+                Err(e) => warn!(?app, "Could not resolve Telegram recipients: {e:#}"),
+            }
+        }
     }
 
     pub async fn get_status(&self, app_public_id: AppPublicId) -> Option<BotStatus> {
@@ -280,7 +313,8 @@ impl BotRouter {
 
     pub async fn shutdown(&self) {
         let mut bots = self.bots.write().await;
-        for instance in bots.values_mut() {
+        for (app, instance) in bots.iter_mut() {
+            self.app_service.deactivate_telegram_bot(*app).await;
             instance.stop().await;
         }
         bots.clear();
@@ -289,7 +323,8 @@ impl BotRouter {
 }
 
 struct BotInstance {
-    outbox: UnboundedSender<(i64, String)>,
+    generation: Arc<()>,
+    outbox: UnboundedSender<(TelegramRecipient, String)>,
     stop: Option<oneshot::Sender<()>>,
     status: Arc<RwLock<BotStatus>>,
 }
@@ -308,11 +343,17 @@ impl BotInstance {
         let (stop, stop_rx) = oneshot::channel();
         let thread_status = status.clone();
         let app_public_id = handler.app_public_id;
+        let generation = handler.generation.clone();
 
         std::thread::Builder::new()
             .name("tg-bot".to_string())
             .spawn(move || {
                 let outcome = run_bot(token, &handler, &thread_status, outbox_rx, stop_rx);
+                nagoya::block_on(
+                    handler
+                        .app_service
+                        .deactivate_telegram_generation(app_public_id, &handler.generation),
+                );
                 let final_status = match outcome {
                     Ok(()) => {
                         info!(?app_public_id, "Bot stopped");
@@ -328,14 +369,16 @@ impl BotInstance {
             .map_err(|e| eyre::eyre!("Failed to start bot thread: {e}"))?;
 
         Ok(Self {
+            generation,
             outbox,
             stop: Some(stop),
             status,
         })
     }
 
-    fn send(&self, chat_id: i64, text: String) {
-        if self.outbox.unbounded_send((chat_id, text)).is_err() {
+    fn send(&self, recipient: TelegramRecipient, text: String) {
+        let chat_id = recipient.chat_id;
+        if self.outbox.unbounded_send((recipient, text)).is_err() {
             warn!(?chat_id, "bot is not running, TG message dropped");
         }
     }
@@ -352,17 +395,24 @@ fn run_bot(
     token: String,
     handler: &BotUpdateHandler,
     status: &RwLock<BotStatus>,
-    outbox: UnboundedReceiver<(i64, String)>,
+    outbox: UnboundedReceiver<(TelegramRecipient, String)>,
     stop: oneshot::Receiver<()>,
 ) -> Result<()> {
     let api = Bot::new(token)?;
 
     nagoya::block_on(async {
         let poll = poll_updates(&api, handler, status);
-        let send = outbox.for_each(|(chat_id, text)| {
+        let send = outbox.for_each(|(recipient, text)| {
             let api = &api;
             async move {
-                if let Err(e) = api.send_message(&SendMessage::new(chat_id, text)).await {
+                // Reissue can revoke this proof while the copy waits in the
+                // outbox, even if the same chat proves a new link meanwhile.
+                if handler.admit_delivery(&recipient).await
+                    && let Err(e) = api
+                        .send_message(&SendMessage::new(recipient.chat_id, text))
+                        .await
+                {
+                    let chat_id = recipient.chat_id;
                     warn!(?chat_id, "failed to send TG message: {e:#}");
                 }
             }
@@ -407,165 +457,121 @@ async fn poll_updates(api: &Bot, handler: &BotUpdateHandler, status: &RwLock<Bot
 #[derive(Clone)]
 struct BotUpdateHandler {
     app_public_id: AppPublicId,
-    app_member_table: Arc<AppMemberWorkTable>,
+    generation: Arc<()>,
+    app_service: Arc<AppService>,
     chat_session_table: Arc<ChatSessionWorkTable>,
-    support_info_table: Arc<SupportInfoWorkTable>,
     message_store: Arc<MessageStore>,
     event_tx: SupportEventProducer,
 }
 
 impl BotUpdateHandler {
-    fn is_chat_enabled_for_app(&self, app_public_id: PackedNanoId, chat_id: i64) -> bool {
-        let Ok(members) = self
-            .app_member_table
-            .select_by_app_public_id(app_public_id)
-            .execute()
-        else {
-            return false;
-        };
-
-        members
-            .into_iter()
-            .filter(|r| r.is_support_enabled)
-            .filter(|r| {
-                matches!(
-                    r.role,
-                    AppMemberRole::Owner | AppMemberRole::Admin | AppMemberRole::Support
-                )
-            })
-            .filter_map(|r| self.support_info_table.select(r.user_pub_id))
-            .any(|info| info.chat_id == Some(chat_id))
+    async fn admit_delivery(&self, recipient: &TelegramRecipient) -> bool {
+        self.app_service
+            .can_deliver_telegram(self.app_public_id, &self.generation, recipient)
+            .await
     }
 
     async fn handle(&self, api: &Bot, message: Message) {
-        let chat_id = message.chat.id;
-        let try_send_msg = |msg: &'static str| async move {
-            let _ = api
-                .send_message(&SendMessage::new(chat_id, msg))
+        if let Some(notice) = self.process(&message).await
+            && let Err(e) = api
+                .send_message(&SendMessage::new(message.chat.id, notice))
                 .await
-                .inspect_err(|e| warn!("Error sending message: {e:#}"));
-        };
-        if let Some(origin_msg) = &message.reply_to_message {
-            if let Some(origin_txt) = origin_msg.text() {
-                let lines: Vec<&str> = origin_txt.lines().collect();
-                if lines.is_empty() {
-                    try_send_msg("Malformed reply").await;
-                    return;
-                }
-                let session_id_str = lines[0].trim();
-                // Session ID is a 16-char Nanoid string
-                if session_id_str.len() == 16 {
-                    let Ok(session_nanoid) = session_id_str.parse::<crate::id_types::NanoId>()
-                    else {
-                        try_send_msg("Invalid session ID").await;
-                        return;
-                    };
-
-                    let session_id: SessionId = session_nanoid.into();
-                    let Ok(packed_session_id) = session_id.pack() else {
-                        warn!("Failed to pack session_id");
-                        try_send_msg("Internal Server Error").await;
-                        return;
-                    };
-
-                    let Some(session) = self
-                        .chat_session_table
-                        .select_by_session_id(packed_session_id)
-                    else {
-                        try_send_msg("Session not found").await;
-                        return;
-                    };
-
-                    let Ok(packed_app_public_id) = self.app_public_id.pack() else {
-                        warn!("Failed to pack app_public_id");
-                        try_send_msg("Internal Server Error").await;
-                        return;
-                    };
-
-                    if session.app_public_id != packed_app_public_id {
-                        try_send_msg("Session not found").await;
-                        return;
-                    }
-
-                    let Some(reply_txt) = message.text() else {
-                        try_send_msg("Error fetching reply text").await;
-                        return;
-                    };
-
-                    let sent_at = Utc::now().timestamp_millis();
-
-                    if !self.is_chat_enabled_for_app(packed_app_public_id, chat_id) {
-                        try_send_msg("Support access is disabled").await;
-                        return;
-                    }
-
-                    let Ok(message_id) = new_message_id() else {
-                        warn!("Failed to create message_id");
-                        try_send_msg("Internal Server Error").await;
-                        return;
-                    };
-
-                    if let Err(e) = self
-                        .message_store
-                        .store_message(SupportMessageRow {
-                            id: 0,
-                            message_id,
-                            session_id: packed_session_id,
-                            app_public_id: packed_app_public_id,
-                            incoming: true,
-                            sent_by: "Support".to_string(),
-                            sent_at,
-                            content: reply_txt.to_string(),
-                            tg_chat_id: Some(chat_id),
-                        })
-                        .await
-                    {
-                        warn!("Error saving support msg: {e:?}");
-                        try_send_msg("Internal Server Error").await;
-                        return;
-                    }
-
-                    let session_id_nanoid: crate::id_types::NanoId = session_id.into();
-                    let event = ChatMessage {
-                        session_id: session_id_nanoid,
-                        incoming: true,
-                        sent_by: "Support".to_string(),
-                        sent_at,
-                        content: reply_txt.to_string(),
-                    };
-                    let key = (self.app_public_id, session_id);
-                    let _ = self
-                        .event_tx
-                        .send(RoutingMessage::for_concrete(key, event))
-                        .await;
-                } else {
-                    try_send_msg("Session ID not found in reply").await;
-                }
-            }
-        } else if message.command().is_some_and(|c| c.name == "/start") {
-            let Some(user_handle) = message.chat.username.as_deref() else {
-                try_send_msg("Couldn't fetch user handle").await;
-                return;
-            };
-            let handle_str = format!("@{user_handle}");
-
-            if self
-                .support_info_table
-                .select_by_tg_handle(handle_str.clone())
-                .is_some()
-            {
-                if let Err(e) = self
-                    .support_info_table
-                    .update_by_tg_handle(handle_str, SupportInfoColumns::CHAT_ID, Some(chat_id))
-                    .await
-                {
-                    warn!("Error updating support chat_id: {e:?}");
-                    try_send_msg("Internal Server Error").await;
-                } else {
-                    try_send_msg("Your chat is saved for future use").await;
-                }
-            }
+        {
+            warn!("Error sending message: {e:#}");
         }
+    }
+
+    async fn process(&self, message: &Message) -> Option<&'static str> {
+        let sender = private_telegram_sender(message)?;
+        if message.command().is_some_and(|cmd| cmd.name == "/start") {
+            return match self
+                .app_service
+                .redeem_telegram_start(self.app_public_id, &self.generation, message)
+                .await
+            {
+                Ok(true) => Some("Telegram verified for this support desk."),
+                Ok(false) => Some("Open the support dashboard for a current verification code."),
+                Err(e) => {
+                    warn!("Could not verify Telegram link: {e:#}");
+                    Some("Could not verify Telegram right now.")
+                }
+            };
+        }
+
+        let origin = message.reply_to_message.as_ref()?.text()?;
+        let chat_id = sender.id;
+        let allowed = self
+            .app_service
+            .enabled_telegram_recipients(self.app_public_id, &self.generation)
+            .await
+            .is_ok_and(|recipients| {
+                recipients
+                    .iter()
+                    .any(|recipient| recipient.chat_id == chat_id)
+            });
+        if !allowed {
+            return Some("Support access is disabled");
+        }
+
+        let Some(session_id) = origin
+            .lines()
+            .next()
+            .and_then(|line| line.trim().parse::<crate::id_types::NanoId>().ok())
+            .map(SessionId::from)
+        else {
+            return Some("Session ID not found in reply");
+        };
+        let (Ok(packed_session_id), Ok(packed_app_public_id), Ok(message_id)) = (
+            session_id.pack(),
+            self.app_public_id.pack(),
+            new_message_id(),
+        ) else {
+            return Some("Internal Server Error");
+        };
+        let Some(session) = self
+            .chat_session_table
+            .select_by_session_id(packed_session_id)
+        else {
+            return Some("Session not found");
+        };
+        if session.app_public_id != packed_app_public_id {
+            return Some("Session not found");
+        }
+        let reply_txt = message.text()?;
+        let sent_at = Utc::now().timestamp_millis();
+        if let Err(e) = self
+            .message_store
+            .store_message(SupportMessageRow {
+                id: 0,
+                message_id,
+                session_id: packed_session_id,
+                app_public_id: packed_app_public_id,
+                incoming: true,
+                sent_by: "Support".to_string(),
+                sent_at,
+                content: reply_txt.to_string(),
+                tg_chat_id: Some(chat_id),
+            })
+            .await
+        {
+            warn!("Error saving support msg: {e:?}");
+            return Some("Internal Server Error");
+        }
+        let event = ChatMessage {
+            session_id: session_id.into(),
+            incoming: true,
+            sent_by: "Support".to_string(),
+            sent_at,
+            content: reply_txt.to_string(),
+        };
+        let _ = self
+            .event_tx
+            .send(RoutingMessage::for_concrete(
+                (self.app_public_id, session_id),
+                event,
+            ))
+            .await;
+        None
     }
 }
 
@@ -573,3 +579,6 @@ fn new_message_id() -> eyre::Result<PackedNanoId> {
     PackedNanoId::pack(&crate::id_types::NanoId::new())
         .map_err(|e| eyre::eyre!("Failed to pack message_id: {e}"))
 }
+
+#[cfg(all(test, not(feature = "s3-sync")))]
+mod telegram_ownership_tests;

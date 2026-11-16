@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
 use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
+use super::map_session_error;
 use crate::codegen::model::{EnumErrorCode, ListMessagesRequest, ListMessagesResponse};
 use crate::id_types::SessionId;
 use crate::service::app_connection_registry::AppConnectionRegistry;
@@ -40,19 +41,10 @@ impl RequestHandler for MethodListMessages {
                     .with_message("Connection not authenticated")
             })?;
 
-        let (row, _) = self
-            .session_service
-            .verify_session_access(session_id, user_pub_id)
-            .map_err(|e| CustomError::new(EnumErrorCode::Forbidden).with_message(e.to_string()))?;
-
-        // If connected via app, verify session belongs to that app
-        if let Some(app_public_id) = self.app_connection_registry.get(ctx.connection_id).await
-            && row.app_public_id != app_public_id.pack().internal()?
-        {
-            return Err(CustomError::new(EnumErrorCode::Forbidden)
-                .with_message("Session does not belong to this app")
-                .into());
-        }
+        let connection_app_id = self.app_connection_registry.get(ctx.connection_id).await;
+        self.session_service
+            .verify_session_access_for_connection(session_id, user_pub_id, connection_app_id)
+            .map_err(map_session_error)?;
 
         let messages = self
             .session_service

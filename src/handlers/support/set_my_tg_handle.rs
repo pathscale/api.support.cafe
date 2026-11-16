@@ -1,16 +1,19 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use async_trait::async_trait;
 use endpoint_libs::libs::toolbox::{CustomError, RequestContext};
 use endpoint_libs::libs::ws::handler::{HandlerResultExt, RequestHandler, Response};
 
 use crate::codegen::model::{EnumErrorCode, SetMyTgHandleRequest, SetMyTgHandleResponse};
-use crate::db::schema::support_info::{SupportInfoColumns, SupportInfoRow};
+use crate::service::app::{AppService, normalize_telegram_handle};
 use crate::service::user_connection_registry::UserConnectionRegistry;
+
+use super::signed_in_staff;
 
 #[derive(Clone)]
 pub struct MethodSetMyTgHandle {
-    pub support_info_table: Arc<crate::db::schema::support_info::SupportInfoWorkTable>,
+    pub app_service: Arc<AppService>,
     pub user_connection_registry: Arc<UserConnectionRegistry>,
 }
 
@@ -20,52 +23,26 @@ impl RequestHandler for MethodSetMyTgHandle {
     type Error = CustomError;
 
     async fn handle(&self, ctx: RequestContext, req: Self::Request) -> Response<Self::Request> {
-        tracing::debug!(
-            connection_id = ctx.connection_id,
-            "SetMyTgHandle: received request"
-        );
-
-        let user_pub_id = self
-            .user_connection_registry
-            .get(ctx.connection_id)
-            .await
+        let user = signed_in_staff(&ctx, &self.user_connection_registry).await?;
+        let member = self
+            .app_service
+            .telegram_member(req.app_public_id.into(), user)
+            .internal()?
             .ok_or_else(|| {
-                CustomError::new(EnumErrorCode::Unauthorized)
-                    .with_message("Connection not authenticated")
+                CustomError::new(EnumErrorCode::Forbidden).with_message("Not a member of this app")
             })?;
-
-        let packed_id = user_pub_id
-            .pack()
-            .map_err(|e| eyre::eyre!("Failed to pack user_pub_id: {:?}", e))
-            .internal()?;
-
-        if let Some(row) = self.support_info_table.select(packed_id) {
-            if row.tg_handle != req.tg_handle {
-                self.support_info_table
-                    .update_by_user_pub_id(packed_id, SupportInfoColumns::CHAT_ID, None)
-                    .await
-                    .internal()?;
-                self.support_info_table
-                    .update_by_user_pub_id(packed_id, SupportInfoColumns::TG_HANDLE, req.tg_handle)
-                    .await
-                    .internal()?;
-            }
-        } else {
-            self.support_info_table
-                .insert(SupportInfoRow {
-                    user_pub_id: packed_id,
-                    tg_handle: req.tg_handle,
-                    chat_id: None,
-                })
-                .await
-                .internal()?;
-        }
-
-        tracing::debug!(
-            connection_id = ctx.connection_id,
-            "SetMyTgHandle: completed successfully"
-        );
-
-        Ok(SetMyTgHandleResponse {})
+        let handle = normalize_telegram_handle(&req.tg_handle).ok_or_else(|| {
+            CustomError::new(EnumErrorCode::BadRequest).with_message("Invalid Telegram username")
+        })?;
+        let challenge = self
+            .app_service
+            .issue_telegram_link(&member, &handle, Instant::now())
+            .await
+            .internal()?
+            .ok_or_else(|| {
+                CustomError::new(EnumErrorCode::Conflict)
+                    .with_message("Telegram bot unavailable for this app")
+            })?;
+        Ok(SetMyTgHandleResponse { challenge })
     }
 }

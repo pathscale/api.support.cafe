@@ -10,7 +10,19 @@ fn main() -> Result<()> {
         .map_err(|_| eyre::eyre!("Failed to install rustls crypto provider"))?;
 
     #[allow(unused_mut)]
-    let mut config = config::load()?;
+    let (mut config, migrate_visitor_credentials) = config::load_service()?;
+
+    if migrate_visitor_credentials {
+        return nagoya::block_on(async {
+            use support_cafe::db::tables::Tables;
+
+            #[cfg(feature = "s3-sync")]
+            let tables = Tables::new(config.database, &config.s3).await?;
+            #[cfg(not(feature = "s3-sync"))]
+            let tables = Tables::new(config.database).await?;
+            tables.migrate_visitor_credentials().await
+        });
+    }
 
     // No runtime of its own to build. The server drives its own reactor inside
     // `listen`, outbound HTTP goes through nago_http clients that run their own

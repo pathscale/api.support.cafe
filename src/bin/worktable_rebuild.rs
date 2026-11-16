@@ -1,6 +1,6 @@
-use std::path::Path;
+use std::path::PathBuf;
 
-use eyre::{Result, WrapErr};
+use eyre::{ContextCompat, Result, WrapErr};
 use support_cafe::config;
 use support_cafe::db::message_partitions::partition_table_name;
 use support_cafe::db::schema::{
@@ -10,7 +10,12 @@ use support_cafe::db::schema::{
     chat_session::{ChatSessionS3SyncPersistenceEngine, ChatSessionWorkTable},
     support_info::{SupportInfoS3SyncPersistenceEngine, SupportInfoWorkTable},
     support_message::{SupportMessageS3SyncPersistenceEngine, SupportMessageWorkTable},
+    telegram_link::{TelegramLinkS3SyncPersistenceEngine, TelegramLinkWorkTable},
     user::{UserS3SyncPersistenceEngine, UserWorkTable},
+    visitor_credential::{
+        VisitorCredentialS3SyncPersistenceEngine, VisitorCredentialWorkTable, migration_marker,
+        reserve_legacy_owners,
+    },
 };
 use worktable::PersistedWorkTable;
 use worktable::persistence::{LoadMode, PersistenceEngine};
@@ -31,20 +36,35 @@ fn main() -> Result<()> {
     let target_prefix = std::env::var("WORKTABLE_REBUILD_TARGET_PREFIX")
         .wrap_err("WORKTABLE_REBUILD_TARGET_PREFIX must name a new S3 prefix")?;
     eyre::ensure!(
-        target_prefix != config.s3.prefix,
+        !target_prefix.trim_matches('/').is_empty()
+            && target_prefix.trim_matches('/') != config.s3.prefix.trim_matches('/'),
         "target S3 prefix must differ from the source prefix"
     );
 
-    nagoya::block_on(rebuild(config, target_prefix))
+    let scratch = std::env::var_os("WORKTABLE_REBUILD_DIR")
+        .map(PathBuf::from)
+        .wrap_err("WORKTABLE_REBUILD_DIR must name an owned scratch directory")?;
+    let legacy_visitors = match std::env::var("WORKTABLE_REBUILD_LEGACY_VISITORS").as_deref() {
+        Ok("1") => true,
+        Err(std::env::VarError::NotPresent) => false,
+        _ => eyre::bail!("WORKTABLE_REBUILD_LEGACY_VISITORS must be absent or 1"),
+    };
+    nagoya::block_on(rebuild(config, target_prefix, scratch, legacy_visitors))
 }
 
-async fn rebuild(config: config::Config, target_prefix: String) -> Result<()> {
-    let source_root = Path::new("/tmp/worktable-rebuild/source")
-        .to_string_lossy()
-        .into_owned();
-    let target_root = Path::new("/tmp/worktable-rebuild/target")
-        .to_string_lossy()
-        .into_owned();
+async fn rebuild(
+    config: config::Config,
+    target_prefix: String,
+    scratch: PathBuf,
+    legacy_visitors: bool,
+) -> Result<()> {
+    std::fs::create_dir_all(&scratch)?;
+    let source_path = scratch.join("source");
+    let target_path = scratch.join("target");
+    std::fs::create_dir(&source_path)?;
+    std::fs::create_dir(&target_path)?;
+    let source_root = source_path.to_string_lossy().into_owned();
+    let target_root = target_path.to_string_lossy().into_owned();
     let source_s3 = S3Config {
         bucket_name: config.s3.bucket_name,
         endpoint: config.s3.endpoint,
@@ -57,6 +77,60 @@ async fn rebuild(config: config::Config, target_prefix: String) -> Result<()> {
         prefix: Some(target_prefix.clone()),
         ..source_s3.clone()
     };
+
+    let credential_config = |root: String, s3: S3Config| S3DiskConfig {
+        disk: DiskConfig::new_with_table_name(
+            root,
+            VisitorCredentialWorkTable::name_snake_case(),
+            VisitorCredentialWorkTable::version(),
+        ),
+        s3,
+    };
+    let source_credentials = VisitorCredentialWorkTable::load(
+        VisitorCredentialS3SyncPersistenceEngine::new(credential_config(
+            source_root.clone(),
+            source_s3.clone(),
+        ))
+        .await?,
+    )
+    .await?;
+    let marker = migration_marker();
+    let completion = if legacy_visitors {
+        eyre::ensure!(
+            source_credentials
+                .select_all()
+                .limit(1)
+                .execute()?
+                .is_empty(),
+            "Legacy visitor rebuild requires a source without visitor credential rows"
+        );
+        None
+    } else {
+        let row = source_credentials.select(marker).wrap_err(
+            "Source has no visitor migration marker; migrate the source or select legacy mode for a pre-credential source",
+        )?;
+        eyre::ensure!(
+            row.app_public_id.is_none() && row.secret_digest.is_none(),
+            "Source visitor migration marker is invalid"
+        );
+        Some(row)
+    };
+    let target_credentials = VisitorCredentialWorkTable::load(
+        VisitorCredentialS3SyncPersistenceEngine::new(credential_config(
+            target_root.clone(),
+            target_s3.clone(),
+        ))
+        .await?,
+    )
+    .await?;
+    eyre::ensure!(
+        target_credentials
+            .select_all()
+            .limit(1)
+            .execute()?
+            .is_empty(),
+        "Destination already contains visitor credential rows"
+    );
 
     println!("rebuilding persisted tables into S3 prefix {target_prefix}");
 
@@ -89,7 +163,11 @@ async fn rebuild(config: config::Config, target_prefix: String) -> Result<()> {
                 s3: target_s3.clone(),
             };
             let target_engine = <$engine>::new(target_config).await?;
-            let mut target = <$table>::new(target_engine).await?;
+            let mut target = <$table>::load(target_engine).await?;
+            eyre::ensure!(
+                target.select_all().limit(1).execute()?.is_empty(),
+                "Destination table {table_name} already contains rows"
+            );
             target.0.pk_gen = PrimaryKeyGeneratorState::from_state(pk_state);
             let row_count = rows.len();
             for row in &rows {
@@ -122,7 +200,7 @@ async fn rebuild(config: config::Config, target_prefix: String) -> Result<()> {
         AppMemberS3SyncPersistenceEngine,
         AppMemberWorkTable
     );
-    rebuild_table!(
+    let chat_sessions = rebuild_table!(
         "chat_session",
         ChatSessionS3SyncPersistenceEngine,
         ChatSessionWorkTable
@@ -145,6 +223,29 @@ async fn rebuild(config: config::Config, target_prefix: String) -> Result<()> {
         SupportInfoWorkTable
     );
     rebuild_table!("user", UserS3SyncPersistenceEngine, UserWorkTable);
+    rebuild_table!(
+        "telegram_link",
+        TelegramLinkS3SyncPersistenceEngine,
+        TelegramLinkWorkTable
+    );
+
+    if let Some(completion) = completion {
+        for row in source_credentials.select_all().execute()? {
+            if row.visitor_id != marker {
+                target_credentials.insert(row).await?;
+            }
+        }
+        target_credentials.wait_for_ops().await?;
+        target_credentials.insert(completion).await?;
+        target_credentials.wait_for_ops().await?;
+    } else {
+        reserve_legacy_owners(
+            &target_credentials,
+            chat_sessions.into_iter().map(|row| row.user_pub_id),
+            None,
+        )
+        .await?;
+    }
 
     println!("rebuild complete prefix={target_prefix}");
     Ok(())

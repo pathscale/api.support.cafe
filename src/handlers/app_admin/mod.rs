@@ -6,7 +6,7 @@ mod edit_app;
 mod enable_message_persistence;
 mod enable_support_user;
 mod list_app_members;
-mod list_apps;
+pub(crate) mod list_apps;
 mod set_app_member_role;
 
 use endpoint_libs::libs::ws::WebsocketServer;

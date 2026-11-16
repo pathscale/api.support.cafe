@@ -37,6 +37,7 @@ impl RequestHandler for MethodListAppMembers {
         let data = self
             .app_service
             .list_members_with_support_info(app_public_id)
+            .await
             .internal()?;
 
         Ok(ListAppMembersResponse { data })

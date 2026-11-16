@@ -62,12 +62,25 @@ impl MessagePartitionFactory {
 pub struct MessagePartitionFactory {
     db_path: String,
     s3: WtS3Config,
+    #[cfg(test)]
+    agent: Option<ureq::Agent>,
 }
 
 #[cfg(feature = "s3-sync")]
 impl MessagePartitionFactory {
     pub fn new(db_path: String, s3: WtS3Config) -> Self {
-        Self { db_path, s3 }
+        Self {
+            db_path,
+            s3,
+            #[cfg(test)]
+            agent: None,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_s3_agent(mut self, agent: Option<ureq::Agent>) -> Self {
+        self.agent = agent;
+        self
     }
 
     async fn load(&self, slot: u32) -> eyre::Result<SupportMessageWorkTable> {
@@ -79,6 +92,13 @@ impl MessagePartitionFactory {
             ),
             s3: self.s3.clone(),
         };
+        #[cfg(test)]
+        let engine = if let Some(agent) = &self.agent {
+            SupportMessageS3SyncPersistenceEngine::new_with_agent(cfg, agent.clone()).await?
+        } else {
+            SupportMessageS3SyncPersistenceEngine::new(cfg).await?
+        };
+        #[cfg(not(test))]
         let engine = SupportMessageS3SyncPersistenceEngine::new(cfg).await?;
         SupportMessageWorkTable::load(engine).await
     }

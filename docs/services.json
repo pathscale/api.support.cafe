@@ -597,7 +597,7 @@
       "endpoints": [
         {
           "code": 20000,
-          "description": "Connect as an app widget on behalf of an end-user, declaring the app and user public ids. Runs at WebSocket handshake time via the Sec-WebSocket-Protocol header; not callable as a tool.",
+          "description": "Connect as an anonymous visitor. Omit both visitor fields for a new identity, or supply the server-issued ID and secret to reconnect. WebSocket handshake only.",
           "errors": [],
           "json_schema": null,
           "name": "AppConnect",
@@ -613,9 +613,17 @@
             {
               "name": "userPublicId",
               "ty": {
-                "NanoId": {
-                  "len": 16
+                "Optional": {
+                  "NanoId": {
+                    "len": 16
+                  }
                 }
+              }
+            },
+            {
+              "name": "visitorSecret",
+              "ty": {
+                "Optional": "String"
               }
             }
           ],
@@ -630,6 +638,20 @@
             },
             {
               "name": "appName",
+              "ty": {
+                "Optional": "String"
+              }
+            },
+            {
+              "name": "userPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
+              "name": "visitorSecret",
               "ty": {
                 "Optional": "String"
               }
@@ -739,7 +761,7 @@
         },
         {
           "code": 30002,
-          "description": "List apps the caller is a member of. The response includes each app's Telegram bot token — treat it as a secret.",
+          "description": "List the caller's apps, or all apps for a platform administrator. Bot tokens are returned only to platform administrators and the app's owner or administrators.",
           "errors": [],
           "json_schema": null,
           "name": "ListApps",
@@ -756,13 +778,14 @@
           ],
           "roles": [
             "UserRole::Admin",
-            "UserRole::AppAdmin"
+            "UserRole::AppAdmin",
+            "UserRole::Support"
           ],
           "stream_response": null
         },
         {
           "code": 30003,
-          "description": "Enable an app member to receive support messages in Telegram.",
+          "description": "Enable an app member with a verified Telegram link for this app to receive support messages in Telegram.",
           "errors": [],
           "json_schema": null,
           "name": "EnableSupportUser",
@@ -1104,17 +1127,30 @@
       "endpoints": [
         {
           "code": 20007,
-          "description": "Set the caller's Telegram handle, used to route support replies. The handle is bound to a Telegram chat when the member sends /start to the app's bot.",
+          "description": "Start Telegram verification for the signed-in app member. Send /start followed by the returned private code in a one-to-one chat with this app's bot within ten minutes, using the claimed Telegram username. Issuing a new code revokes the previous link for this app.",
           "errors": [],
           "json_schema": null,
           "name": "SetMyTgHandle",
           "parameters": [
             {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            },
+            {
               "name": "tgHandle",
               "ty": "String"
             }
           ],
-          "returns": [],
+          "returns": [
+            {
+              "name": "challenge",
+              "ty": "String"
+            }
+          ],
           "roles": [
             "UserRole::Admin",
             "UserRole::AppAdmin",
@@ -1124,17 +1160,30 @@
         },
         {
           "code": 20008,
-          "description": "Get the caller's currently configured Telegram handle, if any.",
+          "description": "Get the caller's claimed Telegram handle and its verification state for this app. Only a verified link can route support traffic. The state is unverified, pending, or verified.",
           "errors": [],
           "json_schema": null,
           "name": "GetMyTgHandle",
-          "parameters": [],
+          "parameters": [
+            {
+              "name": "appPublicId",
+              "ty": {
+                "NanoId": {
+                  "len": 16
+                }
+              }
+            }
+          ],
           "returns": [
             {
               "name": "tgHandle",
               "ty": {
                 "Optional": "String"
               }
+            },
+            {
+              "name": "linkState",
+              "ty": "String"
             }
           ],
           "roles": [

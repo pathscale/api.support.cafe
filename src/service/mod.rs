@@ -1,6 +1,7 @@
 pub mod app;
 pub mod app_connection_registry;
 pub mod bot;
+pub(crate) mod chat_limits;
 pub mod log;
 pub mod message_store;
 pub mod session;

@@ -38,8 +38,8 @@ impl RequestHandler for MethodListApps {
 
         // The bot token controls the app's Telegram bot, so only someone who may
         // edit the app gets it: a platform admin, or the app's Owner or Admin. A
-        // Support member sees the app with the token blanked. The gate on this
-        // endpoint (Admin or AppAdmin) is global, and AppAdmin comes from owning
+        // Support member sees the app with the token blanked. The role gate on
+        // this endpoint is global, and AppAdmin comes from owning
         // any one app, so it cannot decide this per app.
         // TODO: Split this into separate endpoints for platform admin and regular users
         let rows: Vec<_> = if self.app_service.is_platform_admin(user_pub_id).internal()? {
